@@ -7,6 +7,23 @@ import { z } from "zod";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
 
+// Default application settings
+const DEFAULT_SETTINGS = {
+  webhookUrl: "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-4154-84c1-c0e3a2ca572e",
+  webhookTimeoutSeconds: 300,
+  maxRetries: 0,
+  retryDelaySeconds: 10,
+  batchSize: 10,
+};
+
+// In-memory settings storage (could be moved to database later)
+let appSettings = { ...DEFAULT_SETTINGS };
+
+// Helper function to get current app settings
+async function getAppSettings() {
+  return appSettings;
+}
+
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
@@ -27,6 +44,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Settings endpoints
+  app.get('/api/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const settings = await getAppSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.put('/api/settings', isAuthenticated, async (req: any, res) => {
+    try {
+      const settingsSchema = z.object({
+        webhookUrl: z.string().url(),
+        webhookTimeoutSeconds: z.number().min(1).max(3600),
+        maxRetries: z.number().min(0).max(10),
+        retryDelaySeconds: z.number().min(1).max(60),
+        batchSize: z.number().min(1).max(100),
+      });
+
+      const validatedSettings = settingsSchema.parse(req.body);
+      
+      // Update in-memory settings
+      appSettings = { ...appSettings, ...validatedSettings };
+      
+      res.json(appSettings);
+    } catch (error) {
+      console.error("Error updating settings:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid settings data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to update settings" });
+      }
     }
   });
 
@@ -272,12 +326,15 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
     console.log(`Webhook payload:`, JSON.stringify(webhookPayload, null, 2));
     console.log(`Sending to webhook URL: ${WEBHOOK_URL}`);
 
-    // Send to n8n webhook with extended timeout and retry logic
+    // Get current settings for webhook configuration
+    const settings = await getAppSettings();
+    
+    // Send to n8n webhook with configurable timeout and retry logic
     let response;
     let retryCount = 0;
-    const maxRetries = 3; // Increased retries
-    const timeoutMs = 5 * 60 * 1000; // 5 minutes timeout for n8n processing
-    const retryDelayMs = 10000; // 10 second delay between retries
+    const maxRetries = settings.maxRetries || 0;
+    const timeoutMs = (settings.webhookTimeoutSeconds || 300) * 1000;
+    const retryDelayMs = (settings.retryDelaySeconds || 10) * 1000;
     
     while (retryCount <= maxRetries) {
       try {
