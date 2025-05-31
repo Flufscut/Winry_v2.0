@@ -156,6 +156,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Retry failed prospect
+  app.post('/api/prospects/:id/retry', isAuthenticated, async (req: any, res) => {
+    try {
+      const prospectId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      
+      // Get the prospect to verify ownership and get data
+      const prospect = await storage.getProspect(prospectId);
+      
+      if (!prospect || prospect.userId !== userId) {
+        return res.status(404).json({ message: "Prospect not found or not authorized" });
+      }
+      
+      if (prospect.status !== 'failed') {
+        return res.status(400).json({ message: "Only failed prospects can be retried" });
+      }
+      
+      // Reset prospect status to processing
+      await storage.updateProspectStatus(prospectId, 'processing');
+      
+      // Process prospect research asynchronously as a single-item batch
+      processBatchResearch([{ id: prospect.id, data: prospect }], 1);
+      
+      res.json({ message: "Prospect research restarted successfully" });
+    } catch (error) {
+      console.error("Error retrying prospect:", error);
+      res.status(500).json({ message: "Failed to retry prospect research" });
+    }
+  });
+
   // Create new prospect
   app.post('/api/prospects', isAuthenticated, async (req: any, res) => {
     try {
