@@ -10,6 +10,7 @@ import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Upload, Info, Loader2 } from "lucide-react";
+import ProcessingIndicator from "./processing-indicator";
 
 interface CsvUploadProps {
   onSuccess: () => void;
@@ -412,6 +413,18 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
                 Make sure all required fields are mapped before proceeding.
               </AlertDescription>
             </Alert>
+          </div>
+        )}
+
+        {/* Processing Indicator for CSV Batch */}
+        {processCsvMutation.isPending && csvPreview && (
+          <div className="mt-6">
+            <ProcessingIndicator
+              status="processing"
+              progress={45}
+              message={`Processing ${csvPreview.rowCount} prospects in batches of ${batchSize}`}
+              estimatedTime={`${Math.ceil(csvPreview.rowCount / batchSize)} min`}
+            />
           </div>
         )}
         

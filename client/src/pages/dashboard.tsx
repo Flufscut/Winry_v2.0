@@ -372,6 +372,29 @@ export default function Dashboard() {
               </div>
             </div>
             
+            {/* Processing Indicators */}
+            {prospects && prospects.filter(p => p.status === 'processing').length > 0 && (
+              <div className="space-y-3 mb-6">
+                {prospects.filter(p => p.status === 'processing').map((prospect, index) => {
+                  // Calculate estimated progress based on time elapsed since creation
+                  const createdAt = new Date(prospect.createdAt);
+                  const now = new Date();
+                  const elapsed = (now.getTime() - createdAt.getTime()) / 1000; // seconds
+                  const estimatedProgress = Math.min(Math.floor((elapsed / 180) * 100), 95); // 180 seconds = 3 minutes
+                  
+                  return (
+                    <ProcessingIndicator
+                      key={prospect.id}
+                      status="processing"
+                      progress={estimatedProgress}
+                      message={`Analyzing ${prospect.firstName} ${prospect.lastName} at ${prospect.company}`}
+                      estimatedTime={estimatedProgress < 50 ? "2-3 min" : "1-2 min"}
+                    />
+                  );
+                })}
+              </div>
+            )}
+            
             <ProspectTable
               prospects={prospects || []}
               isLoading={prospectsLoading}
