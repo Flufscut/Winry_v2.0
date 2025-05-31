@@ -251,19 +251,49 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
 
     console.log(`Processing research for batch ${batchNumber} with ${prospects.length} prospects`);
 
-    // Send to n8n webhook
-    const response = await fetch(WEBHOOK_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Batch-Number': batchNumber.toString(),
-        'X-Retry-Attempt': '1'
-      },
-      body: JSON.stringify(webhookPayload),
-    });
+    // Send to n8n webhook with timeout and retry logic
+    let response;
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    while (retryCount <= maxRetries) {
+      try {
+        response = await fetch(WEBHOOK_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Batch-Number': batchNumber.toString(),
+            'X-Retry-Attempt': (retryCount + 1).toString()
+          },
+          body: JSON.stringify(webhookPayload),
+          // Add 60 second timeout for research processing
+          signal: AbortSignal.timeout(60000)
+        });
 
-    if (!response.ok) {
-      throw new Error(`Webhook request failed: ${response.status} ${response.statusText}`);
+        if (response.ok) {
+          break; // Success, exit retry loop
+        } else if (response.status === 524 && retryCount < maxRetries) {
+          // Cloudflare timeout, retry after delay
+          console.log(`Batch ${batchNumber} timeout (524), retrying in 5 seconds... (attempt ${retryCount + 2})`);
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          retryCount++;
+          continue;
+        } else {
+          throw new Error(`Webhook request failed: ${response.status} ${response.statusText}`);
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === 'TimeoutError' && retryCount < maxRetries) {
+          console.log(`Batch ${batchNumber} request timeout, retrying in 5 seconds... (attempt ${retryCount + 2})`);
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          retryCount++;
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    if (!response || !response.ok) {
+      throw new Error(`Webhook request failed after ${maxRetries + 1} attempts`);
     }
 
     const results = await response.json();
