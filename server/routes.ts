@@ -83,6 +83,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Webhook callback to receive research results from n8n
+  app.post('/api/webhook/results', async (req, res) => {
+    try {
+      const results = req.body;
+      console.log('Received webhook results:', JSON.stringify(results, null, 2));
+      
+      // Extract prospect data from the first result
+      if (results && results.length > 0 && results[0].output) {
+        const output = results[0].output;
+        const email = output.email;
+        
+        // Search for prospect by email across all users
+        const prospect = await storage.searchProspectByEmail(email);
+        
+        if (prospect) {
+          await storage.updateProspectStatus(prospect.id, "completed", results);
+          console.log(`Updated prospect ${prospect.id} status to completed`);
+        } else {
+          console.log(`No prospect found with email: ${email}`);
+        }
+      }
+      
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error processing webhook results:", error);
+      res.status(500).json({ error: "Failed to process results" });
+    }
+  });
+
   // Delete prospect
   app.delete('/api/prospects/:id', isAuthenticated, async (req: any, res) => {
     try {
