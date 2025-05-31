@@ -176,8 +176,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Reset prospect status to processing
       await storage.updateProspectStatus(prospectId, 'processing');
       
+      // Extract only the prospect data fields needed for the webhook
+      const prospectData = {
+        firstName: prospect.firstName,
+        lastName: prospect.lastName,
+        company: prospect.company,
+        title: prospect.title,
+        email: prospect.email,
+        linkedinUrl: prospect.linkedinUrl || "",
+      };
+      
       // Process prospect research asynchronously as a single-item batch
-      processBatchResearch([{ id: prospect.id, data: prospect }], 1);
+      processBatchResearch([{ id: prospect.id, data: prospectData }], 1);
       
       res.json({ message: "Prospect research restarted successfully" });
     } catch (error) {
