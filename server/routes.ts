@@ -97,8 +97,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create prospect in database
       const prospect = await storage.createProspect(prospectData);
       
-      // Process prospect research asynchronously
-      processProspectResearch(prospect.id, prospectData);
+      // Process prospect research asynchronously as a single-item batch
+      processBatchResearch([{ id: prospect.id, data: prospectData }], 1);
       
       res.json(prospect);
     } catch (error) {
@@ -236,49 +236,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
   return httpServer;
 }
 
-// Async function to process individual prospect research
-async function processProspectResearch(prospectId: number, prospectData: any) {
+// Async function to process batch of prospects research
+async function processBatchResearch(prospects: Array<{ id: number; data: any }>, batchNumber: number) {
   try {
-    // Prepare webhook payload
-    const webhookPayload = {
-      firstname: prospectData.firstName,
-      lastname: prospectData.lastName,
-      company: prospectData.company,
-      title: prospectData.title,
-      email: prospectData.email,
-      linkedin: prospectData.linkedinUrl || "",
-    };
-    
+    // Prepare webhook payload in the expected format
+    const webhookPayload = prospects.map(prospect => ({
+      "First Name": prospect.data.firstName,
+      "Last Name": prospect.data.lastName,
+      "LinkedIn": prospect.data.linkedinUrl || "",
+      "Title": prospect.data.title,
+      "Company": prospect.data.company,
+      "EMail": prospect.data.email,
+    }));
+
+    console.log(`Processing research for batch ${batchNumber} with ${prospects.length} prospects`);
+
     // Send to n8n webhook
     const response = await fetch(WEBHOOK_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'X-Batch-Number': batchNumber.toString(),
+        'X-Retry-Attempt': '1'
       },
       body: JSON.stringify(webhookPayload),
     });
-    
+
     if (!response.ok) {
       throw new Error(`Webhook request failed: ${response.status} ${response.statusText}`);
     }
-    
+
     const results = await response.json();
-    
-    // Update prospect with results
-    await storage.updateProspectStatus(prospectId, "completed", results);
-    
-    console.log(`Prospect ${prospectId} research completed successfully`);
-    
+
+    // Update all prospects in batch to completed
+    for (const prospect of prospects) {
+      await storage.updateProspectStatus(prospect.id, "completed", results);
+    }
+
+    console.log(`Batch ${batchNumber} research completed successfully for ${prospects.length} prospects`);
+
   } catch (error) {
-    console.error(`Error processing prospect ${prospectId}:`, error);
-    
-    // Update prospect with error status
-    await storage.updateProspectStatus(
-      prospectId, 
-      "failed", 
-      null, 
-      error instanceof Error ? error.message : "Unknown error occurred"
-    );
+    console.error(`Error processing batch ${batchNumber}:`, error);
+
+    // Update all prospects in batch to failed
+    for (const prospect of prospects) {
+      await storage.updateProspectStatus(
+        prospect.id, 
+        "failed", 
+        null, 
+        error instanceof Error ? error.message : "Unknown error occurred"
+      );
+    }
   }
 }
 
@@ -348,8 +356,8 @@ async function processCsvProspects(uploadId: number, userId: string, records: an
       await storage.updateCsvUploadProgress(uploadId, processedCount);
       
       // Process research for all prospects in this batch
-      for (const prospect of batchProspects) {
-        processProspectResearch(prospect.id, prospect.data);
+      if (batchProspects.length > 0) {
+        await processBatchResearch(batchProspects, Math.floor(i / batchSize) + 1);
       }
       
       // Add delay between batches to prevent overwhelming the webhook
