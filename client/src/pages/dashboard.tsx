@@ -58,7 +58,7 @@ export default function Dashboard() {
   // Delete prospect mutation
   const deleteProspectMutation = useMutation({
     mutationFn: async (prospectId: number) => {
-      await apiRequest(`/api/prospects/${prospectId}`, 'DELETE');
+      await apiRequest('DELETE', `/api/prospects/${prospectId}`);
     },
     onSuccess: () => {
       toast({
