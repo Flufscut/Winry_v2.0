@@ -6,6 +6,7 @@ import {
   jsonb,
   index,
   serial,
+  integer,
   boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -56,8 +57,8 @@ export const csvUploads = pgTable("csv_uploads", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
   fileName: varchar("file_name").notNull(),
-  totalRows: serial("total_rows").notNull(),
-  processedRows: serial("processed_rows").notNull().default(0),
+  totalRows: integer("total_rows").notNull(),
+  processedRows: integer("processed_rows").notNull().default(0),
   status: varchar("status").notNull().default("processing"), // processing, completed, failed
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
