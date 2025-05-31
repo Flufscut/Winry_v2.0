@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
   const [showProspectForm, setShowProspectForm] = useState(false);
   const [showCsvUpload, setShowCsvUpload] = useState(false);
+  const [selectedProspects, setSelectedProspects] = useState<number[]>([]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -60,11 +61,13 @@ export default function Dashboard() {
     mutationFn: async (prospectId: number) => {
       await apiRequest('DELETE', `/api/prospects/${prospectId}`);
     },
-    onSuccess: () => {
+    onSuccess: (_, prospectId) => {
       toast({
         title: "Success",
         description: "Prospect deleted successfully",
       });
+      // Remove from selected prospects if it was selected
+      setSelectedProspects(prev => prev.filter(id => id !== prospectId));
       // Invalidate and refetch data
       queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
@@ -89,6 +92,69 @@ export default function Dashboard() {
       });
     },
   });
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (prospectIds: number[]) => {
+      await Promise.all(
+        prospectIds.map(id => 
+          apiRequest('DELETE', `/api/prospects/${id}`)
+        )
+      );
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: `${selectedProspects.length} prospects deleted successfully`,
+      });
+      setSelectedProspects([]);
+      queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to delete prospects",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Bulk selection handlers
+  const handleSelectProspect = (prospectId: number, selected: boolean) => {
+    setSelectedProspects(prev => {
+      if (selected) {
+        return [...prev, prospectId];
+      } else {
+        return prev.filter(id => id !== prospectId);
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    if (prospects && Array.isArray(prospects)) {
+      setSelectedProspects(prospects.map(p => p.id));
+    }
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedProspects([]);
+  };
+
+  const handleBulkDelete = () => {
+    bulkDeleteMutation.mutate(selectedProspects);
+  };
 
   if (authLoading) {
     return (
@@ -308,6 +374,11 @@ export default function Dashboard() {
               isLoading={prospectsLoading}
               onViewDetails={setSelectedProspectId}
               onDelete={(prospectId) => deleteProspectMutation.mutate(prospectId)}
+              selectedProspects={selectedProspects}
+              onSelectProspect={handleSelectProspect}
+              onSelectAll={handleSelectAll}
+              onDeselectAll={handleDeselectAll}
+              onBulkDelete={handleBulkDelete}
             />
           </CardContent>
         </Card>
