@@ -269,6 +269,8 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
     }));
 
     console.log(`Processing research for batch ${batchNumber} with ${prospects.length} prospects`);
+    console.log(`Webhook payload:`, JSON.stringify(webhookPayload, null, 2));
+    console.log(`Sending to webhook URL: ${WEBHOOK_URL}`);
 
     // Send to n8n webhook with timeout and retry logic
     let response;
@@ -298,6 +300,10 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
           retryCount++;
           continue;
         } else {
+          const responseText = await response.text();
+          console.error(`Webhook failed with status ${response.status}: ${response.statusText}`);
+          console.error(`Response body: ${responseText}`);
+          console.error(`Response headers:`, Object.fromEntries(response.headers.entries()));
           throw new Error(`Webhook request failed: ${response.status} ${response.statusText}`);
         }
       } catch (error) {
