@@ -86,6 +86,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Webhook callback to receive research results from n8n
   app.post('/api/webhook/results', async (req, res) => {
     try {
+      console.log('=== WEBHOOK CALLBACK RECEIVED ===');
+      console.log('Request body type:', typeof req.body);
+      console.log('Request body length:', req.body ? Object.keys(req.body).length : 0);
+      
       const results = req.body;
       console.log('Received webhook results:', JSON.stringify(results, null, 2));
       
