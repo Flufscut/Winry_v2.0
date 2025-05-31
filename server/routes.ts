@@ -266,23 +266,45 @@ async function processProspectResearch(prospectId: number, prospectData: any) {
 }
 
 // Async function to process CSV prospects
-async function processCsvProspects(uploadId: number, userId: string, records: any[], mapping: any) {
+async function processCsvProspects(uploadId: number, userId: string, records: any[], mapping: any, hasHeaders: boolean) {
   let processedCount = 0;
   
   try {
     for (const record of records) {
       try {
-        // Map CSV columns to prospect fields
-        const prospectData = {
-          userId,
-          firstName: record[mapping.firstName] || "",
-          lastName: record[mapping.lastName] || "",
-          company: record[mapping.company] || "",
-          title: record[mapping.title] || "",
-          email: record[mapping.email] || "",
-          linkedinUrl: mapping.linkedinUrl === "none" ? "" : record[mapping.linkedinUrl] || "",
-          status: "processing",
-        };
+        let prospectData: any;
+        
+        if (hasHeaders) {
+          // Map CSV columns to prospect fields using column names
+          prospectData = {
+            userId,
+            firstName: record[mapping.firstName] || "",
+            lastName: record[mapping.lastName] || "",
+            company: record[mapping.company] || "",
+            title: record[mapping.title] || "",
+            email: record[mapping.email] || "",
+            linkedinUrl: mapping.linkedinUrl === "none" ? "" : record[mapping.linkedinUrl] || "",
+            status: "processing",
+          };
+        } else {
+          // Map CSV columns to prospect fields using column indices
+          const recordArray = record as string[];
+          const getColumnIndex = (columnName: string) => {
+            const match = columnName.match(/Column (\d+)/);
+            return match ? parseInt(match[1]) - 1 : -1;
+          };
+          
+          prospectData = {
+            userId,
+            firstName: recordArray[getColumnIndex(mapping.firstName)] || "",
+            lastName: recordArray[getColumnIndex(mapping.lastName)] || "",
+            company: recordArray[getColumnIndex(mapping.company)] || "",
+            title: recordArray[getColumnIndex(mapping.title)] || "",
+            email: recordArray[getColumnIndex(mapping.email)] || "",
+            linkedinUrl: mapping.linkedinUrl === "none" ? "" : recordArray[getColumnIndex(mapping.linkedinUrl)] || "",
+            status: "processing",
+          };
+        }
         
         // Validate the mapped data
         const validatedData = insertProspectSchema.parse(prospectData);
