@@ -326,8 +326,23 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
     console.log(`Webhook response status: ${response.status}`);
     console.log(`Webhook response headers:`, Object.fromEntries(response.headers.entries()));
     
-    const results = await response.json();
-    console.log(`Webhook response data:`, JSON.stringify(results, null, 2));
+    const rawResults = await response.json();
+    console.log(`Raw webhook response:`, JSON.stringify(rawResults, null, 2));
+
+    // Extract the actual data from the n8n response format
+    let results;
+    if (Array.isArray(rawResults) && rawResults[0]?.response?.body?.output) {
+      // Handle n8n format: [{"response": {"body": {"output": {...}}}}]
+      results = rawResults[0].response.body.output;
+    } else if (Array.isArray(rawResults) && rawResults[0]?.output) {
+      // Handle direct format: [{"output": {...}}]
+      results = rawResults[0].output;
+    } else {
+      // Handle other formats
+      results = rawResults;
+    }
+
+    console.log(`Processed webhook data:`, JSON.stringify(results, null, 2));
 
     // Update all prospects in batch to completed
     for (const prospect of prospects) {
