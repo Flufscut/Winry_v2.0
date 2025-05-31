@@ -180,6 +180,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const mapping = JSON.parse(req.body.mapping);
       const hasHeaders = req.body.hasHeaders === 'true';
       const batchSize = parseInt(req.body.batchSize) || 10;
+      const startRow = parseInt(req.body.startRow) || 1;
+      const maxRows = req.body.maxRows ? parseInt(req.body.maxRows) : null;
       
       if (!file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -187,10 +189,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Parse CSV
       const csvContent = file.buffer.toString('utf-8');
-      const records = parse(csvContent, { 
+      const allRecords = parse(csvContent, { 
         columns: hasHeaders, 
         skip_empty_lines: true 
       });
+      
+      // Apply row range selection
+      let records = allRecords;
+      
+      // Adjust startRow for zero-based indexing (user input is 1-based)
+      const startIndex = startRow - 1;
+      
+      if (startIndex > 0) {
+        records = records.slice(startIndex);
+      }
+      
+      if (maxRows && maxRows > 0) {
+        records = records.slice(0, maxRows);
+      }
       
       // Create CSV upload record
       const csvUpload = await storage.createCsvUpload({

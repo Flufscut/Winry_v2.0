@@ -38,6 +38,8 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
   const [csvPreview, setCsvPreview] = useState<CsvPreview | null>(null);
   const [hasHeaders, setHasHeaders] = useState(true);
   const [batchSize, setBatchSize] = useState(10);
+  const [startRow, setStartRow] = useState(1);
+  const [maxRows, setMaxRows] = useState<number | null>(null);
   const [mapping, setMapping] = useState<ColumnMapping>({
     firstName: "",
     lastName: "",
@@ -122,6 +124,8 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
       formData.append('mapping', JSON.stringify(mapping));
       formData.append('hasHeaders', hasHeaders.toString());
       formData.append('batchSize', batchSize.toString());
+      formData.append('startRow', startRow.toString());
+      formData.append('maxRows', maxRows ? maxRows.toString() : '');
       
       const response = await fetch('/api/prospects/csv/process', {
         method: 'POST',
@@ -217,20 +221,52 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
             </Label>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <Label htmlFor="batchSize" className="text-sm font-medium whitespace-nowrap">
-              Process in batches of:
-            </Label>
-            <Input
-              id="batchSize"
-              type="number"
-              min="1"
-              max="100"
-              value={batchSize}
-              onChange={(e) => setBatchSize(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
-              className="w-20"
-            />
-            <span className="text-sm text-muted-foreground">prospects at a time</span>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center space-x-4">
+              <Label htmlFor="batchSize" className="text-sm font-medium whitespace-nowrap">
+                Batch size:
+              </Label>
+              <Input
+                id="batchSize"
+                type="number"
+                min="1"
+                max="100"
+                value={batchSize}
+                onChange={(e) => setBatchSize(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+                className="w-20"
+              />
+              <span className="text-sm text-muted-foreground">prospects</span>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <Label htmlFor="startRow" className="text-sm font-medium whitespace-nowrap">
+                Start at row:
+              </Label>
+              <Input
+                id="startRow"
+                type="number"
+                min="1"
+                value={startRow}
+                onChange={(e) => setStartRow(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-20"
+              />
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <Label htmlFor="maxRows" className="text-sm font-medium whitespace-nowrap">
+                Max rows:
+              </Label>
+              <Input
+                id="maxRows"
+                type="number"
+                min="1"
+                value={maxRows || ""}
+                placeholder="All"
+                onChange={(e) => setMaxRows(e.target.value ? parseInt(e.target.value) || null : null)}
+                className="w-20"
+              />
+              <span className="text-sm text-muted-foreground">leave empty for all</span>
+            </div>
           </div>
         </div>
         
@@ -266,6 +302,21 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
         {/* Column Mapping */}
         {csvPreview && (
           <div className="space-y-4">
+            <Alert>
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                Found {csvPreview.rowCount} rows with {csvPreview.headers.length} columns. 
+                {(() => {
+                  const totalRows = csvPreview.rowCount;
+                  const effectiveStartRow = Math.min(startRow, totalRows);
+                  const remainingRows = Math.max(0, totalRows - effectiveStartRow + 1);
+                  const rowsToProcess = maxRows ? Math.min(maxRows, remainingRows) : remainingRows;
+                  
+                  return ` Will process ${rowsToProcess} rows (starting from row ${effectiveStartRow}${maxRows ? `, max ${maxRows}` : ''}).`;
+                })()}
+              </AlertDescription>
+            </Alert>
+            
             <h4 className="text-md font-semibold text-foreground">Map CSV Columns</h4>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
