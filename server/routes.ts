@@ -162,19 +162,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prospectId = parseInt(req.params.id);
       const userId = req.user.claims.sub;
       
+      console.log(`Retry request for prospect ${prospectId} by user ${userId}`);
+      
       // Get the prospect to verify ownership and get data
       const prospect = await storage.getProspect(prospectId);
+      console.log(`Found prospect:`, prospect);
       
       if (!prospect || prospect.userId !== userId) {
+        console.log(`Prospect not found or unauthorized: prospect=${!!prospect}, userId match=${prospect?.userId === userId}`);
         return res.status(404).json({ message: "Prospect not found or not authorized" });
       }
       
+      console.log(`Prospect status: ${prospect.status}`);
       if (prospect.status !== 'failed') {
+        console.log(`Cannot retry prospect with status: ${prospect.status}`);
         return res.status(400).json({ message: "Only failed prospects can be retried" });
       }
       
       // Reset prospect status to processing
-      await storage.updateProspectStatus(prospectId, 'processing');
+      console.log(`Updating prospect ${prospectId} status to processing`);
+      const updatedProspect = await storage.updateProspectStatus(prospectId, 'processing');
+      console.log(`Status update result:`, updatedProspect);
       
       // Extract only the prospect data fields needed for the webhook
       const prospectData = {
@@ -186,7 +194,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         linkedinUrl: prospect.linkedinUrl || "",
       };
       
+      console.log(`Extracted prospect data:`, prospectData);
+      
       // Process prospect research asynchronously as a single-item batch
+      console.log(`Starting research batch for prospect ${prospectId}`);
       processBatchResearch([{ id: prospect.id, data: prospectData }], 1);
       
       res.json({ message: "Prospect research restarted successfully" });
