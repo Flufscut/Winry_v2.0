@@ -356,6 +356,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Webhook endpoint for n8n to send results back
+  app.post('/webhook/results', async (req, res) => {
+    try {
+      console.log('Received webhook results:', JSON.stringify(req.body, null, 2));
+      
+      const results = req.body;
+      
+      // Handle both single prospect and batch results
+      const prospects = Array.isArray(results) ? results : [results];
+      
+      for (const result of prospects) {
+        const { firstName, lastName, ...researchData } = result;
+        
+        if (firstName && lastName) {
+          // Find prospect by name (since n8n returns the names)
+          const allProspects = await storage.getProspectsByUser(''); // We'll need to modify this
+          const prospect = allProspects.find(p => 
+            p.firstName.toLowerCase() === firstName.toLowerCase() && 
+            p.lastName.toLowerCase() === lastName.toLowerCase() &&
+            p.status === 'processing'
+          );
+          
+          if (prospect) {
+            console.log(`Updating prospect ${prospect.id} with research results`);
+            await storage.updateProspectStatus(prospect.id, 'completed', researchData);
+          } else {
+            console.log(`No processing prospect found for ${firstName} ${lastName}`);
+          }
+        }
+      }
+      
+      res.json({ message: 'Results processed successfully' });
+    } catch (error) {
+      console.error('Error processing webhook results:', error);
+      res.status(500).json({ message: 'Failed to process results' });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
