@@ -4,7 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Eye, Trash2 } from "lucide-react";
+import { Eye, Trash2, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 
 interface Prospect {
@@ -23,6 +23,7 @@ interface ProspectTableProps {
   isLoading: boolean;
   onViewDetails: (id: number) => void;
   onDelete: (id: number) => void;
+  onRetry: (id: number) => void;
   selectedProspects: number[];
   onSelectProspect: (id: number, selected: boolean) => void;
   onSelectAll: () => void;
@@ -35,6 +36,7 @@ export default function ProspectTable({
   isLoading, 
   onViewDetails, 
   onDelete, 
+  onRetry,
   selectedProspects, 
   onSelectProspect, 
   onSelectAll, 
@@ -212,6 +214,27 @@ export default function ProspectTable({
                     </Button>
                   ) : prospect.status === "processing" ? (
                     <span className="text-sm text-muted-foreground">Processing...</span>
+                  ) : prospect.status === "failed" ? (
+                    <>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => onRetry(prospect.id)}
+                        className="text-orange-600 hover:text-orange-700"
+                      >
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                        Retry
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        onClick={() => onViewDetails(prospect.id)}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        <Eye className="h-4 w-4 mr-1" />
+                        View Error
+                      </Button>
+                    </>
                   ) : (
                     <Button 
                       variant="ghost" 
@@ -220,7 +243,7 @@ export default function ProspectTable({
                       className="text-muted-foreground hover:text-foreground"
                     >
                       <Eye className="h-4 w-4 mr-1" />
-                      View Error
+                      View Details
                     </Button>
                   )}
                   

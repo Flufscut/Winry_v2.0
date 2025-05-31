@@ -110,6 +110,41 @@ export default function Dashboard() {
     },
   });
 
+  // Retry prospect mutation
+  const retryProspectMutation = useMutation({
+    mutationFn: async (prospectId: number) => {
+      await apiRequest('POST', `/api/prospects/${prospectId}/retry`);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Prospect research restarted successfully",
+      });
+      // Invalidate and refetch data
+      queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+
+      toast({
+        title: "Error",
+        description: "Failed to retry prospect research",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
     mutationFn: async (prospectIds: number[]) => {
@@ -415,6 +450,7 @@ export default function Dashboard() {
               isLoading={prospectsLoading}
               onViewDetails={setSelectedProspectId}
               onDelete={(prospectId) => deleteProspectMutation.mutate(prospectId)}
+              onRetry={(prospectId) => retryProspectMutation.mutate(prospectId)}
               selectedProspects={selectedProspects}
               onSelectProspect={handleSelectProspect}
               onSelectAll={handleSelectAll}
