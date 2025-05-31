@@ -101,6 +101,10 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
   const fullName = `${prospect.firstName} ${prospect.lastName}`;
   // Handle different data structures from the webhook
   const results = prospect.researchResults?.[0]?.output || prospect.researchResults;
+  
+  // Debug: Log the actual data structure
+  console.log('Prospect data:', prospect);
+  console.log('Research results:', results);
 
   return (
     <div className="space-y-6">
