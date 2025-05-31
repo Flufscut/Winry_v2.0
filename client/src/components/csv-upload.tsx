@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -36,6 +37,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
   const [file, setFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState<CsvPreview | null>(null);
   const [hasHeaders, setHasHeaders] = useState(true);
+  const [batchSize, setBatchSize] = useState(10);
   const [mapping, setMapping] = useState<ColumnMapping>({
     firstName: "",
     lastName: "",
@@ -119,6 +121,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
       formData.append('csvFile', file);
       formData.append('mapping', JSON.stringify(mapping));
       formData.append('hasHeaders', hasHeaders.toString());
+      formData.append('batchSize', batchSize.toString());
       
       const response = await fetch('/api/prospects/csv/process', {
         method: 'POST',
@@ -202,15 +205,33 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
       
       <div className="space-y-6 mt-6">
         {/* CSV Options */}
-        <div className="flex items-center space-x-2">
-          <Checkbox 
-            id="hasHeaders"
-            checked={hasHeaders}
-            onCheckedChange={(checked) => setHasHeaders(checked === true)}
-          />
-          <Label htmlFor="hasHeaders" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-            First row contains headers
-          </Label>
+        <div className="space-y-4">
+          <div className="flex items-center space-x-2">
+            <Checkbox 
+              id="hasHeaders"
+              checked={hasHeaders}
+              onCheckedChange={(checked) => setHasHeaders(checked === true)}
+            />
+            <Label htmlFor="hasHeaders" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              First row contains headers
+            </Label>
+          </div>
+          
+          <div className="flex items-center space-x-4">
+            <Label htmlFor="batchSize" className="text-sm font-medium whitespace-nowrap">
+              Process in batches of:
+            </Label>
+            <Input
+              id="batchSize"
+              type="number"
+              min="1"
+              max="100"
+              value={batchSize}
+              onChange={(e) => setBatchSize(Math.max(1, Math.min(100, parseInt(e.target.value) || 1)))}
+              className="w-20"
+            />
+            <span className="text-sm text-muted-foreground">prospects at a time</span>
+          </div>
         </div>
         
         {/* File Upload Area */}

@@ -179,6 +179,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const file = req.file;
       const mapping = JSON.parse(req.body.mapping);
       const hasHeaders = req.body.hasHeaders === 'true';
+      const batchSize = parseInt(req.body.batchSize) || 10;
       
       if (!file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -201,7 +202,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Process prospects asynchronously
-      processCsvProspects(csvUpload.id, userId, records, mapping, hasHeaders);
+      processCsvProspects(csvUpload.id, userId, records, mapping, hasHeaders, batchSize);
       
       res.json({
         uploadId: csvUpload.id,
@@ -265,72 +266,87 @@ async function processProspectResearch(prospectId: number, prospectData: any) {
   }
 }
 
-// Async function to process CSV prospects
-async function processCsvProspects(uploadId: number, userId: string, records: any[], mapping: any, hasHeaders: boolean) {
+// Async function to process CSV prospects in batches
+async function processCsvProspects(uploadId: number, userId: string, records: any[], mapping: any, hasHeaders: boolean, batchSize: number = 10) {
   let processedCount = 0;
   
   try {
-    for (const record of records) {
-      try {
-        let prospectData: any;
-        
-        if (hasHeaders) {
-          // Map CSV columns to prospect fields using column names
-          prospectData = {
-            userId,
-            firstName: record[mapping.firstName] || "",
-            lastName: record[mapping.lastName] || "",
-            company: record[mapping.company] || "",
-            title: record[mapping.title] || "",
-            email: record[mapping.email] || "",
-            linkedinUrl: mapping.linkedinUrl === "none" ? "" : record[mapping.linkedinUrl] || "",
-            status: "processing",
-          };
-        } else {
-          // Map CSV columns to prospect fields using column indices
-          const recordArray = record as string[];
-          const getColumnIndex = (columnName: string) => {
-            const match = columnName.match(/Column (\d+)/);
-            return match ? parseInt(match[1]) - 1 : -1;
-          };
+    // Process records in batches
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, i + batchSize);
+      const batchProspects: any[] = [];
+      
+      // Create all prospects in this batch first
+      for (const record of batch) {
+        try {
+          let prospectData: any;
           
-          prospectData = {
-            userId,
-            firstName: recordArray[getColumnIndex(mapping.firstName)] || "",
-            lastName: recordArray[getColumnIndex(mapping.lastName)] || "",
-            company: recordArray[getColumnIndex(mapping.company)] || "",
-            title: recordArray[getColumnIndex(mapping.title)] || "",
-            email: recordArray[getColumnIndex(mapping.email)] || "",
-            linkedinUrl: mapping.linkedinUrl === "none" ? "" : recordArray[getColumnIndex(mapping.linkedinUrl)] || "",
-            status: "processing",
-          };
+          if (hasHeaders) {
+            // Map CSV columns to prospect fields using column names
+            prospectData = {
+              userId,
+              firstName: record[mapping.firstName] || "",
+              lastName: record[mapping.lastName] || "",
+              company: record[mapping.company] || "",
+              title: record[mapping.title] || "",
+              email: record[mapping.email] || "",
+              linkedinUrl: mapping.linkedinUrl === "none" ? "" : record[mapping.linkedinUrl] || "",
+              status: "processing",
+            };
+          } else {
+            // Map CSV columns to prospect fields using column indices
+            const recordArray = record as string[];
+            const getColumnIndex = (columnName: string) => {
+              const match = columnName.match(/Column (\d+)/);
+              return match ? parseInt(match[1]) - 1 : -1;
+            };
+            
+            prospectData = {
+              userId,
+              firstName: recordArray[getColumnIndex(mapping.firstName)] || "",
+              lastName: recordArray[getColumnIndex(mapping.lastName)] || "",
+              company: recordArray[getColumnIndex(mapping.company)] || "",
+              title: recordArray[getColumnIndex(mapping.title)] || "",
+              email: recordArray[getColumnIndex(mapping.email)] || "",
+              linkedinUrl: mapping.linkedinUrl === "none" ? "" : recordArray[getColumnIndex(mapping.linkedinUrl)] || "",
+              status: "processing",
+            };
+          }
+          
+          // Validate the mapped data
+          const validatedData = insertProspectSchema.parse(prospectData);
+          
+          // Create prospect
+          const prospect = await storage.createProspect(validatedData);
+          batchProspects.push({ id: prospect.id, data: validatedData });
+          
+          processedCount++;
+          
+        } catch (error) {
+          console.error(`Error processing CSV row ${processedCount + 1}:`, error);
+          processedCount++;
         }
-        
-        // Validate the mapped data
-        const validatedData = insertProspectSchema.parse(prospectData);
-        
-        // Create prospect
-        const prospect = await storage.createProspect(validatedData);
-        
-        // Process research for this prospect
-        processProspectResearch(prospect.id, validatedData);
-        
-        processedCount++;
-        
-        // Update CSV upload progress
-        await storage.updateCsvUploadProgress(uploadId, processedCount);
-        
-      } catch (error) {
-        console.error(`Error processing CSV row ${processedCount + 1}:`, error);
-        // Continue processing other rows
-        processedCount++;
+      }
+      
+      // Update progress after creating the batch
+      await storage.updateCsvUploadProgress(uploadId, processedCount);
+      
+      // Process research for all prospects in this batch
+      for (const prospect of batchProspects) {
+        processProspectResearch(prospect.id, prospect.data);
+      }
+      
+      // Add delay between batches to prevent overwhelming the webhook
+      if (i + batchSize < records.length) {
+        console.log(`Processed batch of ${batch.length} prospects. Waiting 2 seconds before next batch...`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
       }
     }
     
     // Mark CSV upload as completed
     await storage.updateCsvUploadProgress(uploadId, processedCount, "completed");
     
-    console.log(`CSV upload ${uploadId} completed. Processed ${processedCount} prospects.`);
+    console.log(`CSV upload ${uploadId} completed. Processed ${processedCount} prospects in batches of ${batchSize}.`);
     
   } catch (error) {
     console.error(`Error processing CSV upload ${uploadId}:`, error);
