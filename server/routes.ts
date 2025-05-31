@@ -119,6 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       const file = req.file;
+      const hasHeaders = req.body.hasHeaders === 'true';
       
       if (!file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -131,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse CSV
       const csvContent = file.buffer.toString('utf-8');
       const records = parse(csvContent, { 
-        columns: true, 
+        columns: hasHeaders, 
         skip_empty_lines: true 
       });
       
@@ -139,13 +140,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "CSV file is empty" });
       }
       
-      // Return column headers for mapping
-      const headers = Object.keys(records[0]);
+      let headers: string[];
+      let preview: any[];
+      
+      if (hasHeaders) {
+        // Headers are the column names from the CSV
+        headers = Object.keys(records[0]);
+        preview = records.slice(0, 3);
+      } else {
+        // Generate generic column names (Column 1, Column 2, etc.)
+        const firstRecord = records[0] as string[];
+        headers = firstRecord.map((_, index) => `Column ${index + 1}`);
+        preview = records.slice(0, 3).map((record: string[]) => {
+          const obj: any = {};
+          record.forEach((value, index) => {
+            obj[`Column ${index + 1}`] = value;
+          });
+          return obj;
+        });
+      }
       
       res.json({
         headers,
         rowCount: records.length,
-        preview: records.slice(0, 3) // Return first 3 rows as preview
+        preview
       });
       
     } catch (error) {
@@ -160,6 +178,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const file = req.file;
       const mapping = JSON.parse(req.body.mapping);
+      const hasHeaders = req.body.hasHeaders === 'true';
       
       if (!file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -168,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Parse CSV
       const csvContent = file.buffer.toString('utf-8');
       const records = parse(csvContent, { 
-        columns: true, 
+        columns: hasHeaders, 
         skip_empty_lines: true 
       });
       
@@ -182,7 +201,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Process prospects asynchronously
-      processCsvProspects(csvUpload.id, userId, records, mapping);
+      processCsvProspects(csvUpload.id, userId, records, mapping, hasHeaders);
       
       res.json({
         uploadId: csvUpload.id,

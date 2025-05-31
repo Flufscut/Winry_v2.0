@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Upload, Info, Loader2 } from "lucide-react";
 
 interface CsvUploadProps {
@@ -34,6 +35,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
   const queryClient = useQueryClient();
   const [file, setFile] = useState<File | null>(null);
   const [csvPreview, setCsvPreview] = useState<CsvPreview | null>(null);
+  const [hasHeaders, setHasHeaders] = useState(true);
   const [mapping, setMapping] = useState<ColumnMapping>({
     firstName: "",
     lastName: "",
@@ -48,6 +50,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
     mutationFn: async (file: File) => {
       const formData = new FormData();
       formData.append('csvFile', file);
+      formData.append('hasHeaders', hasHeaders.toString());
       
       const response = await fetch('/api/prospects/csv', {
         method: 'POST',
@@ -115,6 +118,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
       const formData = new FormData();
       formData.append('csvFile', file);
       formData.append('mapping', JSON.stringify(mapping));
+      formData.append('hasHeaders', hasHeaders.toString());
       
       const response = await fetch('/api/prospects/csv/process', {
         method: 'POST',
@@ -197,6 +201,18 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
       </DialogHeader>
       
       <div className="space-y-6 mt-6">
+        {/* CSV Options */}
+        <div className="flex items-center space-x-2">
+          <Checkbox 
+            id="hasHeaders"
+            checked={hasHeaders}
+            onCheckedChange={(checked) => setHasHeaders(checked === true)}
+          />
+          <Label htmlFor="hasHeaders" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            First row contains headers
+          </Label>
+        </div>
+        
         {/* File Upload Area */}
         <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors duration-200">
           <Upload className="mx-auto h-12 w-12 text-muted-foreground" />
