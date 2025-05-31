@@ -312,10 +312,16 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
     }
 
     if (!response || !response.ok) {
+      const responseText = response ? await response.text() : 'No response';
+      console.error(`Webhook failed with status ${response?.status}: ${responseText}`);
       throw new Error(`Webhook request failed after ${maxRetries + 1} attempts`);
     }
 
+    console.log(`Webhook response status: ${response.status}`);
+    console.log(`Webhook response headers:`, Object.fromEntries(response.headers.entries()));
+    
     const results = await response.json();
+    console.log(`Webhook response data:`, JSON.stringify(results, null, 2));
 
     // Update all prospects in batch to completed
     for (const prospect of prospects) {
