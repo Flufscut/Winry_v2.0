@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -22,9 +23,24 @@ interface ProspectTableProps {
   isLoading: boolean;
   onViewDetails: (id: number) => void;
   onDelete: (id: number) => void;
+  selectedProspects: number[];
+  onSelectProspect: (id: number, selected: boolean) => void;
+  onSelectAll: () => void;
+  onDeselectAll: () => void;
+  onBulkDelete: () => void;
 }
 
-export default function ProspectTable({ prospects, isLoading, onViewDetails, onDelete }: ProspectTableProps) {
+export default function ProspectTable({ 
+  prospects, 
+  isLoading, 
+  onViewDetails, 
+  onDelete, 
+  selectedProspects, 
+  onSelectProspect, 
+  onSelectAll, 
+  onDeselectAll, 
+  onBulkDelete 
+}: ProspectTableProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
@@ -41,6 +57,9 @@ export default function ProspectTable({ prospects, isLoading, onViewDetails, onD
   const getInitials = (firstName: string, lastName: string) => {
     return `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase();
   };
+
+  const allSelected = prospects.length > 0 && selectedProspects.length === prospects.length;
+  const someSelected = selectedProspects.length > 0 && selectedProspects.length < prospects.length;
 
   if (isLoading) {
     return (
@@ -72,22 +91,85 @@ export default function ProspectTable({ prospects, isLoading, onViewDetails, onD
   }
 
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Prospect</TableHead>
-            <TableHead>Company</TableHead>
-            <TableHead>Title</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {prospects.map((prospect) => (
-            <TableRow key={prospect.id} className="prospect-row">
-              <TableCell>
+    <div className="space-y-4">
+      {/* Bulk Actions Header */}
+      {prospects.length > 0 && (
+        <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Checkbox
+                checked={allSelected}
+                onCheckedChange={() => allSelected ? onDeselectAll() : onSelectAll()}
+                aria-label={allSelected ? "Deselect all prospects" : "Select all prospects"}
+              />
+              <span className="text-sm font-medium">
+                {allSelected ? "Deselect All" : "Select All"}
+              </span>
+            </div>
+            {selectedProspects.length > 0 && (
+              <span className="text-sm text-muted-foreground">
+                {selectedProspects.length} selected
+              </span>
+            )}
+          </div>
+          
+          {selectedProspects.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected ({selectedProspects.length})
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete Selected Prospects</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to delete {selectedProspects.length} prospect{selectedProspects.length === 1 ? '' : 's'}? 
+                    This action cannot be undone and will permanently remove their research data.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={onBulkDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Delete All Selected
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+        </div>
+      )}
+      
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-12">
+                <span className="sr-only">Select</span>
+              </TableHead>
+              <TableHead>Prospect</TableHead>
+              <TableHead>Company</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Date</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {prospects.map((prospect) => (
+              <TableRow key={prospect.id} className="prospect-row">
+                <TableCell>
+                  <Checkbox
+                    checked={selectedProspects.includes(prospect.id)}
+                    onCheckedChange={(checked) => onSelectProspect(prospect.id, checked === true)}
+                    aria-label={`Select ${prospect.firstName} ${prospect.lastName}`}
+                  />
+                </TableCell>
+                <TableCell>
                 <div className="flex items-center">
                   <div className="h-10 w-10 bg-muted rounded-full flex items-center justify-center">
                     <span className="text-sm font-medium text-muted-foreground">
@@ -175,8 +257,9 @@ export default function ProspectTable({ prospects, isLoading, onViewDetails, onD
               </TableCell>
             </TableRow>
           ))}
-        </TableBody>
-      </Table>
+          </TableBody>
+        </Table>
+      </div>
     </div>
   );
 }
