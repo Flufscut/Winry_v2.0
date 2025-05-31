@@ -51,7 +51,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prospects = await storage.searchProspects(
         userId,
         search as string,
-        status as string
+        status === "all" ? undefined : status as string
       );
       
       res.json(prospects);
@@ -261,7 +261,7 @@ async function processCsvProspects(uploadId: number, userId: string, records: an
           company: record[mapping.company] || "",
           title: record[mapping.title] || "",
           email: record[mapping.email] || "",
-          linkedinUrl: record[mapping.linkedinUrl] || "",
+          linkedinUrl: mapping.linkedinUrl === "none" ? "" : record[mapping.linkedinUrl] || "",
           status: "processing",
         };
         

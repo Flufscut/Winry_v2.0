@@ -19,7 +19,7 @@ export default function Dashboard() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
   const [showProspectForm, setShowProspectForm] = useState(false);
   const [showCsvUpload, setShowCsvUpload] = useState(false);
@@ -256,7 +256,7 @@ export default function Dashboard() {
                       <SelectValue placeholder="All Status" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Status</SelectItem>
+                      <SelectItem value="all">All Status</SelectItem>
                       <SelectItem value="completed">Completed</SelectItem>
                       <SelectItem value="processing">Processing</SelectItem>
                       <SelectItem value="failed">Failed</SelectItem>

@@ -40,7 +40,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
     company: "",
     title: "",
     email: "",
-    linkedinUrl: "",
+    linkedinUrl: "none",
   });
 
   // Upload and preview CSV
@@ -308,7 +308,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
                     <SelectValue placeholder="Select column..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">None</SelectItem>
+                    <SelectItem value="none">None</SelectItem>
                     {csvPreview.headers.map(header => (
                       <SelectItem key={header} value={header}>{header}</SelectItem>
                     ))}
