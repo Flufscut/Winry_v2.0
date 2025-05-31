@@ -367,22 +367,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prospects = Array.isArray(results) ? results : [results];
       
       for (const result of prospects) {
-        const { firstName, lastName, ...researchData } = result;
+        // Try to extract identification from various possible locations
+        const firstName = result.firstName || result.output?.firstname || result['First Name'];
+        const lastName = result.lastName || result.output?.lastname || result['Last Name'];
+        const email = result.email || result.output?.email || result.EMail;
+        
+        console.log(`Looking for prospect: ${firstName} ${lastName} (${email})`);
         
         if (firstName && lastName) {
-          // Find prospect by name (since n8n returns the names)
-          const allProspects = await storage.getProspectsByUser(''); // We'll need to modify this
-          const prospect = allProspects.find(p => 
-            p.firstName.toLowerCase() === firstName.toLowerCase() && 
-            p.lastName.toLowerCase() === lastName.toLowerCase() &&
-            p.status === 'processing'
-          );
+          // Get all prospects and find match
+          const allUsers = await db.select().from(users);
+          let matchedProspect = null;
           
-          if (prospect) {
-            console.log(`Updating prospect ${prospect.id} with research results`);
-            await storage.updateProspectStatus(prospect.id, 'completed', researchData);
+          for (const user of allUsers) {
+            const userProspects = await storage.getProspectsByUser(user.id);
+            const prospect = userProspects.find(p => 
+              p.firstName.toLowerCase().includes(firstName.toLowerCase()) && 
+              p.lastName.toLowerCase().includes(lastName.toLowerCase()) &&
+              p.status === 'processing'
+            );
+            if (prospect) {
+              matchedProspect = prospect;
+              break;
+            }
+          }
+          
+          if (matchedProspect) {
+            console.log(`Updating prospect ${matchedProspect.id} with research results`);
+            await storage.updateProspectStatus(matchedProspect.id, 'completed', result);
           } else {
             console.log(`No processing prospect found for ${firstName} ${lastName}`);
+            // Log all processing prospects for debugging
+            const allUsers2 = await db.select().from(users);
+            for (const user of allUsers2) {
+              const userProspects = await storage.getProspectsByUser(user.id);
+              const processingProspects = userProspects.filter(p => p.status === 'processing');
+              if (processingProspects.length > 0) {
+                console.log(`Processing prospects for user ${user.id}:`, processingProspects.map(p => `${p.firstName} ${p.lastName}`));
+              }
+            }
           }
         }
       }
