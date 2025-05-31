@@ -10,9 +10,9 @@ import { parse } from "csv-parse/sync";
 // Default application settings
 const DEFAULT_SETTINGS = {
   webhookUrl: "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-4154-84c1-c0e3a2ca572e",
-  webhookTimeoutSeconds: 300,
-  maxRetries: 0,
-  retryDelaySeconds: 10,
+  webhookTimeoutSeconds: 1800, // 30 minutes for complex workflows
+  maxRetries: 1, // Add one retry for 524 errors
+  retryDelaySeconds: 30, // Longer delay between retries
   batchSize: 10,
 };
 

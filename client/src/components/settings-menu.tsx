@@ -30,9 +30,9 @@ export default function SettingsMenu() {
 
   const [formData, setFormData] = useState<AppSettings>({
     webhookUrl: "",
-    webhookTimeoutSeconds: 300,
-    maxRetries: 0,
-    retryDelaySeconds: 10,
+    webhookTimeoutSeconds: 1800,
+    maxRetries: 1,
+    retryDelaySeconds: 30,
     batchSize: 10,
   });
 
