@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ import ProspectTable from "@/components/prospect-table";
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
@@ -51,6 +53,41 @@ export default function Dashboard() {
     queryKey: ["/api/prospects", searchQuery, statusFilter],
     retry: false,
     enabled: !!user,
+  });
+
+  // Delete prospect mutation
+  const deleteProspectMutation = useMutation({
+    mutationFn: async (prospectId: number) => {
+      await apiRequest(`/api/prospects/${prospectId}`, 'DELETE');
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Prospect deleted successfully",
+      });
+      // Invalidate and refetch data
+      queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+
+      toast({
+        title: "Error",
+        description: "Failed to delete prospect",
+        variant: "destructive",
+      });
+    },
   });
 
   if (authLoading) {
@@ -270,6 +307,7 @@ export default function Dashboard() {
               prospects={prospects || []}
               isLoading={prospectsLoading}
               onViewDetails={setSelectedProspectId}
+              onDelete={(prospectId) => deleteProspectMutation.mutate(prospectId)}
             />
           </CardContent>
         </Card>

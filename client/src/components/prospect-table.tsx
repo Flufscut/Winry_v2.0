@@ -117,27 +117,61 @@ export default function ProspectTable({ prospects, isLoading, onViewDetails, onD
                 {format(new Date(prospect.createdAt), "MMM d, yyyy")}
               </TableCell>
               <TableCell>
-                {prospect.status === "completed" ? (
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => onViewDetails(prospect.id)}
-                    className="text-primary hover:text-primary/80"
-                  >
-                    View Details
-                  </Button>
-                ) : prospect.status === "processing" ? (
-                  <span className="text-sm text-muted-foreground">Processing...</span>
-                ) : (
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    onClick={() => onViewDetails(prospect.id)}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    View Error
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {prospect.status === "completed" ? (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => onViewDetails(prospect.id)}
+                      className="text-primary hover:text-primary/80"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View Details
+                    </Button>
+                  ) : prospect.status === "processing" ? (
+                    <span className="text-sm text-muted-foreground">Processing...</span>
+                  ) : (
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => onViewDetails(prospect.id)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      View Error
+                    </Button>
+                  )}
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-destructive hover:text-destructive/80"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete Prospect</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Are you sure you want to delete {prospect.firstName} {prospect.lastName}? 
+                          This action cannot be undone and will permanently remove their research data.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={() => onDelete(prospect.id)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </TableCell>
             </TableRow>
           ))}
