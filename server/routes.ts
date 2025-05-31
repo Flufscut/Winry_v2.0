@@ -272,31 +272,36 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
     console.log(`Webhook payload:`, JSON.stringify(webhookPayload, null, 2));
     console.log(`Sending to webhook URL: ${WEBHOOK_URL}`);
 
-    // Send to n8n webhook with timeout and retry logic
+    // Send to n8n webhook with extended timeout and retry logic
     let response;
     let retryCount = 0;
-    const maxRetries = 2;
+    const maxRetries = 3; // Increased retries
+    const timeoutMs = 5 * 60 * 1000; // 5 minutes timeout for n8n processing
+    const retryDelayMs = 10000; // 10 second delay between retries
     
     while (retryCount <= maxRetries) {
       try {
+        console.log(`Attempting webhook request (attempt ${retryCount + 1}/${maxRetries + 1}) with ${timeoutMs/1000}s timeout...`);
+        
         response = await fetch(WEBHOOK_URL, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-Batch-Number': batchNumber.toString(),
-            'X-Retry-Attempt': (retryCount + 1).toString()
+            'X-Retry-Attempt': (retryCount + 1).toString(),
+            'X-Request-Timeout': timeoutMs.toString()
           },
           body: JSON.stringify(webhookPayload),
-          // Add 60 second timeout for research processing
-          signal: AbortSignal.timeout(60000)
+          signal: AbortSignal.timeout(timeoutMs)
         });
 
         if (response.ok) {
+          console.log(`Webhook request successful on attempt ${retryCount + 1}`);
           break; // Success, exit retry loop
-        } else if (response.status === 524 && retryCount < maxRetries) {
-          // Cloudflare timeout, retry after delay
-          console.log(`Batch ${batchNumber} timeout (524), retrying in 5 seconds... (attempt ${retryCount + 2})`);
-          await new Promise(resolve => setTimeout(resolve, 5000));
+        } else if ((response.status === 524 || response.status >= 500) && retryCount < maxRetries) {
+          // Server timeout or error, retry after delay
+          console.log(`Batch ${batchNumber} server error (${response.status}), retrying in ${retryDelayMs/1000} seconds... (attempt ${retryCount + 2}/${maxRetries + 1})`);
+          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
           retryCount++;
           continue;
         } else {
@@ -308,8 +313,13 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
         }
       } catch (error) {
         if (error instanceof Error && error.name === 'TimeoutError' && retryCount < maxRetries) {
-          console.log(`Batch ${batchNumber} request timeout, retrying in 5 seconds... (attempt ${retryCount + 2})`);
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          console.log(`Batch ${batchNumber} request timeout after ${timeoutMs/1000}s, retrying in ${retryDelayMs/1000} seconds... (attempt ${retryCount + 2}/${maxRetries + 1})`);
+          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+          retryCount++;
+          continue;
+        } else if (error instanceof Error && error.name === 'AbortError' && retryCount < maxRetries) {
+          console.log(`Batch ${batchNumber} request aborted, retrying in ${retryDelayMs/1000} seconds... (attempt ${retryCount + 2}/${maxRetries + 1})`);
+          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
           retryCount++;
           continue;
         }
