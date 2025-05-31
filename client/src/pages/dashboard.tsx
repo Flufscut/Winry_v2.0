@@ -45,7 +45,7 @@ export default function Dashboard() {
   }, [user, authLoading, toast]);
 
   // Fetch dashboard stats
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ["/api/stats"],
     retry: false,
     enabled: !!user,
@@ -57,6 +57,21 @@ export default function Dashboard() {
     retry: false,
     enabled: !!user,
   });
+
+  // Auto-refresh data when there are processing prospects
+  useEffect(() => {
+    const hasProcessing = prospects?.some((p: any) => p.status === 'processing') || 
+                         (stats?.processing && stats.processing > 0);
+    
+    if (hasProcessing) {
+      const interval = setInterval(() => {
+        refetchProspects();
+        refetchStats();
+      }, 3000); // Refresh every 3 seconds
+      
+      return () => clearInterval(interval);
+    }
+  }, [prospects, stats, refetchProspects, refetchStats]);
 
   // Delete prospect mutation
   const deleteProspectMutation = useMutation({
