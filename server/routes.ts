@@ -83,6 +83,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Delete prospect
+  app.delete('/api/prospects/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const prospectId = parseInt(req.params.id);
+      const userId = req.user.claims.sub;
+      
+      const deleted = await storage.deleteProspect(prospectId, userId);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Prospect not found or not authorized to delete" });
+      }
+      
+      res.json({ message: "Prospect deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting prospect:", error);
+      res.status(500).json({ message: "Failed to delete prospect" });
+    }
+  });
+
   // Create new prospect
   app.post('/api/prospects', isAuthenticated, async (req: any, res) => {
     try {

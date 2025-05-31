@@ -24,6 +24,7 @@ export interface IStorage {
   getProspectsByUser(userId: string): Promise<Prospect[]>;
   updateProspectStatus(id: number, status: string, results?: any, errorMessage?: string): Promise<Prospect | undefined>;
   searchProspects(userId: string, query?: string, status?: string): Promise<Prospect[]>;
+  deleteProspect(id: number, userId: string): Promise<boolean>;
   
   // CSV upload operations
   createCsvUpload(upload: InsertCsvUpload): Promise<CsvUpload>;
@@ -169,6 +170,15 @@ export class DatabaseStorage implements IStorage {
       .from(csvUploads)
       .where(eq(csvUploads.userId, userId))
       .orderBy(desc(csvUploads.createdAt));
+  }
+
+  async deleteProspect(id: number, userId: string): Promise<boolean> {
+    const result = await db
+      .delete(prospects)
+      .where(and(eq(prospects.id, id), eq(prospects.userId, userId)))
+      .returning();
+    
+    return result.length > 0;
   }
 
   // Dashboard stats

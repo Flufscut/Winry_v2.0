@@ -2,6 +2,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Eye, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 
 interface Prospect {
@@ -19,9 +21,10 @@ interface ProspectTableProps {
   prospects: Prospect[];
   isLoading: boolean;
   onViewDetails: (id: number) => void;
+  onDelete: (id: number) => void;
 }
 
-export default function ProspectTable({ prospects, isLoading, onViewDetails }: ProspectTableProps) {
+export default function ProspectTable({ prospects, isLoading, onViewDetails, onDelete }: ProspectTableProps) {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
