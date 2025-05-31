@@ -41,8 +41,9 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
   });
 
   const copyEmailToClipboard = () => {
-    if (prospect?.researchResults?.[0]?.output?.Email) {
-      const email = prospect.researchResults[0].output.Email;
+    const results = prospect?.researchResults?.[0]?.output || prospect?.researchResults;
+    if (results?.Email) {
+      const email = results.Email;
       const emailText = `Subject: ${email.subject}\n\n${email.body}`;
       
       navigator.clipboard.writeText(emailText).then(() => {
@@ -98,7 +99,8 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
   }
 
   const fullName = `${prospect.firstName} ${prospect.lastName}`;
-  const results = prospect.researchResults?.[0]?.output;
+  // Handle different data structures from the webhook
+  const results = prospect.researchResults?.[0]?.output || prospect.researchResults;
 
   return (
     <div className="space-y-6">
