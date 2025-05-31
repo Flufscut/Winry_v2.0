@@ -234,12 +234,92 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
               </Card>
             )}
 
+            {/* Competitors */}
+            {results.Competitors && (
+              <Card className="border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-900/10">
+                <CardContent className="p-4">
+                  <h5 className="text-sm font-semibold text-purple-900 dark:text-purple-100 mb-2">Competitors</h5>
+                  <p className="text-sm text-purple-700 dark:text-purple-200">{results.Competitors}</p>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Industry Context */}
             {results.Industry && (
               <Card>
                 <CardContent className="p-4">
-                  <h5 className="text-sm font-semibold text-foreground mb-2">Industry</h5>
+                  <h5 className="text-sm font-semibold text-foreground mb-2">Industry Analysis</h5>
                   <p className="text-sm text-muted-foreground">{results.Industry}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Location Research */}
+            {results["Location Research"] && (
+              <Card className="border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-900/10">
+                <CardContent className="p-4">
+                  <h5 className="text-sm font-semibold text-orange-900 dark:text-orange-100 mb-2">Location Research</h5>
+                  <p className="text-sm text-orange-700 dark:text-orange-200">{results["Location Research"]}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Alma Mater Research */}
+            {results["Alma Mater Research"] && (
+              <Card className="border-indigo-200 bg-indigo-50 dark:border-indigo-800 dark:bg-indigo-900/10">
+                <CardContent className="p-4">
+                  <h5 className="text-sm font-semibold text-indigo-900 dark:text-indigo-100 mb-2">Alma Mater Research</h5>
+                  <p className="text-sm text-indigo-700 dark:text-indigo-200">{results["Alma Mater Research"]}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* LinkedIn Post Summary */}
+            {results["LinkedIn Post Summary"] && (
+              <Card className="border-cyan-200 bg-cyan-50 dark:border-cyan-800 dark:bg-cyan-900/10">
+                <CardContent className="p-4">
+                  <h5 className="text-sm font-semibold text-cyan-900 dark:text-cyan-100 mb-2">LinkedIn Activity</h5>
+                  <p className="text-sm text-cyan-700 dark:text-cyan-200">{results["LinkedIn Post Summary"]}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Company LinkedIn Post Summary */}
+            {results["Company LinkedIn Post Summary"] && (
+              <Card className="border-teal-200 bg-teal-50 dark:border-teal-800 dark:bg-teal-900/10">
+                <CardContent className="p-4">
+                  <h5 className="text-sm font-semibold text-teal-900 dark:text-teal-100 mb-2">Company LinkedIn Activity</h5>
+                  <p className="text-sm text-teal-700 dark:text-teal-200">{results["Company LinkedIn Post Summary"]}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Company News */}
+            {results["Company News"] && (
+              <Card className="border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/10">
+                <CardContent className="p-4">
+                  <h5 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">Company News</h5>
+                  <p className="text-sm text-gray-700 dark:text-gray-200">{results["Company News"]}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Overall Prospect Summary */}
+            {results["Overall Prospect Summary"] && (
+              <Card className="border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-900/10">
+                <CardContent className="p-4">
+                  <h5 className="text-sm font-semibold text-emerald-900 dark:text-emerald-100 mb-2">Prospect Summary</h5>
+                  <p className="text-sm text-emerald-700 dark:text-emerald-200">{results["Overall Prospect Summary"]}</p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Overall Company Summary */}
+            {results["Overall Company Summary"] && (
+              <Card className="border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/10">
+                <CardContent className="p-4">
+                  <h5 className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-2">Company Summary</h5>
+                  <p className="text-sm text-amber-700 dark:text-amber-200">{results["Overall Company Summary"]}</p>
                 </CardContent>
               </Card>
             )}
