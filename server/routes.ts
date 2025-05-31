@@ -12,7 +12,7 @@ const upload = multer({
   limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-const WEBHOOK_URL = "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-4154-84c1-c0e3a2ca572e";
+const WEBHOOK_URL = "https://salesleopard.app.n8n.cloud/webhook-test/baa30a41-a24c-4154-84c1-c0e3a2ca572e";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
