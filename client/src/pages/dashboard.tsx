@@ -15,6 +15,8 @@ import ProspectForm from "@/components/prospect-form";
 import CsvUpload from "@/components/csv-upload";
 import ProspectDetails from "@/components/prospect-details";
 import ProspectTable from "@/components/prospect-table";
+import SettingsMenu from "@/components/settings-menu";
+import ProcessingIndicator from "@/components/processing-indicator";
 
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useAuth();
@@ -206,6 +208,7 @@ export default function Dashboard() {
                     {userInitials}
                   </span>
                 </div>
+                <SettingsMenu />
                 <Button 
                   variant="ghost" 
                   size="sm"
