@@ -301,31 +301,32 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
       {/* Interactive Content Sections */}
       {results && (
         <div className="space-y-6">
-          {/* Personal Intelligence */}
-          <div className="card-modern">
-            <button
-              onClick={() => toggleSection('personal')}
-              className="w-full p-6 flex items-center justify-between text-left hover:bg-muted/30 transition-colors duration-200"
-            >
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-xl border-2 border-primary/20 flex items-center justify-center"
-                     style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--secondary) / 0.1))' }}>
-                  <User className="w-6 h-6 text-primary" />
+          {/* Side-by-Side Intelligence Sections */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Personal Intelligence */}
+            <div className="card-modern">
+              <button
+                onClick={() => toggleSection('personal')}
+                className="w-full p-6 flex items-center justify-between text-left hover:bg-muted/30 transition-colors duration-200"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-xl border-2 border-primary/20 flex items-center justify-center"
+                       style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--secondary) / 0.1))' }}>
+                    <User className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground">Personal Intelligence</h3>
+                    <p className="text-sm text-muted-foreground">Professional background and insights</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground">Personal Intelligence</h3>
-                  <p className="text-sm text-muted-foreground">Professional background and personal insights</p>
-                </div>
-              </div>
-              {expandedSections.personal ? 
-                <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform duration-200" /> :
-                <ChevronRight className="w-5 h-5 text-muted-foreground transition-transform duration-200" />
-              }
-            </button>
-            
-            {expandedSections.personal && (
-              <div className="px-6 pb-6 space-y-4 animate-slideUp">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {expandedSections.personal ? 
+                  <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform duration-200" /> :
+                  <ChevronRight className="w-5 h-5 text-muted-foreground transition-transform duration-200" />
+                }
+              </button>
+              
+              {expandedSections.personal && (
+                <div className="px-6 pb-6 space-y-4 animate-slideUp">
                   {/* Contact Information */}
                   <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                     <h4 className="font-semibold text-foreground mb-3 flex items-center">
@@ -359,7 +360,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     </div>
                   )}
 
-                  {/* LinkedIn Activity */}
+                  {/* Personal Social Activity */}
                   {results?.linkedInPostSummary && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
@@ -370,35 +371,33 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     </div>
                   )}
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          {/* Company Intelligence */}
-          <div className="card-modern">
-            <button
-              onClick={() => toggleSection('company')}
-              className="w-full p-6 flex items-center justify-between text-left hover:bg-muted/30 transition-colors duration-200"
-            >
-              <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-xl border-2 border-success/20 flex items-center justify-center"
-                     style={{ background: 'linear-gradient(135deg, hsl(var(--success) / 0.1), hsl(var(--info) / 0.1))' }}>
-                  <Building className="w-6 h-6 text-success" />
+            {/* Company Intelligence */}
+            <div className="card-modern">
+              <button
+                onClick={() => toggleSection('company')}
+                className="w-full p-6 flex items-center justify-between text-left hover:bg-muted/30 transition-colors duration-200"
+              >
+                <div className="flex items-center space-x-4">
+                  <div className="w-12 h-12 rounded-xl border-2 border-success/20 flex items-center justify-center"
+                       style={{ background: 'linear-gradient(135deg, hsl(var(--success) / 0.1), hsl(var(--info) / 0.1))' }}>
+                    <Building className="w-6 h-6 text-success" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-foreground">Company Intelligence</h3>
+                    <p className="text-sm text-muted-foreground">Business context and insights</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-xl font-bold text-foreground">Company Intelligence</h3>
-                  <p className="text-sm text-muted-foreground">Business context and company insights</p>
-                </div>
-              </div>
-              {expandedSections.company ? 
-                <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform duration-200" /> :
-                <ChevronRight className="w-5 h-5 text-muted-foreground transition-transform duration-200" />
-              }
-            </button>
-            
-            {expandedSections.company && (
-              <div className="px-6 pb-6 space-y-4 animate-slideUp">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {expandedSections.company ? 
+                  <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform duration-200" /> :
+                  <ChevronRight className="w-5 h-5 text-muted-foreground transition-transform duration-200" />
+                }
+              </button>
+              
+              {expandedSections.company && (
+                <div className="px-6 pb-6 space-y-4 animate-slideUp">
                   {/* Company Details */}
                   <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                     <h4 className="font-semibold text-foreground mb-3 flex items-center">
@@ -425,17 +424,6 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     </div>
                   </div>
 
-                  {/* Company Activity */}
-                  {results?.companyLinkedInPostSummary && (
-                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
-                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
-                        <Activity className="w-4 h-4 mr-2 text-info" />
-                        Company Activity
-                      </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results.companyLinkedInPostSummary}</p>
-                    </div>
-                  )}
-
                   {/* Company News */}
                   {results?.companyNews && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
@@ -446,9 +434,20 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                       <p className="text-sm text-foreground leading-relaxed">{results.companyNews}</p>
                     </div>
                   )}
+
+                  {/* Company Social Activity */}
+                  {results?.companyLinkedInPostSummary && (
+                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
+                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                        <Activity className="w-4 h-4 mr-2 text-info" />
+                        Social Activity
+                      </h4>
+                      <p className="text-sm text-foreground leading-relaxed">{results.companyLinkedInPostSummary}</p>
+                    </div>
+                  )}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Business Intelligence */}
