@@ -192,31 +192,7 @@ export default function ProspectDetailsModern({ prospectId, onClose }: ProspectD
             )}
           </div>
 
-          {/* Personalized Email - Featured Section */}
-          {(results?.emailSubject && results?.emailBody) && (
-            <Card className="border-l-4 border-l-violet-500 bg-gradient-to-r from-violet-50/30 to-background dark:from-violet-900/10">
-              <CardHeader>
-                <CardTitle className="flex items-center text-xl">
-                  <MessageSquare className="h-5 w-5 mr-3 text-violet-500" />
-                  Personalized Outreach Email
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="bg-white dark:bg-gray-950 border border-border rounded-lg p-4 space-y-4">
-                  <div className="border-b border-border pb-3">
-                    <span className="text-sm font-semibold text-muted-foreground">Subject:</span>
-                    <p className="text-sm font-medium text-foreground mt-1">{results.emailSubject}</p>
-                  </div>
-                  <div>
-                    <span className="text-sm font-semibold text-muted-foreground">Message:</span>
-                    <div className="text-sm text-foreground mt-2 whitespace-pre-line leading-relaxed">
-                      {results.emailBody}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+
 
           {/* Personal Information Section */}
           <div className="space-y-6">
@@ -450,16 +426,59 @@ export default function ProspectDetailsModern({ prospectId, onClose }: ProspectD
             </>
           )}
 
-          {/* Educational Background */}
-          {results?.almaMaterResearch && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Educational Background</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-foreground leading-relaxed">{results.almaMaterResearch}</p>
-              </CardContent>
-            </Card>
+          {/* Outreach Campaigns Section */}
+          {(results?.emailSubject && results?.emailBody) && (
+            <>
+              <Separator />
+              <div className="space-y-6">
+                <h3 className="text-xl font-bold text-foreground flex items-center">
+                  <MessageSquare className="h-5 w-5 mr-3 text-violet-500" />
+                  Outreach Campaigns
+                </h3>
+                
+                {/* Personalized Email Campaign */}
+                <Card className="border-l-4 border-l-violet-500 bg-gradient-to-r from-violet-50/30 to-background dark:from-violet-900/10">
+                  <CardHeader>
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Mail className="h-5 w-5 mr-3 text-violet-500" />
+                        Personalized Email Outreach
+                      </div>
+                      <Badge variant="secondary" className="bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200">
+                        Step 1
+                      </Badge>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="bg-white dark:bg-gray-950 border border-border rounded-lg p-4 space-y-4">
+                      <div className="border-b border-border pb-3">
+                        <span className="text-sm font-semibold text-muted-foreground">Subject:</span>
+                        <p className="text-sm font-medium text-foreground mt-1">{results.emailSubject}</p>
+                      </div>
+                      <div>
+                        <span className="text-sm font-semibold text-muted-foreground">Message:</span>
+                        <div className="text-sm text-foreground mt-2 whitespace-pre-line leading-relaxed">
+                          {results.emailBody}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Placeholder for future campaign steps */}
+                <div className="text-center py-8 border-2 border-dashed border-border rounded-lg bg-muted/20">
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center">
+                      <Plus className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-sm font-medium text-muted-foreground">More campaign steps coming soon</p>
+                      <p className="text-xs text-muted-foreground">Follow-up emails, LinkedIn outreach, and more</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
           )}
         </div>
       )}
