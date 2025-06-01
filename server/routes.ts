@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
@@ -366,35 +367,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: 'Webhook endpoint is reachable', timestamp: new Date().toISOString() });
   });
 
-  // Add raw body parser for HTML content
-  app.use('/api/webhook/results', express.raw({ type: '*/*', limit: '10mb' }));
-  
-  // Webhook endpoint for n8n to send results back
-  app.post('/api/webhook/results', async (req, res) => {
-    console.log('!!! WEBHOOK ENDPOINT HIT !!!');
-    console.log('=== WEBHOOK RESULTS ENDPOINT TRIGGERED ===');
-    console.log('Timestamp:', new Date().toISOString());
-    console.log('Request headers:', JSON.stringify(req.headers, null, 2));
-    console.log('Content-Type:', req.headers['content-type']);
-    console.log('User-Agent:', req.headers['user-agent']);
+  // Simple webhook endpoint to capture any data
+  app.post('/api/webhook/results', (req, res) => {
+    console.log('WEBHOOK HIT AT:', new Date().toISOString());
+    console.log('Headers:', req.headers);
+    console.log('Body:', req.body);
     
-    // Handle raw body data
-    let bodyContent = '';
-    if (Buffer.isBuffer(req.body)) {
-      bodyContent = req.body.toString('utf8');
-      console.log('Raw body (Buffer converted to string):', bodyContent);
-    } else {
-      console.log('Raw request body type:', typeof req.body);
-      console.log('Raw request body:', JSON.stringify(req.body, null, 2));
-      bodyContent = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
-    }
-    
-    console.log('Body length:', bodyContent.length);
-    console.log('First 500 chars:', bodyContent.substring(0, 500));
-    console.log('!!! END WEBHOOK DATA !!!');
-    
-    // Always respond with success immediately to prevent timeouts
-    res.status(200).json({ message: 'Data received successfully', timestamp: new Date().toISOString() });
+    // Respond immediately to prevent timeouts
+    res.status(200).json({ success: true, message: 'Data received' });
     
     // Handle different possible data structures from n8n
     let dataToProcess = req.body;
