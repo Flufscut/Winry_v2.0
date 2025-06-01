@@ -376,7 +376,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
     // Process the research data
     if (req.body && Array.isArray(req.body)) {
       console.log('Processing n8n research data...');
-      // Add prospect processing here once we confirm it works
+      
+      for (const item of req.body) {
+        if (item.output) {
+          const output = item.output;
+          console.log('Processing research for:', output.firstname, output.lastname);
+          
+          try {
+            // Find matching prospect by email or name
+            const allUsers = await db.select().from(users);
+            let matchedProspect = null;
+            
+            for (const user of allUsers) {
+              const userProspects = await storage.getProspectsByUser(user.id);
+              
+              // Try to match by email first, then by name
+              matchedProspect = userProspects.find(p => 
+                (output.email && p.email === output.email) ||
+                (output.firstname && output.lastname && 
+                 p.firstName?.toLowerCase() === output.firstname.toLowerCase() && 
+                 p.lastName?.toLowerCase() === output.lastname.toLowerCase())
+              );
+              
+              if (matchedProspect) {
+                console.log(`Found matching prospect: ${matchedProspect.firstName} ${matchedProspect.lastName} (ID: ${matchedProspect.id})`);
+                
+                // Extract and organize all research data
+                const researchData = {
+                  firstname: output.firstname,
+                  lastname: output.lastname,
+                  location: output.location,
+                  linkedinUrl: output.linkedinUrl,
+                  email: output.email,
+                  website: output.website,
+                  primaryJobCompany: output['Primary Job Company'],
+                  primaryJobTitle: output['Primary Job Title'],
+                  primaryJobCompanyLinkedInUrl: output['Primary Job Company LinkedIn URL'],
+                  industry: output.Industry,
+                  painPoints: output['Pain Points'],
+                  businessGoals: output['Business Goals'],
+                  competitors: output.Competitors,
+                  competitiveAdvantages: output['Competitive Advantages'],
+                  locationResearch: output['Location Research'],
+                  almaMaterResearch: output['Alma Mater Research'],
+                  linkedInPostSummary: output['LinkedIn Post Summary'],
+                  companyLinkedInPostSummary: output['Company LinkedIn Post Summary'],
+                  companyNews: output['Company News'],
+                  overallProspectSummary: output['Overall Prospect Summary'],
+                  overallCompanySummary: output['Overall Company Summary'],
+                  emailSubject: output.Email?.subject,
+                  emailBody: output.Email?.body,
+                  fullOutput: output
+                };
+                
+                // Update prospect with research results
+                await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
+                console.log(`Successfully updated prospect ${matchedProspect.id} with research data`);
+                break;
+              }
+            }
+            
+            if (!matchedProspect) {
+              console.log(`No matching prospect found for ${output.firstname} ${output.lastname} (${output.email})`);
+            }
+          } catch (error) {
+            console.error('Error processing prospect:', error);
+          }
+        }
+      }
     }
     
     res.json({ success: true, message: 'Data received', data: req.body });
