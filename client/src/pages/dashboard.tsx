@@ -5,12 +5,15 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
-import { Zap, Plus, Upload, Users, CheckCircle, Clock, TrendingUp, Search, Loader2 } from "lucide-react";
+import { 
+  Sparkles, Plus, Upload, Users, CheckCircle2, Clock, TrendingUp, Search, 
+  Loader2, LogOut, Filter, Eye, Trash2, RotateCcw, Target, Brain, Rocket, AlertTriangle
+} from "lucide-react";
 import ProspectForm from "@/components/prospect-form";
 import CsvUpload from "@/components/csv-upload";
 import ProspectDetailsModern from "@/components/prospect-details-modern";
@@ -60,8 +63,8 @@ export default function Dashboard() {
 
   // Auto-refresh data when there are processing prospects
   useEffect(() => {
-    const hasProcessing = prospects?.some((p: any) => p.status === 'processing') || 
-                         (stats?.processing && stats.processing > 0);
+    const hasProcessing = (Array.isArray(prospects) && prospects.some((p: any) => p.status === 'processing')) || 
+                         (stats && typeof stats === 'object' && 'processing' in stats && (stats as any).processing > 0);
     
     if (hasProcessing) {
       const interval = setInterval(() => {
@@ -210,33 +213,48 @@ export default function Dashboard() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center space-y-4">
+          <div className="relative">
+            <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+            <Sparkles className="w-6 h-6 text-primary absolute top-3 left-3" />
+          </div>
+          <p className="text-muted-foreground animate-pulse">Loading SalesLeopard...</p>
+        </div>
       </div>
     );
   }
 
   if (!user) {
-    return null; // Will redirect to login
+    return null;
   }
 
-  const userInitials = user.firstName && user.lastName 
-    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
-    : user.email?.[0]?.toUpperCase() || "U";
+  const userInitials = (user as any)?.firstName && (user as any)?.lastName 
+    ? `${(user as any).firstName[0]}${(user as any).lastName[0]}`.toUpperCase()
+    : (user as any)?.email?.[0]?.toUpperCase() || "U";
 
-  const processingCount = stats?.processing || 0;
+  const processingCount = (stats as any)?.processing || 0;
+  const completedCount = (stats as any)?.completed || 0;
+  const totalCount = (stats as any)?.totalProspects || 0;
+  const successRate = (stats as any)?.successRate || 0;
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-card border-b border-border sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
+      {/* Modern Header */}
+      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
+        <div className="max-w-7xl mx-auto px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-4">
-              <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center">
-                <Zap className="h-5 w-5 text-primary-foreground" />
+              <div className="relative">
+                <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center shadow-lg">
+                  <Sparkles className="w-5 h-5 text-white" />
+                </div>
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
               </div>
-              <h1 className="text-xl font-bold text-foreground">SalesLeopard</h1>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">SalesLeopard</h1>
+                <p className="text-xs text-muted-foreground">AI Sales Intelligence</p>
+              </div>
             </div>
             
             <div className="flex items-center space-x-4">
@@ -343,7 +361,7 @@ export default function Dashboard() {
             <CardContent className="p-6">
               <div className="flex items-center">
                 <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-                  <CheckCircle className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-muted-foreground">Completed</p>
