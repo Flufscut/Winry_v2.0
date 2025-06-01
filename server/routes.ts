@@ -367,11 +367,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: 'Webhook endpoint is reachable', timestamp: new Date().toISOString() });
   });
 
-  // Working webhook outside /api path
+  // Working webhook outside /api path - NO AUTH REQUIRED
   app.post('/webhook/n8n-results', (req, res) => {
     console.log('!!! WORKING WEBHOOK HIT !!!');
     console.log('Method:', req.method);
     console.log('Body:', JSON.stringify(req.body, null, 2));
+    
+    // Process the research data
+    if (req.body && Array.isArray(req.body)) {
+      console.log('Processing n8n research data...');
+      // Add prospect processing here once we confirm it works
+    }
     
     res.json({ success: true, message: 'Data received', data: req.body });
   });
