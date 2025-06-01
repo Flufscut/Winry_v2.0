@@ -393,6 +393,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Raw request body type:', typeof req.body);
     console.log('Raw request body:', JSON.stringify(req.body, null, 2));
     
+    // Always respond with success immediately to prevent timeouts
+    res.status(200).json({ message: 'Data received successfully', timestamp: new Date().toISOString() });
+    
     // Handle different possible data structures from n8n
     let dataToProcess = req.body;
     
