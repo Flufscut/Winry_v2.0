@@ -367,14 +367,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: 'Webhook endpoint is reachable', timestamp: new Date().toISOString() });
   });
 
-  // Simple webhook endpoint to capture any data
-  app.post('/api/webhook/results', (req, res) => {
-    console.log('WEBHOOK HIT AT:', new Date().toISOString());
-    console.log('Headers:', req.headers);
-    console.log('Body:', req.body);
+  // Fresh webhook endpoint to receive n8n data
+  app.post('/api/webhook/n8n-data', async (req, res) => {
+    console.log('=== NEW WEBHOOK ENDPOINT HIT ===');
+    console.log('Timestamp:', new Date().toISOString());
+    console.log('Headers:', JSON.stringify(req.headers, null, 2));
+    console.log('Body type:', typeof req.body);
+    console.log('Body content:', JSON.stringify(req.body, null, 2));
     
     // Respond immediately to prevent timeouts
-    res.status(200).json({ success: true, message: 'Data received' });
+    res.status(200).json({ 
+      success: true, 
+      message: 'Data received successfully',
+      timestamp: new Date().toISOString()
+    });
     
     // Handle different possible data structures from n8n
     let dataToProcess = req.body;
