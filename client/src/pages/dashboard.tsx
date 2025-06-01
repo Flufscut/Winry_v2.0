@@ -257,32 +257,36 @@ export default function Dashboard() {
               </div>
             </div>
             
-            <div className="flex items-center space-x-4">
-              {/* Processing Indicator */}
+            <div className="flex items-center space-x-6">
+              {/* Live Processing Indicator */}
               {processingCount > 0 && (
-                <div className="flex items-center space-x-2 text-sm text-primary pulse-blue">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>{processingCount}</span>
-                  <span>prospects processing...</span>
+                <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30">
+                  <div className="relative">
+                    <Brain className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                    <div className="absolute inset-0 w-4 h-4 border-2 border-amber-400 rounded-full animate-spin border-t-transparent"></div>
+                  </div>
+                  <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
+                    {processingCount} analyzing
+                  </span>
                 </div>
               )}
               
               <div className="flex items-center space-x-3">
-                <span className="text-sm text-muted-foreground">
-                  {user.email}
-                </span>
-                <div className="h-8 w-8 bg-muted rounded-full flex items-center justify-center">
-                  <span className="text-sm font-medium text-muted-foreground">
-                    {userInitials}
-                  </span>
+                <div className="text-right hidden sm:block">
+                  <p className="text-sm font-medium text-foreground">{(user as any)?.firstName || 'User'}</p>
+                  <p className="text-xs text-muted-foreground">{(user as any)?.email}</p>
+                </div>
+                <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg">
+                  <span className="text-sm font-semibold text-white">{userInitials}</span>
                 </div>
                 <SettingsMenu />
                 <Button 
                   variant="ghost" 
                   size="sm"
+                  className="text-muted-foreground hover:text-foreground"
                   onClick={() => window.location.href = '/api/logout'}
                 >
-                  Logout
+                  <LogOut className="w-4 h-4" />
                 </Button>
               </div>
             </div>
@@ -290,116 +294,159 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Action Toolbar */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">Prospect Research</h2>
-            <p className="text-muted-foreground mt-1">
-              Generate personalized cold outreach messages with AI-powered research
-            </p>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-            <Dialog open={showProspectForm} onOpenChange={setShowProspectForm}>
-              <DialogTrigger asChild>
-                <Button className="inline-flex items-center">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Prospect
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-md">
-                <ProspectForm 
-                  onSuccess={() => {
-                    setShowProspectForm(false);
-                    refetchProspects();
-                  }}
-                  onCancel={() => setShowProspectForm(false)}
-                />
-              </DialogContent>
-            </Dialog>
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
+        {/* Hero Section */}
+        <div className="mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="space-y-2">
+              <h2 className="text-3xl font-bold text-foreground tracking-tight">
+                Research Pipeline
+              </h2>
+              <p className="text-lg text-muted-foreground max-w-2xl">
+                Transform prospects into personalized outreach with AI-powered research and intelligent insights.
+              </p>
+            </div>
             
-            <Dialog open={showCsvUpload} onOpenChange={setShowCsvUpload}>
-              <DialogTrigger asChild>
-                <Button variant="outline" className="inline-flex items-center">
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload CSV
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                <CsvUpload 
-                  onSuccess={() => {
-                    setShowCsvUpload(false);
-                    refetchProspects();
-                  }}
-                  onCancel={() => setShowCsvUpload(false)}
-                />
-              </DialogContent>
-            </Dialog>
+            {/* Quick Actions */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Dialog open={showProspectForm} onOpenChange={setShowProspectForm}>
+                <DialogTrigger asChild>
+                  <Button size="lg" className="btn-modern gradient-primary text-white border-0 hover:shadow-lg">
+                    <Plus className="w-5 h-5 mr-2" />
+                    Add Prospect
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Add New Prospect</DialogTitle>
+                  </DialogHeader>
+                  <ProspectForm 
+                    onSuccess={() => {
+                      setShowProspectForm(false);
+                      refetchProspects();
+                    }}
+                    onCancel={() => setShowProspectForm(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+              
+              <Dialog open={showCsvUpload} onOpenChange={setShowCsvUpload}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="lg" className="btn-modern border-border hover:bg-muted/50">
+                    <Upload className="w-5 h-5 mr-2" />
+                    Bulk Import
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-2xl">
+                  <DialogHeader>
+                    <DialogTitle>Import CSV File</DialogTitle>
+                  </DialogHeader>
+                  <CsvUpload 
+                    onSuccess={() => {
+                      setShowCsvUpload(false);
+                      refetchProspects();
+                    }}
+                    onCancel={() => setShowCsvUpload(false)}
+                  />
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
+        {/* Enhanced Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="card-modern hover-lift">
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                  <Users className="h-6 w-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="ml-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Total Prospects</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {statsLoading ? "..." : stats?.totalProspects || 0}
+                  <p className="text-3xl font-bold text-foreground">
+                    {statsLoading ? (
+                      <div className="skeleton h-8 w-16"></div>
+                    ) : (
+                      totalCount
+                    )}
                   </p>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <TrendingUp className="w-3 h-3 mr-1" />
+                    <span>Active pipeline</span>
+                  </div>
+                </div>
+                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
+                  <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="card-modern hover-lift">
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-lg bg-green-50 dark:bg-green-900/20">
-                  <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
-                </div>
-                <div className="ml-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Completed</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {statsLoading ? "..." : stats?.completed || 0}
+                  <p className="text-3xl font-bold text-foreground">
+                    {statsLoading ? (
+                      <div className="skeleton h-8 w-16"></div>
+                    ) : (
+                      completedCount
+                    )}
                   </p>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <CheckCircle2 className="w-3 h-3 mr-1" />
+                    <span>Ready for outreach</span>
+                  </div>
+                </div>
+                <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex items-center justify-center">
+                  <Target className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="card-modern hover-lift">
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-lg bg-yellow-50 dark:bg-yellow-900/20">
-                  <Clock className="h-6 w-6 text-yellow-600 dark:text-yellow-400" />
-                </div>
-                <div className="ml-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Processing</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {statsLoading ? "..." : stats?.processing || 0}
+                  <p className="text-3xl font-bold text-foreground">
+                    {statsLoading ? (
+                      <div className="skeleton h-8 w-16"></div>
+                    ) : (
+                      processingCount
+                    )}
                   </p>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Brain className="w-3 h-3 mr-1" />
+                    <span>AI analyzing</span>
+                  </div>
+                </div>
+                <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-center justify-center">
+                  <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="card-modern hover-lift">
             <CardContent className="p-6">
-              <div className="flex items-center">
-                <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20">
-                  <TrendingUp className="h-6 w-6 text-purple-600 dark:text-purple-400" />
-                </div>
-                <div className="ml-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-2">
                   <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
-                  <p className="text-2xl font-bold text-foreground">
-                    {statsLoading ? "..." : `${stats?.successRate || 0}%`}
+                  <p className="text-3xl font-bold text-foreground">
+                    {statsLoading ? (
+                      <div className="skeleton h-8 w-16"></div>
+                    ) : (
+                      `${successRate}%`
+                    )}
                   </p>
+                  <div className="flex items-center text-xs text-muted-foreground">
+                    <Rocket className="w-3 h-3 mr-1" />
+                    <span>Research quality</span>
+                  </div>
+                </div>
+                <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-xl flex items-center justify-center">
+                  <TrendingUp className="w-6 h-6 text-purple-600 dark:text-purple-400" />
                 </div>
               </div>
             </CardContent>
