@@ -853,12 +853,10 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
 
     console.log(`Processed webhook data:`, JSON.stringify(results, null, 2));
 
-    // Update all prospects in batch to completed
-    for (const prospect of prospects) {
-      await storage.updateProspectStatus(prospect.id, "completed", results);
-    }
-
-    console.log(`Batch ${batchNumber} research completed successfully for ${prospects.length} prospects`);
+    // Note: Do not mark prospects as completed here
+    // Prospects will be marked as completed individually when the webhook 
+    // receives and processes their specific research data
+    console.log(`Batch ${batchNumber} research request sent successfully for ${prospects.length} prospects`);
 
   } catch (error) {
     console.error(`Error processing batch ${batchNumber}:`, error);
