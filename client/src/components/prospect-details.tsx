@@ -102,12 +102,25 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
   const results = prospect.researchResults;
 
   return (
-    <div className="space-y-6">
-      <DialogHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <DialogTitle>{fullName}</DialogTitle>
-            <p className="text-sm text-muted-foreground mt-1">{prospect.title}</p>
+    <div className="max-w-6xl mx-auto">
+      <DialogHeader className="pb-6 border-b border-border">
+        <div className="flex items-start justify-between">
+          <div className="space-y-3">
+            <DialogTitle className="text-2xl font-bold text-foreground">{fullName}</DialogTitle>
+            {prospect.title && (
+              <p className="text-lg text-muted-foreground font-medium">{prospect.title}</p>
+            )}
+            {results?.primaryJobCompany && (
+              <p className="text-sm text-muted-foreground">
+                at <span className="font-medium">{results.primaryJobCompany}</span>
+              </p>
+            )}
+            {results?.location && (
+              <p className="text-sm text-muted-foreground flex items-center">
+                <span className="w-1 h-1 bg-muted-foreground rounded-full mr-2"></span>
+                {results.location}
+              </p>
+            )}
           </div>
           {getStatusBadge(prospect.status)}
         </div>

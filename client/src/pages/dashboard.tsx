@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Zap, Plus, Upload, Users, CheckCircle, Clock, TrendingUp, Search, Loader2 } from "lucide-react";
 import ProspectForm from "@/components/prospect-form";
 import CsvUpload from "@/components/csv-upload";
-import ProspectDetails from "@/components/prospect-details";
+import ProspectDetailsModern from "@/components/prospect-details-modern";
 import ProspectTable from "@/components/prospect-table";
 import SettingsMenu from "@/components/settings-menu";
 import ProcessingIndicator from "@/components/processing-indicator";
@@ -463,13 +463,15 @@ export default function Dashboard() {
 
       {/* Prospect Details Modal */}
       <Dialog open={selectedProspectId !== null} onOpenChange={() => setSelectedProspectId(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          {selectedProspectId && (
-            <ProspectDetails 
-              prospectId={selectedProspectId} 
-              onClose={() => setSelectedProspectId(null)}
-            />
-          )}
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0">
+          <div className="p-6">
+            {selectedProspectId && (
+              <ProspectDetailsModern 
+                prospectId={selectedProspectId} 
+                onClose={() => setSelectedProspectId(null)}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
