@@ -49,6 +49,27 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
   });
   const [animationPhase, setAnimationPhase] = useState(0);
 
+  // Helper function to get field value from research results
+  const getResearchField = (prospect: any, ...fieldNames: string[]) => {
+    const results = prospect?.researchResults;
+    if (!results) return null;
+    
+    // Check direct fields first
+    for (const fieldName of fieldNames) {
+      if (results[fieldName]) return results[fieldName];
+    }
+    
+    // Check fullOutput object
+    const fullOutput = results.fullOutput;
+    if (fullOutput) {
+      for (const fieldName of fieldNames) {
+        if (fullOutput[fieldName]) return fullOutput[fieldName];
+      }
+    }
+    
+    return null;
+  };
+
   const { data: prospect, isLoading, error } = useQuery({
     queryKey: [`/api/prospects/${prospectId}`],
     retry: false,
@@ -340,7 +361,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Location</span>
-                        <span className="font-medium text-foreground">{results.location || "N/A"}</span>
+                        <span className="font-medium text-foreground">{getResearchField(prospect, 'location') || "N/A"}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Position</span>
@@ -350,35 +371,35 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                   </div>
 
                   {/* Location Research */}
-                  {results?.["Location Research"] && (
+                  {getResearchField(prospect, 'Location Research', 'location') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <MapPin className="w-4 h-4 mr-2 text-primary" />
                         Location Insights
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results["Location Research"]}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Location Research', 'location')}</p>
                     </div>
                   )}
 
                   {/* Educational Background */}
-                  {(results?.almaMaterResearch || results?.["Alma Mater Research"]) && (
+                  {getResearchField(prospect, 'Alma Mater Research', 'almaMaterResearch') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <BookOpen className="w-4 h-4 mr-2 text-secondary" />
                         Educational Background
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results?.almaMaterResearch || results?.["Alma Mater Research"]}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Alma Mater Research', 'almaMaterResearch')}</p>
                     </div>
                   )}
 
                   {/* Personal Social Activity */}
-                  {(results?.linkedInPostSummary || results?.["LinkedIn Post Summary"]) && (
+                  {getResearchField(prospect, 'LinkedIn Post Summary', 'linkedInPostSummary') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Activity className="w-4 h-4 mr-2 text-accent" />
                         LinkedIn Activity
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results?.linkedInPostSummary || results?.["LinkedIn Post Summary"]}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'LinkedIn Post Summary', 'linkedInPostSummary')}</p>
                     </div>
                   )}
                 </div>
@@ -418,16 +439,16 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Primary Employer</span>
-                        <span className="font-medium text-foreground">{results?.["Primary Job Company"] || results?.primaryJobCompany || prospect.company}</span>
+                        <span className="font-medium text-foreground">{getResearchField(prospect, 'Primary Job Company', 'primaryJobCompany') || prospect.company}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Title</span>
-                        <span className="font-medium text-foreground">{results?.["Primary Job Title"] || prospect.title}</span>
+                        <span className="font-medium text-foreground">{getResearchField(prospect, 'Primary Job Title') || prospect.title}</span>
                       </div>
-                      {results?.["Primary Job Company LinkedIn URL"] && (
+                      {getResearchField(prospect, 'Primary Job Company LinkedIn URL') && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Company LinkedIn</span>
-                          <a href={results["Primary Job Company LinkedIn URL"]} target="_blank" rel="noopener noreferrer" 
+                          <a href={getResearchField(prospect, 'Primary Job Company LinkedIn URL')} target="_blank" rel="noopener noreferrer" 
                              className="text-primary hover:underline text-sm">View Company</a>
                         </div>
                       )}
@@ -435,57 +456,57 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                   </div>
 
                   {/* Industry Section */}
-                  {(results?.industry || results?.Industry) && (
+                  {getResearchField(prospect, 'Industry', 'industry') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Target className="w-4 h-4 mr-2 text-secondary" />
                         Industry Analysis
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results?.industry || results?.Industry}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Industry', 'industry')}</p>
                     </div>
                   )}
 
                   {/* Competitors */}
-                  {results?.Competitors && (
+                  {getResearchField(prospect, 'Competitors') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Users className="w-4 h-4 mr-2 text-warning" />
                         Competitive Landscape
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results.Competitors}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Competitors')}</p>
                     </div>
                   )}
 
                   {/* Competitive Advantages */}
-                  {results?.["Competitive Advantages"] && (
+                  {getResearchField(prospect, 'Competitive Advantages') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Award className="w-4 h-4 mr-2 text-success" />
                         Competitive Advantages
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results["Competitive Advantages"]}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Competitive Advantages')}</p>
                     </div>
                   )}
 
                   {/* Company News */}
-                  {(results?.companyNews || results?.["Company News"]) && (
+                  {getResearchField(prospect, 'Company News', 'companyNews') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <FileText className="w-4 h-4 mr-2 text-warning" />
                         Recent Company News
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results?.companyNews || results?.["Company News"]}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Company News', 'companyNews')}</p>
                     </div>
                   )}
 
                   {/* Company Social Activity */}
-                  {(results?.companyLinkedInPostSummary || results?.["Company LinkedIn Post Summary"]) && (
+                  {getResearchField(prospect, 'Company LinkedIn Post Summary', 'companyLinkedInPostSummary') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Activity className="w-4 h-4 mr-2 text-info" />
                         Company Social Activity
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results?.companyLinkedInPostSummary || results?.["Company LinkedIn Post Summary"]}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Company LinkedIn Post Summary', 'companyLinkedInPostSummary')}</p>
                     </div>
                   )}
                 </div>
