@@ -202,6 +202,23 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
     mapping.title && 
     mapping.email;
 
+  // Calculate actual number of rows to be processed
+  const getActualRowCount = () => {
+    if (!csvPreview) return 0;
+    
+    const totalRows = csvPreview.rowCount;
+    const startIndex = startRow - 1; // Convert to 0-based indexing
+    const availableFromStart = Math.max(0, totalRows - startIndex);
+    
+    if (maxRows && maxRows > 0) {
+      return Math.min(availableFromStart, maxRows);
+    }
+    
+    return availableFromStart;
+  };
+
+  const actualRowCount = getActualRowCount();
+
   return (
     <div>
       <DialogHeader>
@@ -409,8 +426,14 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
             <Alert>
               <Info className="h-4 w-4" />
               <AlertDescription>
-                <strong>Preview:</strong> We found {csvPreview.rowCount} prospects in your CSV file. 
-                Make sure all required fields are mapped before proceeding.
+                <strong>Preview:</strong> We found {csvPreview.rowCount} prospects in your CSV file.
+                {actualRowCount !== csvPreview.rowCount && (
+                  <> Will process {actualRowCount} prospects based on your row settings.</>
+                )}
+                {actualRowCount === csvPreview.rowCount && (
+                  <> Will process all {actualRowCount} prospects.</>
+                )}
+                <br />Make sure all required fields are mapped before proceeding.
               </AlertDescription>
             </Alert>
           </div>
@@ -422,8 +445,8 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
             <ProcessingIndicator
               status="processing"
               progress={45}
-              message={`Processing ${csvPreview.rowCount} prospects in batches of ${batchSize}`}
-              estimatedTime={`${Math.ceil(csvPreview.rowCount / batchSize)} min`}
+              message={`Processing ${actualRowCount} prospects in batches of ${batchSize}`}
+              estimatedTime={`${Math.ceil(actualRowCount / batchSize)} min`}
             />
           </div>
         )}
@@ -440,7 +463,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
               {processCsvMutation.isPending && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
-              Process {csvPreview.rowCount} Prospects
+              Process {actualRowCount} Prospects
             </Button>
           )}
         </div>
