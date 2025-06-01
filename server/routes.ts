@@ -372,6 +372,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Test endpoint for connectivity
+  app.get('/webhook/test', (req, res) => {
+    console.log('=== TEST ENDPOINT HIT ===');
+    res.json({ message: 'Webhook endpoint is reachable', timestamp: new Date().toISOString() });
+  });
+
   // Webhook endpoint for n8n to send results back
   app.post('/webhook/results', async (req, res) => {
     console.log('=== WEBHOOK RESULTS ENDPOINT TRIGGERED ===');
