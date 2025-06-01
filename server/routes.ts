@@ -434,9 +434,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             console.log('Research data prepared:', Object.keys(researchData));
             
-            // Update prospect with research results
-            await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
-            console.log(`✅ Successfully updated prospect ${matchedProspect.id} with research data`);
+            // Only mark as completed if we have the essential research data (especially email content)
+            // This indicates the n8n workflow has fully completed its research and email generation
+            const hasEssentialData = researchData.emailSubject && researchData.emailBody;
+            
+            if (hasEssentialData) {
+              // Update prospect with research results and mark as completed
+              await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
+              console.log(`✅ Successfully updated prospect ${matchedProspect.id} with complete research data and marked as completed`);
+            } else {
+              // Update prospect with partial research data but keep as processing
+              await storage.updateProspectStatus(matchedProspect.id, 'processing', researchData);
+              console.log(`📝 Updated prospect ${matchedProspect.id} with partial research data, keeping as processing (missing email content)`);
+            }
             break;
           }
         }
