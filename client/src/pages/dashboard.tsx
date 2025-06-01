@@ -238,6 +238,18 @@ export default function Dashboard() {
   const totalCount = (stats as any)?.totalProspects || 0;
   const successRate = (stats as any)?.successRate || 0;
 
+  // Filter prospects based on search and status
+  const filteredProspects = prospects?.filter((prospect: any) => {
+    const matchesSearch = !searchQuery || 
+      `${prospect.firstName} ${prospect.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      prospect.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      prospect.email.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === "all" || prospect.status === statusFilter;
+    
+    return matchesSearch && matchesStatus;
+  });
+
   return (
     <div className="min-h-screen" style={{ background: 'var(--gradient-mesh), hsl(var(--background))' }}>
       {/* Distinctive Header */}
