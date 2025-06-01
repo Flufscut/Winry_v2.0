@@ -373,76 +373,111 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Method:', req.method);
     console.log('Body:', JSON.stringify(req.body, null, 2));
     
-    // Process the research data
+    async function processProspectData(data: any) {
+      try {
+        console.log('=== PROCESSING PROSPECT DATA ===');
+        console.log('Data keys:', Object.keys(data));
+        console.log('Email:', data.email);
+        console.log('Name:', data.firstname, data.lastname);
+        
+        // Find matching prospect by email or name
+        const allUsers = await db.select().from(users);
+        let matchedProspect = null;
+        
+        for (const user of allUsers) {
+          const userProspects = await storage.getProspectsByUser(user.id);
+          console.log(`Checking ${userProspects.length} prospects for user ${user.id}`);
+          
+          // Try to match by email first, then by name
+          matchedProspect = userProspects.find(p => {
+            const emailMatch = data.email && p.email === data.email;
+            const nameMatch = data.firstname && data.lastname && 
+              p.firstName?.toLowerCase() === data.firstname.toLowerCase() && 
+              p.lastName?.toLowerCase() === data.lastname.toLowerCase();
+            
+            console.log(`Checking prospect ${p.firstName} ${p.lastName} (${p.email})`);
+            console.log(`Email match: ${emailMatch}, Name match: ${nameMatch}`);
+            
+            return emailMatch || nameMatch;
+          });
+          
+          if (matchedProspect) {
+            console.log(`✅ Found matching prospect: ${matchedProspect.firstName} ${matchedProspect.lastName} (ID: ${matchedProspect.id})`);
+            
+            // Extract and organize all research data
+            const researchData = {
+              firstname: data.firstname,
+              lastname: data.lastname,
+              location: data.location,
+              linkedinUrl: data.linkedinUrl,
+              email: data.email,
+              website: data.website,
+              primaryJobCompany: data['Primary Job Company'],
+              primaryJobTitle: data['Primary Job Title'],
+              primaryJobCompanyLinkedInUrl: data['Primary Job Company LinkedIn URL'],
+              industry: data.Industry,
+              painPoints: data['Pain Points'],
+              businessGoals: data['Business Goals'],
+              competitors: data.Competitors,
+              competitiveAdvantages: data['Competitive Advantages'],
+              locationResearch: data['Location Research'],
+              almaMaterResearch: data['Alma Mater Research'],
+              linkedInPostSummary: data['LinkedIn Post Summary'],
+              companyLinkedInPostSummary: data['Company LinkedIn Post Summary'],
+              companyNews: data['Company News'],
+              overallProspectSummary: data['Overall Prospect Summary'],
+              overallCompanySummary: data['Overall Company Summary'],
+              emailSubject: data['Email Subject'],
+              emailBody: data['Email Body'],
+              fullOutput: data
+            };
+            
+            console.log('Research data prepared:', Object.keys(researchData));
+            
+            // Update prospect with research results
+            await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
+            console.log(`✅ Successfully updated prospect ${matchedProspect.id} with research data`);
+            break;
+          }
+        }
+        
+        if (!matchedProspect) {
+          console.log(`❌ No matching prospect found for ${data.firstname} ${data.lastname} (${data.email})`);
+        }
+      } catch (error) {
+        console.error('❌ Error processing prospect:', error);
+      }
+    }
+    
+    // Process the research data - handle multiple possible data formats
+    console.log('Raw body type:', typeof req.body);
+    console.log('Raw body keys:', req.body ? Object.keys(req.body) : 'no keys');
+    
+    // Handle direct object (single prospect data)
+    if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+      if (req.body.firstname || req.body.lastname || req.body.email) {
+        console.log('Processing single prospect research data...');
+        const data = req.body;
+        console.log('Processing research for:', data.firstname, data.lastname);
+        await processProspectData(data);
+      }
+    }
+    
+    // Handle array format
     if (req.body && Array.isArray(req.body)) {
-      console.log('Processing n8n research data...');
+      console.log('Processing array of research data...');
       
       for (const item of req.body) {
-        // Handle the actual data format from n8n (flat object structure)
+        // Handle wrapped data format { data: {...} }
         if (item.data && typeof item.data === 'object') {
           const data = item.data;
           console.log('Processing research for:', data.firstname, data.lastname);
-          
-          try {
-            // Find matching prospect by email or name
-            const allUsers = await db.select().from(users);
-            let matchedProspect = null;
-            
-            for (const user of allUsers) {
-              const userProspects = await storage.getProspectsByUser(user.id);
-              
-              // Try to match by email first, then by name
-              matchedProspect = userProspects.find(p => 
-                (data.email && p.email === data.email) ||
-                (data.firstname && data.lastname && 
-                 p.firstName?.toLowerCase() === data.firstname.toLowerCase() && 
-                 p.lastName?.toLowerCase() === data.lastname.toLowerCase())
-              );
-              
-              if (matchedProspect) {
-                console.log(`Found matching prospect: ${matchedProspect.firstName} ${matchedProspect.lastName} (ID: ${matchedProspect.id})`);
-                
-                // Extract and organize all research data
-                const researchData = {
-                  firstname: data.firstname,
-                  lastname: data.lastname,
-                  location: data.location,
-                  linkedinUrl: data.linkedinUrl,
-                  email: data.email,
-                  website: data.website,
-                  primaryJobCompany: data['Primary Job Company'],
-                  primaryJobTitle: data['Primary Job Title'],
-                  primaryJobCompanyLinkedInUrl: data['Primary Job Company LinkedIn URL'],
-                  industry: data.Industry,
-                  painPoints: data['Pain Points'],
-                  businessGoals: data['Business Goals'],
-                  competitors: data.Competitors,
-                  competitiveAdvantages: data['Competitive Advantages'],
-                  locationResearch: data['Location Research'],
-                  almaMaterResearch: data['Alma Mater Research'],
-                  linkedInPostSummary: data['LinkedIn Post Summary'],
-                  companyLinkedInPostSummary: data['Company LinkedIn Post Summary'],
-                  companyNews: data['Company News'],
-                  overallProspectSummary: data['Overall Prospect Summary'],
-                  overallCompanySummary: data['Overall Company Summary'],
-                  emailSubject: data['Email Subject'],
-                  emailBody: data['Email Body'],
-                  fullOutput: data
-                };
-                
-                // Update prospect with research results
-                await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
-                console.log(`Successfully updated prospect ${matchedProspect.id} with research data`);
-                break;
-              }
-            }
-            
-            if (!matchedProspect) {
-              console.log(`No matching prospect found for ${data.firstname} ${data.lastname} (${data.email})`);
-            }
-          } catch (error) {
-            console.error('Error processing prospect:', error);
-          }
+          await processProspectData(data);
+        }
+        // Handle direct data format
+        else if (item.firstname || item.lastname || item.email) {
+          console.log('Processing direct research for:', item.firstname, item.lastname);
+          await processProspectData(item);
         }
       }
     }
