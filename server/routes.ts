@@ -356,6 +356,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Raw body capture middleware for debugging
+  app.use('/webhook/results', (req, res, next) => {
+    let data = '';
+    req.on('data', chunk => {
+      data += chunk;
+    });
+    req.on('end', () => {
+      console.log('=== Raw Body Data ===');
+      console.log('Raw body string:', data);
+      console.log('Raw body length:', data.length);
+      next();
+    });
+  });
+
   // Webhook endpoint for n8n to send results back
   app.post('/webhook/results', async (req, res) => {
     console.log('=== Webhook Results Endpoint Hit ===');
