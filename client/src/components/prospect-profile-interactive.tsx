@@ -349,25 +349,36 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     </div>
                   </div>
 
+                  {/* Location Research */}
+                  {results?.["Location Research"] && (
+                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
+                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                        <MapPin className="w-4 h-4 mr-2 text-primary" />
+                        Location Insights
+                      </h4>
+                      <p className="text-sm text-foreground leading-relaxed">{results["Location Research"]}</p>
+                    </div>
+                  )}
+
                   {/* Educational Background */}
-                  {results?.almaMaterResearch && (
+                  {(results?.almaMaterResearch || results?.["Alma Mater Research"]) && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <BookOpen className="w-4 h-4 mr-2 text-secondary" />
-                        Education
+                        Educational Background
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results.almaMaterResearch}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{results?.almaMaterResearch || results?.["Alma Mater Research"]}</p>
                     </div>
                   )}
 
                   {/* Personal Social Activity */}
-                  {results?.linkedInPostSummary && (
+                  {(results?.linkedInPostSummary || results?.["LinkedIn Post Summary"]) && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Activity className="w-4 h-4 mr-2 text-accent" />
-                        Social Activity
+                        LinkedIn Activity
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results.linkedInPostSummary}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{results?.linkedInPostSummary || results?.["LinkedIn Post Summary"]}</p>
                     </div>
                   )}
                 </div>
@@ -407,45 +418,74 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Primary Employer</span>
-                        <span className="font-medium text-foreground">{results?.primaryJobCompany || prospect.company}</span>
+                        <span className="font-medium text-foreground">{results?.["Primary Job Company"] || results?.primaryJobCompany || prospect.company}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Title</span>
-                        <span className="font-medium text-foreground">{prospect.title}</span>
+                        <span className="font-medium text-foreground">{results?.["Primary Job Title"] || prospect.title}</span>
                       </div>
+                      {results?.["Primary Job Company LinkedIn URL"] && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Company LinkedIn</span>
+                          <a href={results["Primary Job Company LinkedIn URL"]} target="_blank" rel="noopener noreferrer" 
+                             className="text-primary hover:underline text-sm">View Company</a>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   {/* Industry Section */}
-                  {results?.industry && (
+                  {(results?.industry || results?.Industry) && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Target className="w-4 h-4 mr-2 text-secondary" />
-                        Industry
+                        Industry Analysis
                       </h4>
-                      <p className="text-sm text-foreground font-medium">{results.industry}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{results?.industry || results?.Industry}</p>
+                    </div>
+                  )}
+
+                  {/* Competitors */}
+                  {results?.Competitors && (
+                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
+                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                        <Users className="w-4 h-4 mr-2 text-warning" />
+                        Competitive Landscape
+                      </h4>
+                      <p className="text-sm text-foreground leading-relaxed">{results.Competitors}</p>
+                    </div>
+                  )}
+
+                  {/* Competitive Advantages */}
+                  {results?.["Competitive Advantages"] && (
+                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
+                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                        <Award className="w-4 h-4 mr-2 text-success" />
+                        Competitive Advantages
+                      </h4>
+                      <p className="text-sm text-foreground leading-relaxed">{results["Competitive Advantages"]}</p>
                     </div>
                   )}
 
                   {/* Company News */}
-                  {results?.companyNews && (
+                  {(results?.companyNews || results?.["Company News"]) && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <FileText className="w-4 h-4 mr-2 text-warning" />
-                        Recent News
+                        Recent Company News
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results.companyNews}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{results?.companyNews || results?.["Company News"]}</p>
                     </div>
                   )}
 
                   {/* Company Social Activity */}
-                  {results?.companyLinkedInPostSummary && (
+                  {(results?.companyLinkedInPostSummary || results?.["Company LinkedIn Post Summary"]) && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Activity className="w-4 h-4 mr-2 text-info" />
-                        Social Activity
+                        Company Social Activity
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results.companyLinkedInPostSummary}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{results?.companyLinkedInPostSummary || results?.["Company LinkedIn Post Summary"]}</p>
                     </div>
                   )}
                 </div>
@@ -479,35 +519,49 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
               <div className="px-6 pb-6 space-y-4 animate-slideUp">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Pain Points */}
-                  {results?.painPoints && (
+                  {(results?.painPoints || results?.["Pain Points"]) && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Target className="w-4 h-4 mr-2 text-destructive" />
                         Pain Points
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results.painPoints}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{results?.painPoints || results?.["Pain Points"]}</p>
                     </div>
                   )}
 
                   {/* Business Goals */}
-                  {results?.businessGoals && (
+                  {(results?.businessGoals || results?.["Business Goals"]) && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <TrendingUp className="w-4 h-4 mr-2 text-primary" />
                         Business Goals
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results.businessGoals}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{results?.businessGoals || results?.["Business Goals"]}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Overall Summaries */}
+                <div className="space-y-4">
+                  {/* Overall Prospect Summary */}
+                  {results?.["Overall Prospect Summary"] && (
+                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
+                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                        <User className="w-4 h-4 mr-2 text-primary" />
+                        Prospect Summary
+                      </h4>
+                      <p className="text-sm text-foreground leading-relaxed">{results["Overall Prospect Summary"]}</p>
                     </div>
                   )}
 
-                  {/* Competitive Advantages */}
-                  {results?.competitiveAdvantages && (
+                  {/* Overall Company Summary */}
+                  {results?.["Overall Company Summary"] && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
-                        <Award className="w-4 h-4 mr-2 text-success" />
-                        Competitive Edge
+                        <Building className="w-4 h-4 mr-2 text-success" />
+                        Company Summary
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results.competitiveAdvantages}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{results["Overall Company Summary"]}</p>
                     </div>
                   )}
 
