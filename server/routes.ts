@@ -367,7 +367,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: 'Webhook endpoint is reachable', timestamp: new Date().toISOString() });
   });
 
-  // Fresh webhook endpoint to receive n8n data - ALL HTTP METHODS
+  // Simple test webhook to verify routing
+  app.post('/api/test-webhook', (req, res) => {
+    console.log('SIMPLE TEST WEBHOOK HIT!');
+    console.log('Body:', req.body);
+    res.json({ test: 'success', received: req.body });
+  });
+
+  // Add simple log for route registration
+  console.log('REGISTERING WEBHOOK ROUTE: /api/webhook/n8n-data');
+
+  // Fresh webhook endpoint to receive n8n data - ALL HTTP METHODS  
   app.all('/api/webhook/n8n-data', async (req, res) => {
     console.log('!!! FRESH WEBHOOK ENDPOINT HIT !!!');
     console.log('Method:', req.method);

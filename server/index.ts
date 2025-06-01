@@ -43,7 +43,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  console.log('=== STARTING SERVER SETUP ===');
   const server = await registerRoutes(app);
+  console.log('=== ROUTES REGISTERED ===');
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
