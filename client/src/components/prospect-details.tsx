@@ -41,10 +41,9 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
   });
 
   const copyEmailToClipboard = () => {
-    const results = prospect?.researchResults?.[0]?.output || prospect?.researchResults;
-    if (results?.Email) {
-      const email = results.Email;
-      const emailText = `Subject: ${email.subject}\n\n${email.body}`;
+    const results = prospect?.researchResults;
+    if (results?.emailSubject && results?.emailBody) {
+      const emailText = `Subject: ${results.emailSubject}\n\n${results.emailBody}`;
       
       navigator.clipboard.writeText(emailText).then(() => {
         toast({
@@ -99,8 +98,8 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
   }
 
   const fullName = `${prospect.firstName} ${prospect.lastName}`;
-  // Handle different data structures from the webhook
-  const results = prospect.researchResults?.output || prospect.researchResults?.[0]?.output || prospect.researchResults;
+  // Access research results directly from the flat structure
+  const results = prospect.researchResults;
 
   return (
     <div className="space-y-6">
@@ -215,53 +214,53 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Pain Points */}
-              {results["Pain Points"] && (
+              {results?.painPoints && (
                 <Card className="border-l-4 border-l-red-500 bg-gradient-to-r from-red-50 to-red-50/30 dark:from-red-900/20 dark:to-red-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-red-500 rounded-full mr-2"></span>
                       Pain Points
                     </h5>
-                    <p className="text-sm text-red-800 dark:text-red-200 leading-relaxed">{results["Pain Points"]}</p>
+                    <p className="text-sm text-red-800 dark:text-red-200 leading-relaxed">{results.painPoints}</p>
                   </CardContent>
                 </Card>
               )}
               
               {/* Business Goals */}
-              {results["Business Goals"] && (
+              {results?.businessGoals && (
                 <Card className="border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50 to-blue-50/30 dark:from-blue-900/20 dark:to-blue-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
                       Business Goals
                     </h5>
-                    <p className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">{results["Business Goals"]}</p>
+                    <p className="text-sm text-blue-800 dark:text-blue-200 leading-relaxed">{results.businessGoals}</p>
                   </CardContent>
                 </Card>
               )}
               
               {/* Competitive Advantages */}
-              {results["Competitive Advantages"] && (
+              {results?.competitiveAdvantages && (
                 <Card className="border-l-4 border-l-green-500 bg-gradient-to-r from-green-50 to-green-50/30 dark:from-green-900/20 dark:to-green-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-green-900 dark:text-green-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
                       Competitive Advantages
                     </h5>
-                    <p className="text-sm text-green-800 dark:text-green-200 leading-relaxed">{results["Competitive Advantages"]}</p>
+                    <p className="text-sm text-green-800 dark:text-green-200 leading-relaxed">{results.competitiveAdvantages}</p>
                   </CardContent>
                 </Card>
               )}
 
               {/* Competitors */}
-              {results.Competitors && (
+              {results?.competitors && (
                 <Card className="border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50 to-purple-50/30 dark:from-purple-900/20 dark:to-purple-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-purple-900 dark:text-purple-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-purple-500 rounded-full mr-2"></span>
                       Competitors
                     </h5>
-                    <p className="text-sm text-purple-800 dark:text-purple-200 leading-relaxed">{results.Competitors}</p>
+                    <p className="text-sm text-purple-800 dark:text-purple-200 leading-relaxed">{results.competitors}</p>
                   </CardContent>
                 </Card>
               )}
@@ -277,53 +276,53 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Industry Analysis */}
-              {results.Industry && (
+              {results?.industry && (
                 <Card className="border-l-4 border-l-slate-500 bg-gradient-to-r from-slate-50 to-slate-50/30 dark:from-slate-900/20 dark:to-slate-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-slate-500 rounded-full mr-2"></span>
                       Industry Analysis
                     </h5>
-                    <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">{results.Industry}</p>
+                    <p className="text-sm text-slate-800 dark:text-slate-200 leading-relaxed">{results.industry}</p>
                   </CardContent>
                 </Card>
               )}
 
               {/* Location Research */}
-              {results["Location Research"] && (
+              {results?.locationResearch && (
                 <Card className="border-l-4 border-l-orange-500 bg-gradient-to-r from-orange-50 to-orange-50/30 dark:from-orange-900/20 dark:to-orange-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-orange-900 dark:text-orange-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-orange-500 rounded-full mr-2"></span>
                       Location Insights
                     </h5>
-                    <p className="text-sm text-orange-800 dark:text-orange-200 leading-relaxed">{results["Location Research"]}</p>
+                    <p className="text-sm text-orange-800 dark:text-orange-200 leading-relaxed">{results.locationResearch}</p>
                   </CardContent>
                 </Card>
               )}
 
               {/* Alma Mater Research */}
-              {results["Alma Mater Research"] && (
+              {results?.almaMaterResearch && (
                 <Card className="border-l-4 border-l-indigo-500 bg-gradient-to-r from-indigo-50 to-indigo-50/30 dark:from-indigo-900/20 dark:to-indigo-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-indigo-900 dark:text-indigo-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
                       Educational Background
                     </h5>
-                    <p className="text-sm text-indigo-800 dark:text-indigo-200 leading-relaxed">{results["Alma Mater Research"]}</p>
+                    <p className="text-sm text-indigo-800 dark:text-indigo-200 leading-relaxed">{results.almaMaterResearch}</p>
                   </CardContent>
                 </Card>
               )}
 
               {/* Company News */}
-              {results["Company News"] && (
+              {results?.companyNews && (
                 <Card className="border-l-4 border-l-gray-500 bg-gradient-to-r from-gray-50 to-gray-50/30 dark:from-gray-900/20 dark:to-gray-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-gray-500 rounded-full mr-2"></span>
                       Recent Company News
                     </h5>
-                    <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">{results["Company News"]}</p>
+                    <p className="text-sm text-gray-800 dark:text-gray-200 leading-relaxed">{results.companyNews}</p>
                   </CardContent>
                 </Card>
               )}
@@ -339,27 +338,27 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* LinkedIn Activity */}
-              {results["LinkedIn Post Summary"] && (
+              {results?.linkedInPostSummary && (
                 <Card className="border-l-4 border-l-cyan-500 bg-gradient-to-r from-cyan-50 to-cyan-50/30 dark:from-cyan-900/20 dark:to-cyan-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-cyan-900 dark:text-cyan-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-cyan-500 rounded-full mr-2"></span>
                       Personal LinkedIn Activity
                     </h5>
-                    <p className="text-sm text-cyan-800 dark:text-cyan-200 leading-relaxed">{results["LinkedIn Post Summary"]}</p>
+                    <p className="text-sm text-cyan-800 dark:text-cyan-200 leading-relaxed">{results.linkedInPostSummary}</p>
                   </CardContent>
                 </Card>
               )}
 
               {/* Company LinkedIn Activity */}
-              {results["Company LinkedIn Post Summary"] && (
+              {results?.companyLinkedInPostSummary && (
                 <Card className="border-l-4 border-l-teal-500 bg-gradient-to-r from-teal-50 to-teal-50/30 dark:from-teal-900/20 dark:to-teal-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-teal-900 dark:text-teal-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-teal-500 rounded-full mr-2"></span>
                       Company LinkedIn Activity
                     </h5>
-                    <p className="text-sm text-teal-800 dark:text-teal-200 leading-relaxed">{results["Company LinkedIn Post Summary"]}</p>
+                    <p className="text-sm text-teal-800 dark:text-teal-200 leading-relaxed">{results.companyLinkedInPostSummary}</p>
                   </CardContent>
                 </Card>
               )}
