@@ -463,7 +463,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
               {processCsvMutation.isPending && (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               )}
-              Process {actualRowCount} Prospects
+              Process {actualRowCount} Prospect{actualRowCount === 1 ? '' : 's'}
             </Button>
           )}
         </div>
