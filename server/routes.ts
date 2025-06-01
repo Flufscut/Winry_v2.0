@@ -368,7 +368,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Working webhook outside /api path - NO AUTH REQUIRED
-  app.post('/webhook/n8n-results', (req, res) => {
+  app.post('/webhook/n8n-results', async (req, res) => {
     console.log('!!! WORKING WEBHOOK HIT !!!');
     console.log('Method:', req.method);
     console.log('Body:', JSON.stringify(req.body, null, 2));
@@ -378,9 +378,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('Processing n8n research data...');
       
       for (const item of req.body) {
-        if (item.output) {
-          const output = item.output;
-          console.log('Processing research for:', output.firstname, output.lastname);
+        // Handle the actual data format from n8n (flat object structure)
+        if (item.data && typeof item.data === 'object') {
+          const data = item.data;
+          console.log('Processing research for:', data.firstname, data.lastname);
           
           try {
             // Find matching prospect by email or name
@@ -392,10 +393,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               
               // Try to match by email first, then by name
               matchedProspect = userProspects.find(p => 
-                (output.email && p.email === output.email) ||
-                (output.firstname && output.lastname && 
-                 p.firstName?.toLowerCase() === output.firstname.toLowerCase() && 
-                 p.lastName?.toLowerCase() === output.lastname.toLowerCase())
+                (data.email && p.email === data.email) ||
+                (data.firstname && data.lastname && 
+                 p.firstName?.toLowerCase() === data.firstname.toLowerCase() && 
+                 p.lastName?.toLowerCase() === data.lastname.toLowerCase())
               );
               
               if (matchedProspect) {
@@ -403,30 +404,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 
                 // Extract and organize all research data
                 const researchData = {
-                  firstname: output.firstname,
-                  lastname: output.lastname,
-                  location: output.location,
-                  linkedinUrl: output.linkedinUrl,
-                  email: output.email,
-                  website: output.website,
-                  primaryJobCompany: output['Primary Job Company'],
-                  primaryJobTitle: output['Primary Job Title'],
-                  primaryJobCompanyLinkedInUrl: output['Primary Job Company LinkedIn URL'],
-                  industry: output.Industry,
-                  painPoints: output['Pain Points'],
-                  businessGoals: output['Business Goals'],
-                  competitors: output.Competitors,
-                  competitiveAdvantages: output['Competitive Advantages'],
-                  locationResearch: output['Location Research'],
-                  almaMaterResearch: output['Alma Mater Research'],
-                  linkedInPostSummary: output['LinkedIn Post Summary'],
-                  companyLinkedInPostSummary: output['Company LinkedIn Post Summary'],
-                  companyNews: output['Company News'],
-                  overallProspectSummary: output['Overall Prospect Summary'],
-                  overallCompanySummary: output['Overall Company Summary'],
-                  emailSubject: output.Email?.subject,
-                  emailBody: output.Email?.body,
-                  fullOutput: output
+                  firstname: data.firstname,
+                  lastname: data.lastname,
+                  location: data.location,
+                  linkedinUrl: data.linkedinUrl,
+                  email: data.email,
+                  website: data.website,
+                  primaryJobCompany: data['Primary Job Company'],
+                  primaryJobTitle: data['Primary Job Title'],
+                  primaryJobCompanyLinkedInUrl: data['Primary Job Company LinkedIn URL'],
+                  industry: data.Industry,
+                  painPoints: data['Pain Points'],
+                  businessGoals: data['Business Goals'],
+                  competitors: data.Competitors,
+                  competitiveAdvantages: data['Competitive Advantages'],
+                  locationResearch: data['Location Research'],
+                  almaMaterResearch: data['Alma Mater Research'],
+                  linkedInPostSummary: data['LinkedIn Post Summary'],
+                  companyLinkedInPostSummary: data['Company LinkedIn Post Summary'],
+                  companyNews: data['Company News'],
+                  overallProspectSummary: data['Overall Prospect Summary'],
+                  overallCompanySummary: data['Overall Company Summary'],
+                  emailSubject: data['Email Subject'],
+                  emailBody: data['Email Body'],
+                  fullOutput: data
                 };
                 
                 // Update prospect with research results
@@ -437,7 +438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
             
             if (!matchedProspect) {
-              console.log(`No matching prospect found for ${output.firstname} ${output.lastname} (${output.email})`);
+              console.log(`No matching prospect found for ${data.firstname} ${data.lastname} (${data.email})`);
             }
           } catch (error) {
             console.error('Error processing prospect:', error);
