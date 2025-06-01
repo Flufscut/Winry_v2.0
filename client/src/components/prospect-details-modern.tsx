@@ -18,7 +18,8 @@ import {
   Award,
   MessageSquare,
   FileText,
-  Globe
+  Globe,
+  Plus
 } from "lucide-react";
 
 interface ProspectDetailsProps {
