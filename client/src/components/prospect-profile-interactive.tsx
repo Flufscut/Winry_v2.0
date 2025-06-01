@@ -471,7 +471,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Users className="w-4 h-4 mr-2 text-warning" />
-                        Competitors
+                        Competitive Landscape
                       </h4>
                       <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Competitors')}</p>
                     </div>
