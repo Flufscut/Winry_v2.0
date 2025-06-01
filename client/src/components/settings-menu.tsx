@@ -8,7 +8,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { Settings, Save, RotateCcw } from "lucide-react";
 
 interface AppSettings {
@@ -17,7 +16,6 @@ interface AppSettings {
   maxRetries: number;
   retryDelaySeconds: number;
   batchSize: number;
-  useProductionWebhook: boolean;
 }
 
 export default function SettingsMenu() {
@@ -36,7 +34,6 @@ export default function SettingsMenu() {
     maxRetries: 1,
     retryDelaySeconds: 30,
     batchSize: 10,
-    useProductionWebhook: true,
   });
 
   // Update form data when settings are loaded
@@ -220,20 +217,6 @@ export default function SettingsMenu() {
                   onChange={(e) => handleInputChange("batchSize", parseInt(e.target.value))}
                 />
                 <p className="text-xs text-muted-foreground">Number of prospects processed per batch</p>
-              </div>
-
-              <div className="space-y-2">
-                <div className="flex items-center space-x-2">
-                  <Switch
-                    id="useProductionWebhook"
-                    checked={formData.useProductionWebhook}
-                    onCheckedChange={(checked) => handleInputChange("useProductionWebhook", checked)}
-                  />
-                  <Label htmlFor="useProductionWebhook">Use Production Webhook</Label>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Toggle between production webhook (/webhook/) and test webhook (/webhook-test/)
-                </p>
               </div>
             </CardContent>
           </Card>
