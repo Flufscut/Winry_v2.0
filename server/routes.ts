@@ -553,10 +553,17 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
 
     console.log(`Processing research for batch ${batchNumber} with ${prospects.length} prospects`);
     console.log(`Webhook payload:`, JSON.stringify(webhookPayload, null, 2));
-    console.log(`Sending to webhook URL: ${WEBHOOK_URL}`);
 
     // Get current settings for webhook configuration
     const settings = await getAppSettings();
+    
+    // Construct webhook URL based on production/test toggle
+    const baseUrl = "https://salesleopard.app.n8n.cloud";
+    const webhookPath = settings.useProductionWebhook ? "/webhook/" : "/webhook-test/";
+    const webhookId = "baa30a41-a24c-4154-84c1-c0e3a2ca572e";
+    const webhookUrl = `${baseUrl}${webhookPath}${webhookId}`;
+    
+    console.log(`Sending to webhook URL: ${webhookUrl} (production: ${settings.useProductionWebhook})`);
     
     // Send to n8n webhook with configurable timeout and retry logic
     let response;
@@ -569,7 +576,7 @@ async function processBatchResearch(prospects: Array<{ id: number; data: any }>,
       try {
         console.log(`Attempting webhook request (attempt ${retryCount + 1}/${maxRetries + 1}) with ${timeoutMs/1000}s timeout...`);
         
-        response = await fetch(WEBHOOK_URL, {
+        response = await fetch(webhookUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
