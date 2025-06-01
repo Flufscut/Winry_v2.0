@@ -236,9 +236,9 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
               <span className="font-medium text-foreground">{prospect.email}</span>
             </a>
             
-            {(results?.linkedinUrl || prospect.linkedinUrl) && (
+            {(getResearchField(prospect, 'linkedinUrl') || prospect.linkedinUrl) && (
               <a 
-                href={results?.linkedinUrl || prospect.linkedinUrl} 
+                href={getResearchField(prospect, 'linkedinUrl') || prospect.linkedinUrl} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center px-4 py-2 rounded-xl border border-border/50 hover:border-secondary/50 transition-all duration-300 hover:scale-105"
@@ -249,9 +249,9 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
               </a>
             )}
             
-            {results?.website && (
+            {getResearchField(prospect, 'website') && (
               <a 
-                href={results.website} 
+                href={getResearchField(prospect, 'website')} 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="inline-flex items-center px-4 py-2 rounded-xl border border-border/50 hover:border-accent/50 transition-all duration-300 hover:scale-105"
@@ -262,7 +262,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
               </a>
             )}
             
-            {(results?.emailSubject && results?.emailBody) && (
+            {(getResearchField(prospect, 'Email Subject', 'emailSubject') && getResearchField(prospect, 'Email Body', 'emailBody')) && (
               <Button 
                 onClick={copyEmailToClipboard}
                 className="px-4 py-2 rounded-xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-lg"
@@ -540,24 +540,24 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
               <div className="px-6 pb-6 space-y-4 animate-slideUp">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {/* Pain Points */}
-                  {(results?.painPoints || results?.["Pain Points"]) && (
+                  {getResearchField(prospect, 'Pain Points', 'painPoints') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Target className="w-4 h-4 mr-2 text-destructive" />
                         Pain Points
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results?.painPoints || results?.["Pain Points"]}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Pain Points', 'painPoints')}</p>
                     </div>
                   )}
 
                   {/* Business Goals */}
-                  {(results?.businessGoals || results?.["Business Goals"]) && (
+                  {getResearchField(prospect, 'Business Goals', 'businessGoals') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <TrendingUp className="w-4 h-4 mr-2 text-primary" />
                         Business Goals
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results?.businessGoals || results?.["Business Goals"]}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Business Goals', 'businessGoals')}</p>
                     </div>
                   )}
                 </div>
@@ -565,24 +565,24 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                 {/* Overall Summaries */}
                 <div className="space-y-4">
                   {/* Overall Prospect Summary */}
-                  {results?.["Overall Prospect Summary"] && (
+                  {getResearchField(prospect, 'Overall Prospect Summary') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <User className="w-4 h-4 mr-2 text-primary" />
                         Prospect Summary
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results["Overall Prospect Summary"]}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Overall Prospect Summary')}</p>
                     </div>
                   )}
 
                   {/* Overall Company Summary */}
-                  {results?.["Overall Company Summary"] && (
+                  {getResearchField(prospect, 'Overall Company Summary') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Building className="w-4 h-4 mr-2 text-success" />
                         Company Summary
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results["Overall Company Summary"]}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Overall Company Summary')}</p>
                     </div>
                   )}
 
