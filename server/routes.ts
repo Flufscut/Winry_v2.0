@@ -358,16 +358,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Raw body capture middleware for debugging
+  // Raw body capture middleware for debugging - capture EVERYTHING
   app.use('/webhook/results', (req, res, next) => {
     let data = '';
     req.on('data', chunk => {
       data += chunk;
     });
     req.on('end', () => {
-      console.log('=== Raw Body Data ===');
+      console.log('=== INCOMING WEBHOOK DATA DETECTED ===');
+      console.log('Timestamp:', new Date().toISOString());
+      console.log('Method:', req.method);
+      console.log('URL:', req.url);
+      console.log('Headers:', JSON.stringify(req.headers, null, 2));
       console.log('Raw body string:', data);
       console.log('Raw body length:', data.length);
+      console.log('Content-Type:', req.headers['content-type']);
+      console.log('User-Agent:', req.headers['user-agent']);
+      console.log('=== END WEBHOOK DATA ===');
       next();
     });
   });
