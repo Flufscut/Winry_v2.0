@@ -406,23 +406,26 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     </h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Company</span>
-                        <span className="font-medium text-foreground">{prospect.company}</span>
+                        <span className="text-muted-foreground">Primary Employer</span>
+                        <span className="font-medium text-foreground">{results?.primaryJobCompany || prospect.company}</span>
                       </div>
-                      {results?.primaryJobCompany && results?.primaryJobCompany !== prospect.company && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Primary Employer</span>
-                          <span className="font-medium text-foreground">{results.primaryJobCompany}</span>
-                        </div>
-                      )}
-                      {results?.industry && (
-                        <div className="flex justify-between">
-                          <span className="text-muted-foreground">Industry</span>
-                          <span className="font-medium text-foreground">{results.industry}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Title</span>
+                        <span className="font-medium text-foreground">{prospect.title}</span>
+                      </div>
                     </div>
                   </div>
+
+                  {/* Industry Section */}
+                  {results?.industry && (
+                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
+                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                        <Target className="w-4 h-4 mr-2 text-secondary" />
+                        Industry
+                      </h4>
+                      <p className="text-sm text-foreground font-medium">{results.industry}</p>
+                    </div>
+                  )}
 
                   {/* Company News */}
                   {results?.companyNews && (
