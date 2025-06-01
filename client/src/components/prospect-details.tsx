@@ -374,27 +374,27 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Prospect Summary */}
-              {results["Overall Prospect Summary"] && (
+              {results?.overallProspectSummary && (
                 <Card className="border-l-4 border-l-emerald-500 bg-gradient-to-r from-emerald-50 to-emerald-50/30 dark:from-emerald-900/20 dark:to-emerald-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-emerald-900 dark:text-emerald-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2"></span>
                       Prospect Overview
                     </h5>
-                    <p className="text-sm text-emerald-800 dark:text-emerald-200 leading-relaxed">{results["Overall Prospect Summary"]}</p>
+                    <p className="text-sm text-emerald-800 dark:text-emerald-200 leading-relaxed">{results.overallProspectSummary}</p>
                   </CardContent>
                 </Card>
               )}
 
               {/* Company Summary */}
-              {results["Overall Company Summary"] && (
+              {results?.overallCompanySummary && (
                 <Card className="border-l-4 border-l-amber-500 bg-gradient-to-r from-amber-50 to-amber-50/30 dark:from-amber-900/20 dark:to-amber-900/5">
                   <CardContent className="p-6">
                     <h5 className="text-lg font-semibold text-amber-900 dark:text-amber-100 mb-3 flex items-center">
                       <span className="w-2 h-2 bg-amber-500 rounded-full mr-2"></span>
                       Company Overview
                     </h5>
-                    <p className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">{results["Overall Company Summary"]}</p>
+                    <p className="text-sm text-amber-800 dark:text-amber-200 leading-relaxed">{results.overallCompanySummary}</p>
                   </CardContent>
                 </Card>
               )}
@@ -402,7 +402,7 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
           </div>
             
           {/* Generated Email */}
-          {results.Email && (
+          {(results?.emailSubject && results?.emailBody) && (
             <div className="space-y-6">
               <h3 className="text-xl font-bold text-foreground mb-6 flex items-center">
                 <span className="w-3 h-3 bg-gradient-to-r from-violet-500 to-pink-500 rounded-full mr-3"></span>
@@ -430,12 +430,12 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
                   <div className="bg-white dark:bg-gray-950 border border-border rounded-lg p-4 space-y-4">
                     <div className="border-b border-border pb-3">
                       <span className="text-sm font-semibold text-muted-foreground">Subject:</span>
-                      <p className="text-sm font-medium text-foreground mt-1">{results.Email.subject}</p>
+                      <p className="text-sm font-medium text-foreground mt-1">{results.emailSubject}</p>
                     </div>
                     <div>
                       <span className="text-sm font-semibold text-muted-foreground">Message:</span>
                       <div className="text-sm text-foreground mt-2 whitespace-pre-line leading-relaxed">
-                        {results.Email.body}
+                        {results.emailBody}
                       </div>
                     </div>
                   </div>
