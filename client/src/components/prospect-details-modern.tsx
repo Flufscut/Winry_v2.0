@@ -218,113 +218,49 @@ export default function ProspectDetailsModern({ prospectId, onClose }: ProspectD
             </Card>
           )}
 
-          {/* Business Intelligence Grid */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Pain Points */}
-            {results?.painPoints && (
-              <Card className="border-l-4 border-l-red-500">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center text-lg">
-                    <Target className="h-5 w-5 mr-3 text-red-500" />
-                    Pain Points
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-foreground leading-relaxed">{results.painPoints}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Business Goals */}
-            {results?.businessGoals && (
+          {/* Personal Information Section */}
+          <div className="space-y-6">
+            <h3 className="text-xl font-bold text-foreground flex items-center">
+              <User className="h-5 w-5 mr-3 text-blue-500" />
+              Personal Information
+            </h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Contact Details */}
               <Card className="border-l-4 border-l-blue-500">
                 <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center text-lg">
-                    <TrendingUp className="h-5 w-5 mr-3 text-blue-500" />
-                    Business Goals
-                  </CardTitle>
+                  <CardTitle className="text-lg">Contact Information</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-foreground leading-relaxed">{results.businessGoals}</p>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-sm font-medium text-muted-foreground">Email</span>
+                    <span className="text-sm text-foreground font-medium">{prospect.email}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-sm font-medium text-muted-foreground">Location</span>
+                    <span className="text-sm text-foreground font-medium">{results.location || "N/A"}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-2">
+                    <span className="text-sm font-medium text-muted-foreground">Position</span>
+                    <span className="text-sm text-foreground font-medium">{prospect.title}</span>
+                  </div>
                 </CardContent>
               </Card>
-            )}
 
-            {/* Competitive Advantages */}
-            {results?.competitiveAdvantages && (
-              <Card className="border-l-4 border-l-green-500">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center text-lg">
-                    <Award className="h-5 w-5 mr-3 text-green-500" />
-                    Competitive Advantages
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-foreground leading-relaxed">{results.competitiveAdvantages}</p>
-                </CardContent>
-              </Card>
-            )}
+              {/* Educational Background */}
+              {results?.almaMaterResearch && (
+                <Card className="border-l-4 border-l-emerald-500">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Educational Background</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-foreground leading-relaxed">{results.almaMaterResearch}</p>
+                  </CardContent>
+                </Card>
+              )}
 
-            {/* Competitors */}
-            {results?.competitors && (
-              <Card className="border-l-4 border-l-purple-500">
-                <CardHeader className="pb-3">
-                  <CardTitle className="flex items-center text-lg">
-                    <Users className="h-5 w-5 mr-3 text-purple-500" />
-                    Competitors
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-foreground leading-relaxed">{results.competitors}</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Market Context & Intelligence */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Industry Analysis */}
-            {results?.industry && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Industry Analysis</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-foreground leading-relaxed">{results.industry}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Location Research */}
-            {results?.locationResearch && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Location Insights</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-foreground leading-relaxed">{results.locationResearch}</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Company News */}
-            {results?.companyNews && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-lg">Recent Company News</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-foreground leading-relaxed">{results.companyNews}</p>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-
-          {/* Social Media Activity */}
-          {(results?.linkedInPostSummary || results?.companyLinkedInPostSummary) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Personal LinkedIn Activity */}
               {results?.linkedInPostSummary && (
-                <Card>
+                <Card className="border-l-4 border-l-indigo-500">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">Personal LinkedIn Activity</CardTitle>
                   </CardHeader>
@@ -333,9 +269,44 @@ export default function ProspectDetailsModern({ prospectId, onClose }: ProspectD
                   </CardContent>
                 </Card>
               )}
+            </div>
+          </div>
 
+          {/* Company Information Section */}
+          <div className="space-y-6">
+            <h3 className="text-xl font-bold text-foreground flex items-center">
+              <Building className="h-5 w-5 mr-3 text-green-500" />
+              Company Information
+            </h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Company Details */}
+              <Card className="border-l-4 border-l-green-500">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg">Company Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between items-center py-2 border-b border-border/50">
+                    <span className="text-sm font-medium text-muted-foreground">Company</span>
+                    <span className="text-sm text-foreground font-medium">{prospect.company}</span>
+                  </div>
+                  {results?.primaryJobCompany && results?.primaryJobCompany !== prospect.company && (
+                    <div className="flex justify-between items-center py-2 border-b border-border/50">
+                      <span className="text-sm font-medium text-muted-foreground">Primary Employer</span>
+                      <span className="text-sm text-foreground font-medium">{results.primaryJobCompany}</span>
+                    </div>
+                  )}
+                  {results?.industry && (
+                    <div className="flex justify-between items-center py-2">
+                      <span className="text-sm font-medium text-muted-foreground">Industry</span>
+                      <span className="text-sm text-foreground font-medium">{results.industry}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Company LinkedIn Activity */}
               {results?.companyLinkedInPostSummary && (
-                <Card>
+                <Card className="border-l-4 border-l-teal-500">
                   <CardHeader className="pb-3">
                     <CardTitle className="text-lg">Company LinkedIn Activity</CardTitle>
                   </CardHeader>
@@ -344,8 +315,104 @@ export default function ProspectDetailsModern({ prospectId, onClose }: ProspectD
                   </CardContent>
                 </Card>
               )}
+
+              {/* Company News */}
+              {results?.companyNews && (
+                <Card className="border-l-4 border-l-orange-500">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-lg">Recent Company News</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-foreground leading-relaxed">{results.companyNews}</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Business Intelligence Section */}
+          <div className="space-y-6">
+            <h3 className="text-xl font-bold text-foreground flex items-center">
+              <TrendingUp className="h-5 w-5 mr-3 text-purple-500" />
+              Business Intelligence
+            </h3>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Pain Points */}
+              {results?.painPoints && (
+                <Card className="border-l-4 border-l-red-500">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center text-lg">
+                      <Target className="h-5 w-5 mr-3 text-red-500" />
+                      Pain Points
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-foreground leading-relaxed">{results.painPoints}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Business Goals */}
+              {results?.businessGoals && (
+                <Card className="border-l-4 border-l-blue-500">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center text-lg">
+                      <TrendingUp className="h-5 w-5 mr-3 text-blue-500" />
+                      Business Goals
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-foreground leading-relaxed">{results.businessGoals}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Competitive Advantages */}
+              {results?.competitiveAdvantages && (
+                <Card className="border-l-4 border-l-green-500">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center text-lg">
+                      <Award className="h-5 w-5 mr-3 text-green-500" />
+                      Competitive Advantages
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-foreground leading-relaxed">{results.competitiveAdvantages}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Competitors */}
+              {results?.competitors && (
+                <Card className="border-l-4 border-l-purple-500">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center text-lg">
+                      <Users className="h-5 w-5 mr-3 text-purple-500" />
+                      Competitors
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-foreground leading-relaxed">{results.competitors}</p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Location Research */}
+              {results?.locationResearch && (
+                <Card className="border-l-4 border-l-amber-500">
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center text-lg">
+                      <MapPin className="h-5 w-5 mr-3 text-amber-500" />
+                      Location Insights
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-foreground leading-relaxed">{results.locationResearch}</p>
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+          </div>
 
           {/* Executive Summaries */}
           {(results?.overallProspectSummary || results?.overallCompanySummary) && (
