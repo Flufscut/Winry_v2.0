@@ -19,8 +19,14 @@ import {
   CheckCircle2,
   AlertTriangle,
   ChevronRight,
+  ChevronDown,
   Calendar,
-  Activity
+  Activity,
+  MapPin,
+  BookOpen,
+  FileText,
+  Award,
+  TrendingUp
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -33,6 +39,19 @@ interface Prospect {
   email: string;
   status: string;
   createdAt: string;
+  researchResults?: {
+    location?: string;
+    industry?: string;
+    primaryJobCompany?: string;
+    almaMaterResearch?: string;
+    linkedInPostSummary?: string;
+    companyLinkedInPostSummary?: string;
+    companyNews?: string;
+    painPoints?: string;
+    businessGoals?: string;
+    emailSubject?: string;
+    emailBody?: string;
+  };
 }
 
 interface ProspectTableProps {
@@ -61,6 +80,7 @@ export default function ProspectTableInteractive({
   onBulkDelete 
 }: ProspectTableProps) {
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -267,135 +287,288 @@ export default function ProspectTableInteractive({
           const statusConfig = getStatusConfig(prospect.status);
           const isSelected = selectedProspects.includes(prospect.id);
           const isHovered = hoveredRow === prospect.id;
+          const isExpanded = expandedRow === prospect.id;
+          
+          const handleRowClick = (e: React.MouseEvent) => {
+            // Don't expand if clicking on interactive elements
+            const target = e.target as HTMLElement;
+            if (target.closest('button') || target.closest('input[type="checkbox"]') || target.closest('a')) {
+              return;
+            }
+            
+            setExpandedRow(isExpanded ? null : prospect.id);
+          };
           
           return (
-            <div
-              key={prospect.id}
-              className="grid grid-cols-12 gap-4 p-4 border border-border/50 rounded-xl transition-all duration-300 cursor-pointer group hover:scale-[1.01] hover:shadow-md"
-              style={{ 
-                background: isSelected ? 'linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--secondary) / 0.05))' : 
-                           isHovered ? 'var(--gradient-surface)' : 'hsl(var(--card))',
-                borderColor: isSelected ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border) / 0.5)',
-                animation: `fadeIn 0.3s ease ${index * 0.1}s both`
-              }}
-              onMouseEnter={() => setHoveredRow(prospect.id)}
-              onMouseLeave={() => setHoveredRow(null)}
-              onClick={() => onViewDetails(prospect.id)}
-            >
-              {/* Selection */}
-              <div className="col-span-1 flex items-center">
-                <Checkbox
-                  checked={isSelected}
-                  onCheckedChange={(checked) => onSelectProspect(prospect.id, !!checked)}
-                  onClick={(e) => e.stopPropagation()}
-                  className="rounded"
-                />
-              </div>
-
-              {/* Prospect Info */}
-              <div className="col-span-3 flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-xl border-2 border-border/50 flex items-center justify-center flex-shrink-0"
-                     style={{ background: 'var(--gradient-accent)' }}>
-                  <span className="text-sm font-bold text-white">
-                    {prospect.firstName.charAt(0)}{prospect.lastName.charAt(0)}
-                  </span>
+            <div key={prospect.id} className="space-y-0">
+              <div
+                className="grid grid-cols-12 gap-4 p-4 border border-border/50 rounded-xl transition-all duration-300 cursor-pointer group hover:scale-[1.01] hover:shadow-md"
+                style={{ 
+                  background: isSelected ? 'linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--secondary) / 0.05))' : 
+                             isHovered ? 'var(--gradient-surface)' : 'hsl(var(--card))',
+                  borderColor: isSelected ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border) / 0.5)',
+                  animation: `fadeIn 0.3s ease ${index * 0.1}s both`,
+                  borderBottomLeftRadius: isExpanded ? '0' : undefined,
+                  borderBottomRightRadius: isExpanded ? '0' : undefined
+                }}
+                onMouseEnter={() => setHoveredRow(prospect.id)}
+                onMouseLeave={() => setHoveredRow(null)}
+                onClick={handleRowClick}
+              >
+                {/* Selection */}
+                <div className="col-span-1 flex items-center">
+                  <Checkbox
+                    checked={isSelected}
+                    onCheckedChange={(checked) => onSelectProspect(prospect.id, !!checked)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="rounded"
+                  />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-foreground truncate">
-                    {prospect.firstName} {prospect.lastName}
+
+                {/* Prospect Info */}
+                <div className="col-span-3 flex items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl border-2 border-border/50 flex items-center justify-center flex-shrink-0"
+                       style={{ background: 'var(--gradient-accent)' }}>
+                    <span className="text-sm font-bold text-white">
+                      {prospect.firstName.charAt(0)}{prospect.lastName.charAt(0)}
+                    </span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetails(prospect.id);
+                      }}
+                      className="text-left hover:text-primary transition-colors duration-200"
+                    >
+                      <p className="font-semibold text-foreground truncate">
+                        {prospect.firstName} {prospect.lastName}
+                      </p>
+                    </button>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {prospect.title}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Company */}
+                <div className="col-span-2 flex items-center">
+                  <p className="font-medium text-foreground truncate">
+                    {prospect.company}
                   </p>
+                </div>
+
+                {/* Email */}
+                <div className="col-span-2 flex items-center">
                   <p className="text-sm text-muted-foreground truncate">
-                    {prospect.title}
+                    {prospect.email}
                   </p>
                 </div>
-              </div>
 
-              {/* Company */}
-              <div className="col-span-2 flex items-center">
-                <p className="font-medium text-foreground truncate">
-                  {prospect.company}
-                </p>
-              </div>
+                {/* Status */}
+                <div className="col-span-2 flex items-center">
+                  {statusConfig.badge}
+                </div>
 
-              {/* Email */}
-              <div className="col-span-2 flex items-center">
-                <p className="text-sm text-muted-foreground truncate">
-                  {prospect.email}
-                </p>
-              </div>
+                {/* Date */}
+                <div className="col-span-1 flex items-center">
+                  <p className="text-xs text-muted-foreground">
+                    {format(new Date(prospect.createdAt), "MMM d")}
+                  </p>
+                </div>
 
-              {/* Status */}
-              <div className="col-span-2 flex items-center">
-                {statusConfig.badge}
-              </div>
-
-              {/* Date */}
-              <div className="col-span-1 flex items-center">
-                <p className="text-xs text-muted-foreground">
-                  {format(new Date(prospect.createdAt), "MMM d")}
-                </p>
-              </div>
-
-              {/* Actions */}
-              <div className="col-span-1 flex items-center space-x-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onViewDetails(prospect.id);
-                  }}
-                  className="w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-primary/10"
-                >
-                  <Eye className="w-4 h-4 text-primary" />
-                </Button>
-                
-                {prospect.status === "failed" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onRetry(prospect.id);
-                    }}
-                    className="w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-warning/10"
-                  >
-                    <RotateCcw className="w-4 h-4 text-warning" />
-                  </Button>
-                )}
-
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
+                {/* Actions */}
+                <div className="col-span-1 flex items-center justify-between">
+                  <div className="flex items-center space-x-1">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={(e) => e.stopPropagation()}
-                      className="w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-destructive/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetails(prospect.id);
+                      }}
+                      className="w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-primary/10"
                     >
-                      <Trash2 className="w-4 h-4 text-destructive" />
+                      <Eye className="w-4 h-4 text-primary" />
                     </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Delete Prospect</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This will permanently delete {prospect.firstName} {prospect.lastName} and all research data.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => onDelete(prospect.id)} className="bg-destructive hover:bg-destructive/90">
-                        Delete
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                    
+                    {prospect.status === "failed" && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onRetry(prospect.id);
+                        }}
+                        className="w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-warning/10"
+                      >
+                        <RotateCcw className="w-4 h-4 text-warning" />
+                      </Button>
+                    )}
+
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => e.stopPropagation()}
+                          className="w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-destructive/10"
+                        >
+                          <Trash2 className="w-4 h-4 text-destructive" />
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Prospect</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete {prospect.firstName} {prospect.lastName} and all research data.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={() => onDelete(prospect.id)} className="bg-destructive hover:bg-destructive/90">
+                            Delete
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+
+                  {/* Expand/Collapse Indicator */}
+                  <div className="ml-2">
+                    {isExpanded ? 
+                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200" /> :
+                      <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform duration-200" />
+                    }
+                  </div>
+                </div>
               </div>
 
-              {/* Hover Indicator */}
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-              </div>
+              {/* Collapsible Summary */}
+              {isExpanded && (
+                <div 
+                  className="border-l border-r border-b border-border/50 rounded-b-xl p-6 animate-slideUp"
+                  style={{ 
+                    background: 'var(--gradient-surface)',
+                    borderColor: isSelected ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border) / 0.5)'
+                  }}
+                >
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* Left Column - Personal Summary */}
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-semibold text-foreground flex items-center">
+                        <Users className="w-5 h-5 mr-2 text-primary" />
+                        Personal Summary
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        {prospect.researchResults?.location && (
+                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
+                            <MapPin className="w-4 h-4 text-secondary mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">Location</p>
+                              <p className="text-sm text-muted-foreground">{prospect.researchResults.location}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {prospect.researchResults?.almaMaterResearch && (
+                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
+                            <BookOpen className="w-4 h-4 text-accent mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">Education</p>
+                              <p className="text-sm text-muted-foreground line-clamp-2">{prospect.researchResults.almaMaterResearch}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {prospect.researchResults?.linkedInPostSummary && (
+                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
+                            <Activity className="w-4 h-4 text-info mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">Social Activity</p>
+                              <p className="text-sm text-muted-foreground line-clamp-2">{prospect.researchResults.linkedInPostSummary}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right Column - Company Summary */}
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-semibold text-foreground flex items-center">
+                        <Building className="w-5 h-5 mr-2 text-success" />
+                        Company Summary
+                      </h4>
+                      
+                      <div className="space-y-3">
+                        {prospect.researchResults?.industry && (
+                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
+                            <Target className="w-4 h-4 text-warning mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">Industry</p>
+                              <p className="text-sm text-muted-foreground">{prospect.researchResults.industry}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {prospect.researchResults?.companyNews && (
+                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
+                            <FileText className="w-4 h-4 text-destructive mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">Recent News</p>
+                              <p className="text-sm text-muted-foreground line-clamp-2">{prospect.researchResults.companyNews}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {prospect.researchResults?.painPoints && (
+                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
+                            <Award className="w-4 h-4 text-primary mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">Pain Points</p>
+                              <p className="text-sm text-muted-foreground line-clamp-2">{prospect.researchResults.painPoints}</p>
+                            </div>
+                          </div>
+                        )}
+
+                        {prospect.researchResults?.businessGoals && (
+                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
+                            <TrendingUp className="w-4 h-4 text-accent mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-foreground">Business Goals</p>
+                              <p className="text-sm text-muted-foreground line-clamp-2">{prospect.researchResults.businessGoals}</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Quick Actions in Summary */}
+                  {prospect.status === "completed" && prospect.researchResults?.emailSubject && (
+                    <div className="mt-6 pt-4 border-t border-border/50">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                          <Sparkles className="w-4 h-4" />
+                          <span>Personalized email ready</span>
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDetails(prospect.id);
+                          }}
+                          className="rounded-xl"
+                          style={{ background: 'var(--gradient-primary)', color: 'white' }}
+                        >
+                          View Full Profile
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
