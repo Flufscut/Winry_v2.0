@@ -367,11 +367,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ message: 'Webhook endpoint is reachable', timestamp: new Date().toISOString() });
   });
 
-  // Simple test webhook to verify routing
-  app.post('/api/test-webhook', (req, res) => {
-    console.log('SIMPLE TEST WEBHOOK HIT!');
-    console.log('Body:', req.body);
-    res.json({ test: 'success', received: req.body });
+  // Working webhook outside /api path
+  app.post('/webhook/n8n-results', (req, res) => {
+    console.log('!!! WORKING WEBHOOK HIT !!!');
+    console.log('Method:', req.method);
+    console.log('Body:', JSON.stringify(req.body, null, 2));
+    
+    res.json({ success: true, message: 'Data received', data: req.body });
   });
 
   // Add simple log for route registration
