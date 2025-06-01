@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { db } from "./db";
+import { users } from "@shared/schema";
 import { insertProspectSchema } from "@shared/schema";
 import { z } from "zod";
 import multer from "multer";
@@ -392,6 +394,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const email = result.email || result.output?.email || result.EMail;
         
         console.log(`Looking for prospect: ${firstName} ${lastName} (${email})`);
+        console.log('Available fields in result:', Object.keys(result));
+        if (result.output) {
+          console.log('Available fields in output:', Object.keys(result.output));
+        }
         
         if (firstName && lastName) {
           // Get all prospects and find match
