@@ -10,6 +10,12 @@ app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
   let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  
+  // Debug webhook requests
+  if (path === '/api/webhook/results') {
+    console.log('INTERCEPTED WEBHOOK REQUEST:', req.method, path);
+    console.log('Request headers:', req.headers);
+  }
 
   const originalResJson = res.json;
   res.json = function (bodyJson, ...args) {
