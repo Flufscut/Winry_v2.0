@@ -239,51 +239,75 @@ export default function Dashboard() {
   const successRate = (stats as any)?.successRate || 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      {/* Modern Header */}
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl">
+    <div className="min-h-screen" style={{ background: 'var(--gradient-mesh), hsl(var(--background))' }}>
+      {/* Distinctive Header */}
+      <header className="sticky top-0 z-50 border-b border-border/60 backdrop-blur-xl" style={{ background: 'hsla(var(--background), 0.85)' }}>
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
-              <div className="relative">
-                <div className="w-10 h-10 gradient-primary rounded-xl flex items-center justify-center shadow-lg">
-                  <Sparkles className="w-5 h-5 text-white" />
+          <div className="flex items-center justify-between h-18">
+            <div className="flex items-center space-x-5">
+              <div className="relative group">
+                <div 
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-300 group-hover:animate-float"
+                  style={{ background: 'var(--gradient-primary)' }}
+                >
+                  <Sparkles className="w-6 h-6 text-white" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 bg-emerald-400 rounded-full animate-pulse"></div>
+                <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-pulse-glow" style={{ background: 'var(--gradient-accent)' }}></div>
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">SalesLeopard</h1>
-                <p className="text-xs text-muted-foreground">AI Sales Intelligence</p>
+              <div className="space-y-1">
+                <h1 className="text-xl font-bold text-foreground tracking-tight">SalesLeopard</h1>
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 rounded-full bg-success animate-pulse"></div>
+                  <p className="text-xs text-muted-foreground font-medium">Intelligence Platform</p>
+                </div>
               </div>
             </div>
             
             <div className="flex items-center space-x-6">
-              {/* Live Processing Indicator */}
+              {/* Distinctive Processing Display */}
               {processingCount > 0 && (
-                <div className="flex items-center space-x-2 px-3 py-1.5 rounded-full bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/30">
-                  <div className="relative">
-                    <Brain className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                    <div className="absolute inset-0 w-4 h-4 border-2 border-amber-400 rounded-full animate-spin border-t-transparent"></div>
+                <div className="relative px-4 py-2 rounded-2xl border border-warning/20 overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(var(--warning) / 0.05), hsl(var(--info) / 0.05))' }}>
+                  <div className="flex items-center space-x-3 relative z-10">
+                    <div className="relative">
+                      <div className="w-8 h-8 rounded-xl border-2 border-warning/30 flex items-center justify-center" style={{ background: 'var(--gradient-accent)' }}>
+                        <Brain className="w-4 h-4 text-white animate-pulse" />
+                      </div>
+                      <div className="absolute inset-0 w-8 h-8 rounded-xl border-2 border-warning animate-spin"></div>
+                    </div>
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-semibold text-foreground">{processingCount} Processing</p>
+                      <div className="flex items-center space-x-1">
+                        <div className="w-1 h-1 rounded-full bg-warning animate-pulse"></div>
+                        <div className="w-1 h-1 rounded-full bg-warning animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                        <div className="w-1 h-1 rounded-full bg-warning animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                        <span className="text-xs text-muted-foreground ml-1">AI analyzing</span>
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
-                    {processingCount} analyzing
-                  </span>
+                  <div className="absolute inset-0 opacity-20 animate-gradient-shift" style={{ background: 'linear-gradient(-45deg, transparent, hsl(var(--warning) / 0.3), transparent)', backgroundSize: '200% 200%' }}></div>
                 </div>
               )}
               
-              <div className="flex items-center space-x-3">
-                <div className="text-right hidden sm:block">
-                  <p className="text-sm font-medium text-foreground">{(user as any)?.firstName || 'User'}</p>
-                  <p className="text-xs text-muted-foreground">{(user as any)?.email}</p>
+              {/* Contemporary User Profile */}
+              <div className="flex items-center space-x-4">
+                <div className="text-right hidden sm:block space-y-0.5">
+                  <p className="text-sm font-semibold text-foreground">{(user as any)?.firstName || 'User'}</p>
+                  <p className="text-xs text-muted-foreground font-medium">{(user as any)?.email}</p>
                 </div>
-                <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg">
-                  <span className="text-sm font-semibold text-white">{userInitials}</span>
+                <div className="relative group">
+                  <div 
+                    className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-md transition-all duration-300 group-hover:shadow-lg border border-border/50"
+                    style={{ background: 'var(--gradient-accent)' }}
+                  >
+                    <span className="text-sm font-bold text-white">{userInitials}</span>
+                  </div>
+                  <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--shadow-glow)' }}></div>
                 </div>
                 <SettingsMenu />
                 <Button 
                   variant="ghost" 
                   size="sm"
-                  className="text-muted-foreground hover:text-foreground"
+                  className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
                   onClick={() => window.location.href = '/api/logout'}
                 >
                   <LogOut className="w-4 h-4" />
@@ -294,163 +318,215 @@ export default function Dashboard() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-8">
-        {/* Hero Section */}
-        <div className="mb-8">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div className="space-y-2">
-              <h2 className="text-3xl font-bold text-foreground tracking-tight">
-                Research Pipeline
-              </h2>
-              <p className="text-lg text-muted-foreground max-w-2xl">
-                Transform prospects into personalized outreach with AI-powered research and intelligent insights.
-              </p>
-            </div>
-            
-            {/* Quick Actions */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Dialog open={showProspectForm} onOpenChange={setShowProspectForm}>
-                <DialogTrigger asChild>
-                  <Button size="lg" className="btn-modern gradient-primary text-white border-0 hover:shadow-lg">
-                    <Plus className="w-5 h-5 mr-2" />
-                    Add Prospect
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Add New Prospect</DialogTitle>
-                  </DialogHeader>
-                  <ProspectForm 
-                    onSuccess={() => {
-                      setShowProspectForm(false);
-                      refetchProspects();
-                    }}
-                    onCancel={() => setShowProspectForm(false)}
-                  />
-                </DialogContent>
-              </Dialog>
+      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
+        {/* Contemporary Hero */}
+        <div className="mb-10">
+          <div className="relative rounded-3xl p-8 overflow-hidden" style={{ background: 'var(--gradient-surface)' }}>
+            <div className="absolute inset-0 opacity-30" style={{ background: 'var(--gradient-mesh)' }}></div>
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
+              <div className="space-y-4 max-w-2xl">
+                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full border border-primary/20" style={{ background: 'hsl(var(--primary) / 0.08)' }}>
+                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+                  <span className="text-sm font-medium text-primary">Live Intelligence</span>
+                </div>
+                <h2 className="text-4xl font-bold text-foreground tracking-tight leading-tight">
+                  Research Pipeline
+                </h2>
+                <p className="text-lg text-muted-foreground leading-relaxed">
+                  Transform prospects into personalized outreach with AI-powered research and intelligent insights that drive meaningful conversations.
+                </p>
+              </div>
               
-              <Dialog open={showCsvUpload} onOpenChange={setShowCsvUpload}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="lg" className="btn-modern border-border hover:bg-muted/50">
-                    <Upload className="w-5 h-5 mr-2" />
-                    Bulk Import
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl">
-                  <DialogHeader>
-                    <DialogTitle>Import CSV File</DialogTitle>
-                  </DialogHeader>
-                  <CsvUpload 
-                    onSuccess={() => {
-                      setShowCsvUpload(false);
-                      refetchProspects();
-                    }}
-                    onCancel={() => setShowCsvUpload(false)}
-                  />
-                </DialogContent>
-              </Dialog>
+              {/* Action Center */}
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Dialog open={showProspectForm} onOpenChange={setShowProspectForm}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      size="lg" 
+                      className="relative px-6 py-3 rounded-2xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-xl border-0"
+                      style={{ background: 'var(--gradient-primary)', color: 'white' }}
+                    >
+                      <Plus className="w-5 h-5 mr-2" />
+                      Add Prospect
+                      <div className="absolute inset-0 rounded-2xl opacity-0 hover:opacity-20 transition-opacity duration-300" style={{ background: 'linear-gradient(45deg, white, transparent)' }}></div>
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Add New Prospect</DialogTitle>
+                    </DialogHeader>
+                    <ProspectForm 
+                      onSuccess={() => {
+                        setShowProspectForm(false);
+                        refetchProspects();
+                      }}
+                      onCancel={() => setShowProspectForm(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+                
+                <Dialog open={showCsvUpload} onOpenChange={setShowCsvUpload}>
+                  <DialogTrigger asChild>
+                    <Button 
+                      variant="outline" 
+                      size="lg" 
+                      className="relative px-6 py-3 rounded-2xl font-semibold border-2 border-border hover:border-primary/50 transition-all duration-300 hover:scale-105"
+                      style={{ background: 'var(--gradient-surface)' }}
+                    >
+                      <Upload className="w-5 h-5 mr-2" />
+                      Bulk Import
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle>Import CSV File</DialogTitle>
+                    </DialogHeader>
+                    <CsvUpload 
+                      onSuccess={() => {
+                        setShowCsvUpload(false);
+                        refetchProspects();
+                      }}
+                      onCancel={() => setShowCsvUpload(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Enhanced Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="card-modern hover-lift">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Total Prospects</p>
-                  <p className="text-3xl font-bold text-foreground">
-                    {statsLoading ? (
-                      <div className="skeleton h-8 w-16"></div>
-                    ) : (
-                      totalCount
-                    )}
-                  </p>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <TrendingUp className="w-3 h-3 mr-1" />
-                    <span>Active pipeline</span>
-                  </div>
-                </div>
-                <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/20 rounded-xl flex items-center justify-center">
-                  <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
+        {/* Data Analytics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          {/* Total Prospects - Network Node Style */}
+          <div className="stat-card p-6 transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-start justify-between mb-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Pipeline</p>
+                <div className="flex items-baseline space-x-1">
+                  <span className="text-3xl font-bold text-foreground tabular-nums">
+                    {statsLoading ? "..." : totalCount}
+                  </span>
+                  <span className="text-sm text-muted-foreground">prospects</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="card-modern hover-lift">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Completed</p>
-                  <p className="text-3xl font-bold text-foreground">
-                    {statsLoading ? (
-                      <div className="skeleton h-8 w-16"></div>
-                    ) : (
-                      completedCount
-                    )}
-                  </p>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <CheckCircle2 className="w-3 h-3 mr-1" />
-                    <span>Ready for outreach</span>
-                  </div>
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl border-2 border-primary/20 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--secondary) / 0.1))' }}>
+                  <Users className="w-7 h-7 text-primary" />
                 </div>
-                <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-xl flex items-center justify-center">
-                  <Target className="w-6 h-6 text-emerald-600 dark:text-emerald-400" />
+                <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-background" style={{ background: 'var(--gradient-accent)' }}></div>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-medium">Active Research</span>
+              <div className="flex space-x-1">
+                <div className="w-2 h-1 rounded-full bg-primary"></div>
+                <div className="w-4 h-1 rounded-full bg-primary/60"></div>
+                <div className="w-3 h-1 rounded-full bg-primary/30"></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Completed - Progress Arc Style */}
+          <div className="stat-card p-6 transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-start justify-between mb-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Complete</p>
+                <div className="flex items-baseline space-x-1">
+                  <span className="text-3xl font-bold text-foreground tabular-nums">
+                    {statsLoading ? "..." : completedCount}
+                  </span>
+                  <span className="text-sm text-muted-foreground">ready</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="card-modern hover-lift">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Processing</p>
-                  <p className="text-3xl font-bold text-foreground">
-                    {statsLoading ? (
-                      <div className="skeleton h-8 w-16"></div>
-                    ) : (
-                      processingCount
-                    )}
-                  </p>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Brain className="w-3 h-3 mr-1" />
-                    <span>AI analyzing</span>
-                  </div>
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl border-2 border-success/20 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, hsl(var(--success) / 0.1), hsl(var(--info) / 0.1))' }}>
+                  <Target className="w-7 h-7 text-success" />
                 </div>
-                <div className="w-12 h-12 bg-amber-50 dark:bg-amber-900/20 rounded-xl flex items-center justify-center">
-                  <Clock className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+                <svg className="absolute inset-0 w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                  <circle cx="28" cy="28" r="26" fill="none" stroke="hsl(var(--success) / 0.2)" strokeWidth="2"/>
+                  <circle 
+                    cx="28" cy="28" r="26" fill="none" stroke="hsl(var(--success))" strokeWidth="2"
+                    strokeDasharray={`${(completedCount / Math.max(totalCount, 1)) * 163} 163`}
+                    className="transition-all duration-1000"
+                  />
+                </svg>
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-medium">Outreach Ready</span>
+              <div className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: 'hsl(var(--success) / 0.1)', color: 'hsl(var(--success))' }}>
+                {totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0}%
+              </div>
+            </div>
+          </div>
+
+          {/* Processing - Pulse Animation Style */}
+          <div className="stat-card p-6 transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-start justify-between mb-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Active</p>
+                <div className="flex items-baseline space-x-1">
+                  <span className="text-3xl font-bold text-foreground tabular-nums">
+                    {statsLoading ? "..." : processingCount}
+                  </span>
+                  <span className="text-sm text-muted-foreground">analyzing</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="card-modern hover-lift">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-2">
-                  <p className="text-sm font-medium text-muted-foreground">Success Rate</p>
-                  <p className="text-3xl font-bold text-foreground">
-                    {statsLoading ? (
-                      <div className="skeleton h-8 w-16"></div>
-                    ) : (
-                      `${successRate}%`
-                    )}
-                  </p>
-                  <div className="flex items-center text-xs text-muted-foreground">
-                    <Rocket className="w-3 h-3 mr-1" />
-                    <span>Research quality</span>
-                  </div>
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl border-2 border-warning/20 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, hsl(var(--warning) / 0.1), hsl(var(--accent) / 0.1))' }}>
+                  <Brain className="w-7 h-7 text-warning" />
                 </div>
-                <div className="w-12 h-12 bg-purple-50 dark:bg-purple-900/20 rounded-xl flex items-center justify-center">
-                  <TrendingUp className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+                {processingCount > 0 && (
+                  <div className="absolute inset-0 rounded-2xl border-2 border-warning animate-ping opacity-30"></div>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground font-medium">AI Processing</span>
+              {processingCount > 0 && (
+                <div className="flex items-center space-x-1">
+                  <div className="w-1.5 h-1.5 rounded-full bg-warning animate-bounce"></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-warning animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                  <div className="w-1.5 h-1.5 rounded-full bg-warning animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Success Rate - Gradient Progress Style */}
+          <div className="stat-card p-6 transition-all duration-300 hover:scale-[1.02]">
+            <div className="flex items-start justify-between mb-4">
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Quality</p>
+                <div className="flex items-baseline space-x-1">
+                  <span className="text-3xl font-bold text-foreground tabular-nums">
+                    {statsLoading ? "..." : successRate}
+                  </span>
+                  <span className="text-sm text-muted-foreground">%</span>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl border-2 border-accent/20 flex items-center justify-center" style={{ background: 'var(--gradient-accent)' }}>
+                  <Rocket className="w-7 h-7 text-white" />
+                </div>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground font-medium">Research Success</span>
+                <span className="text-xs font-semibold text-accent">{successRate >= 90 ? 'Excellent' : successRate >= 70 ? 'Good' : 'Improving'}</span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-muted">
+                <div 
+                  className="h-1.5 rounded-full transition-all duration-1000" 
+                  style={{ 
+                    width: `${successRate}%`,
+                    background: 'var(--gradient-accent)'
+                  }}
+                ></div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Prospects Table */}

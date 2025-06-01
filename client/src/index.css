@@ -3,35 +3,55 @@
 @tailwind utilities;
 
 :root {
-  --background: 0 0% 100%; /* Pure white background */
-  --foreground: 240 10% 3.9%; /* Rich dark text */
-  --muted: 240 4.8% 95.9%; /* Light gray backgrounds */
-  --muted-foreground: 240 3.8% 46.1%; /* Muted text */
-  --popover: 0 0% 100%; /* Pure white */
-  --popover-foreground: 240 10% 3.9%; /* Rich dark text */
-  --card: 0 0% 100%; /* Pure white cards */
-  --card-foreground: 240 10% 3.9%; /* Rich dark text */
-  --border: 240 5.9% 90%; /* Subtle borders */
-  --input: 240 5.9% 90%; /* Input borders */
-  --primary: 262.1 83.3% 57.8%; /* Modern purple primary */
-  --primary-foreground: 210 20% 98%; /* Light text on primary */
-  --secondary: 220 14.3% 95.9%; /* Light gray secondary */
-  --secondary-foreground: 220.9 39.3% 11%; /* Dark text on secondary */
-  --accent: 220 14.3% 95.9%; /* Light accent */
-  --accent-foreground: 220.9 39.3% 11%; /* Dark text on accent */
-  --destructive: 0 84.2% 60.2%; /* Modern red */
-  --destructive-foreground: 210 20% 98%; /* Light text on destructive */
-  --ring: 262.1 83.3% 57.8%; /* Focus ring matches primary */
-  --radius: 0.75rem; /* Larger radius for modern look */
+  /* Contemporary neutral base with warmth */
+  --background: 0 0% 99%; /* Softer off-white */
+  --foreground: 225 15% 12%; /* Warmer dark with slight blue undertone */
+  --muted: 220 13% 95%; /* Warm light gray */
+  --muted-foreground: 220 9% 46%; /* Balanced muted text */
   
-  /* Modern gradient variables */
-  --gradient-primary: linear-gradient(135deg, hsl(262.1 83.3% 57.8%) 0%, hsl(252 83% 67%) 100%);
-  --gradient-secondary: linear-gradient(135deg, hsl(240 5.9% 90%) 0%, hsl(240 4.8% 95.9%) 100%);
-  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
-  --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  /* Surface colors */
+  --popover: 0 0% 100%;
+  --popover-foreground: 225 15% 12%;
+  --card: 0 0% 100%;
+  --card-foreground: 225 15% 12%;
+  --border: 220 13% 91%; /* Warmer border */
+  --input: 220 13% 91%;
+  
+  /* Distinctive brand palette - Indigo-Cyan system */
+  --primary: 213 94% 68%; /* Vibrant blue */
+  --primary-foreground: 0 0% 100%;
+  --secondary: 197 71% 73%; /* Complementary cyan */
+  --secondary-foreground: 225 15% 12%;
+  --accent: 280 100% 70%; /* Electric purple accent */
+  --accent-foreground: 0 0% 100%;
+  
+  /* Status colors with personality */
+  --success: 142 76% 36%; /* Forest green */
+  --warning: 38 92% 50%; /* Amber */
+  --error: 0 84% 60%; /* Coral red */
+  --info: 213 94% 68%; /* Matches primary */
+  
+  --destructive: 0 84% 60%;
+  --destructive-foreground: 0 0% 100%;
+  --ring: 213 94% 68%;
+  --radius: 12px; /* Distinctive larger radius */
+  
+  /* Unique gradient system */
+  --gradient-primary: linear-gradient(135deg, hsl(213 94% 68%) 0%, hsl(197 71% 73%) 100%);
+  --gradient-accent: linear-gradient(135deg, hsl(280 100% 70%) 0%, hsl(213 94% 68%) 100%);
+  --gradient-surface: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(220 13% 98%) 100%);
+  --gradient-mesh: 
+    radial-gradient(circle at 20% 20%, hsl(213 94% 68% / 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 80%, hsl(280 100% 70% / 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, hsl(197 71% 73% / 0.1) 0%, transparent 50%);
+  
+  /* Advanced shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.03), 0 1px 3px 0 rgb(0 0 0 / 0.02);
+  --shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -1px rgb(0 0 0 / 0.03);
+  --shadow-md: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -2px rgb(0 0 0 / 0.03);
+  --shadow-lg: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 10px 10px -5px rgb(0 0 0 / 0.04);
+  --shadow-xl: 0 25px 50px -12px rgb(0 0 0 / 0.15);
+  --shadow-glow: 0 0 0 1px hsl(213 94% 68% / 0.3), 0 0 20px hsl(213 94% 68% / 0.2);
 }
 
 .dark {
@@ -85,11 +105,11 @@
   h6 { @apply text-base leading-normal; }
 }
 
-/* Modern SaaS animations and effects */
+/* Contemporary SaaS animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(20px);
   }
   to {
     opacity: 1;
@@ -97,34 +117,64 @@
   }
 }
 
-@keyframes slideInFromRight {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateX(20px);
+    transform: translateY(40px);
   }
   to {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
   }
 }
 
-@keyframes scaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
+@keyframes morphShape {
+  0%, 100% {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
   }
-  to {
-    opacity: 1;
-    transform: scale(1);
+  50% {
+    border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%;
   }
 }
 
-@keyframes shimmer {
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 5px hsl(213 94% 68% / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px hsl(213 94% 68% / 0.6), 0 0 30px hsl(213 94% 68% / 0.4);
+  }
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes data-flow {
   0% {
-    background-position: -200px 0;
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
   }
   100% {
-    background-position: calc(200px + 100%) 0;
+    transform: translateX(100%);
+    opacity: 0;
   }
 }
 
@@ -204,12 +254,57 @@
   left: 100%;
 }
 
-/* Modern card styles */
+/* Distinctive card system */
 .card-modern {
-  @apply bg-card border border-border rounded-xl shadow-sm;
-  @apply hover:shadow-md transition-all duration-200;
-  background: hsl(var(--card));
+  background: var(--gradient-surface);
+  border: 1px solid hsl(var(--border) / 0.6);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-modern::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--gradient-primary);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.card-modern:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.card-modern:hover::before {
+  opacity: 0.8;
+}
+
+/* Data visualization elements */
+.stat-card {
+  @apply relative;
+  background: var(--gradient-surface);
   border: 1px solid hsl(var(--border) / 0.5);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.stat-card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100px;
+  height: 100px;
+  background: var(--gradient-mesh);
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 /* Enhanced table styles */
