@@ -572,9 +572,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
                   fullOutput: output
                 };
                 
-                // Update prospect with research results
-                await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
-                console.log(`Successfully updated prospect ${matchedProspect.id} with research data`);
+                // Only mark as completed if we have essential research data
+                const hasEssentialData = researchData.emailSubject && researchData.emailBody;
+                
+                if (hasEssentialData) {
+                  await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
+                  console.log(`✅ Successfully updated prospect ${matchedProspect.id} with complete research data and marked as completed`);
+                } else {
+                  await storage.updateProspectStatus(matchedProspect.id, 'processing', researchData);
+                  console.log(`📝 Updated prospect ${matchedProspect.id} with partial research data, keeping as processing`);
+                }
                 break;
               }
             }
@@ -683,7 +690,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
               fullOutput: result.output
             };
             
-            await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
+            // Only mark as completed if we have essential research data
+            const hasEssentialData = researchData.emailSubject && researchData.emailBody;
+            
+            if (hasEssentialData) {
+              await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
+              console.log(`✅ Successfully updated prospect ${matchedProspect.id} with complete research data and marked as completed`);
+            } else {
+              await storage.updateProspectStatus(matchedProspect.id, 'processing', researchData);
+              console.log(`📝 Updated prospect ${matchedProspect.id} with partial research data, keeping as processing`);
+            }
           } else {
             console.log(`No processing prospect found for email: ${email}`);
           }
@@ -734,7 +750,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
               emailBody: result.output?.Email?.body,
               fullOutput: result.output
             };
-            await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
+            
+            // Only mark as completed if we have essential research data
+            const hasEssentialData = researchData.emailSubject && researchData.emailBody;
+            
+            if (hasEssentialData) {
+              await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
+              console.log(`✅ Successfully updated prospect ${matchedProspect.id} with complete research data and marked as completed`);
+            } else {
+              await storage.updateProspectStatus(matchedProspect.id, 'processing', researchData);
+              console.log(`📝 Updated prospect ${matchedProspect.id} with partial research data, keeping as processing`);
+            }
           } else {
             console.log(`No processing prospect found for ${firstName} ${lastName}`);
             // Log all processing prospects for debugging
