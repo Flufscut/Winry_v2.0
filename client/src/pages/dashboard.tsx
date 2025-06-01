@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import ProspectForm from "@/components/prospect-form";
 import CsvUpload from "@/components/csv-upload";
-import ProspectDetailsModern from "@/components/prospect-details-modern";
-import ProspectTable from "@/components/prospect-table";
+import ProspectProfileInteractive from "@/components/prospect-profile-interactive";
+import ProspectTableInteractive from "@/components/prospect-table-interactive";
 import SettingsMenu from "@/components/settings-menu";
 import ProcessingIndicator from "@/components/processing-indicator";
 
@@ -529,85 +529,102 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Prospects Table */}
-        <Card>
-          <CardContent className="p-0">
-            <div className="px-6 py-4 border-b border-border">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <h3 className="text-lg font-semibold text-foreground">Recent Prospects</h3>
-                
-                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
-                  <div className="relative">
-                    <Input
-                      type="text"
-                      placeholder="Search prospects..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10 w-full sm:w-64"
-                    />
-                    <Search className="h-4 w-4 text-muted-foreground absolute left-3 top-3" />
-                  </div>
-                  
-                  <Select value={statusFilter} onValueChange={setStatusFilter}>
-                    <SelectTrigger className="w-full sm:w-auto">
-                      <SelectValue placeholder="All Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                      <SelectItem value="processing">Processing</SelectItem>
-                      <SelectItem value="failed">Failed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
+        {/* Interactive Prospect Management */}
+        <div className="space-y-6">
+          {/* Search and Filter Controls */}
+          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-6 rounded-2xl border border-border/50"
+               style={{ background: 'var(--gradient-surface)' }}>
+            <div className="space-y-1">
+              <h3 className="text-xl font-bold text-foreground">Prospect Pipeline</h3>
+              <p className="text-sm text-muted-foreground">Manage and track your research progress</p>
             </div>
             
-            {/* Processing Indicators */}
-            {prospects && prospects.filter(p => p.status === 'processing').length > 0 && (
-              <div className="space-y-3 mb-6">
-                {prospects.filter(p => p.status === 'processing').map((prospect, index) => {
-                  // Calculate estimated progress based on time elapsed since creation
+            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Search prospects..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-12 pr-4 py-2 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm w-full sm:w-72"
+                />
+                <Search className="w-5 h-5 text-muted-foreground absolute left-4 top-2.5" />
+              </div>
+              
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-full sm:w-48 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm">
+                  <Filter className="w-4 h-4 mr-2" />
+                  <SelectValue placeholder="All Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
+                  <SelectItem value="failed">Failed</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Processing Status Overview */}
+          {filteredProspects && filteredProspects.filter((p: any) => p.status === 'processing').length > 0 && (
+            <div className="p-6 rounded-2xl border border-warning/20 overflow-hidden"
+                 style={{ background: 'linear-gradient(135deg, hsl(var(--warning) / 0.05), hsl(var(--info) / 0.05))' }}>
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="w-10 h-10 rounded-xl border-2 border-warning/30 flex items-center justify-center"
+                     style={{ background: 'var(--gradient-accent)' }}>
+                  <Brain className="w-5 h-5 text-white animate-pulse" />
+                </div>
+                <div>
+                  <h4 className="font-semibold text-foreground">Active Research</h4>
+                  <p className="text-sm text-muted-foreground">
+                    {filteredProspects.filter((p: any) => p.status === 'processing').length} prospects being analyzed
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                {filteredProspects.filter((p: any) => p.status === 'processing').slice(0, 3).map((prospect: any, index: number) => {
                   const createdAt = new Date(prospect.createdAt);
                   const now = new Date();
-                  const elapsed = (now.getTime() - createdAt.getTime()) / 1000; // seconds
-                  const estimatedProgress = Math.min(Math.floor((elapsed / 180) * 100), 95); // 180 seconds = 3 minutes
+                  const elapsed = (now.getTime() - createdAt.getTime()) / 1000;
+                  const estimatedProgress = Math.min(Math.floor((elapsed / 180) * 100), 95);
                   
                   return (
                     <ProcessingIndicator
                       key={prospect.id}
                       status="processing"
                       progress={estimatedProgress}
-                      message={`Analyzing ${prospect.firstName} ${prospect.lastName} at ${prospect.company}`}
+                      message={`${prospect.firstName} ${prospect.lastName} at ${prospect.company}`}
                       estimatedTime={estimatedProgress < 50 ? "2-3 min" : "1-2 min"}
                     />
                   );
                 })}
               </div>
-            )}
-            
-            <ProspectTable
-              prospects={prospects || []}
-              isLoading={prospectsLoading}
-              onViewDetails={setSelectedProspectId}
-              onDelete={(prospectId) => deleteProspectMutation.mutate(prospectId)}
-              onRetry={(prospectId) => retryProspectMutation.mutate(prospectId)}
-              selectedProspects={selectedProspects}
-              onSelectProspect={handleSelectProspect}
-              onSelectAll={handleSelectAll}
-              onDeselectAll={handleDeselectAll}
-              onBulkDelete={handleBulkDelete}
-            />
-          </CardContent>
-        </Card>
+            </div>
+          )}
+          
+          {/* Interactive Table */}
+          <ProspectTableInteractive
+            prospects={filteredProspects || []}
+            isLoading={prospectsLoading}
+            onViewDetails={setSelectedProspectId}
+            onDelete={(prospectId: number) => deleteProspectMutation.mutate(prospectId)}
+            onRetry={(prospectId: number) => retryProspectMutation.mutate(prospectId)}
+            selectedProspects={selectedProspects}
+            onSelectProspect={handleSelectProspect}
+            onSelectAll={handleSelectAll}
+            onDeselectAll={handleDeselectAll}
+            onBulkDelete={handleBulkDelete}
+          />
+        </div>
       </div>
 
-      {/* Prospect Details Modal */}
+      {/* Interactive Prospect Profile */}
       <Dialog open={selectedProspectId !== null} onOpenChange={() => setSelectedProspectId(null)}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto p-0">
-          <div className="p-6">
+        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0 border-0" style={{ background: 'var(--gradient-surface)' }}>
+          <div className="p-8">
             {selectedProspectId && (
-              <ProspectDetailsModern 
+              <ProspectProfileInteractive 
                 prospectId={selectedProspectId} 
                 onClose={() => setSelectedProspectId(null)}
               />
