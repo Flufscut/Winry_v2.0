@@ -399,8 +399,71 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log('Available fields in output:', Object.keys(result.output));
         }
         
-        if (firstName && lastName) {
-          // Get all prospects and find match
+        // If no firstName/lastName, try to find by email
+        if (email && !firstName && !lastName) {
+          console.log(`Trying to find prospect by email: ${email}`);
+          const allUsers = await db.select().from(users);
+          let matchedProspect = null;
+          
+          for (const user of allUsers) {
+            const userProspects = await storage.getProspectsByUser(user.id);
+            const prospect = userProspects.find(p => 
+              p.email.toLowerCase() === email.toLowerCase() &&
+              p.status === 'processing'
+            );
+            if (prospect) {
+              matchedProspect = prospect;
+              break;
+            }
+          }
+          
+          if (matchedProspect) {
+            console.log(`Found prospect by email: ${matchedProspect.id}`);
+            console.log(`Updating prospect ${matchedProspect.id} with research results`);
+            
+            // Extract and organize all research data from the output
+            const researchData = {
+              // Basic prospect info
+              firstname: result.output?.firstname,
+              lastname: result.output?.lastname,
+              location: result.output?.location,
+              linkedinUrl: result.output?.linkedinUrl,
+              email: result.output?.email,
+              website: result.output?.website,
+              
+              // Company info
+              primaryJobCompany: result.output?.['Primary Job Company'],
+              primaryJobTitle: result.output?.['Primary Job Title'],
+              primaryJobCompanyLinkedInUrl: result.output?.['Primary Job Company LinkedIn URL'],
+              industry: result.output?.Industry,
+              
+              // Research insights
+              painPoints: result.output?.['Pain Points'],
+              businessGoals: result.output?.['Business Goals'],
+              competitors: result.output?.Competitors,
+              competitiveAdvantages: result.output?.['Competitive Advantages'],
+              locationResearch: result.output?.['Location Research'],
+              almaMaterResearch: result.output?.['Alma Mater Research'],
+              linkedInPostSummary: result.output?.['LinkedIn Post Summary'],
+              companyLinkedInPostSummary: result.output?.['Company LinkedIn Post Summary'],
+              companyNews: result.output?.['Company News'],
+              overallProspectSummary: result.output?.['Overall Prospect Summary'],
+              overallCompanySummary: result.output?.['Overall Company Summary'],
+              
+              // Email content
+              emailSubject: result.output?.Email?.subject,
+              emailBody: result.output?.Email?.body,
+              
+              // Store the full raw data as well
+              fullOutput: result.output
+            };
+            
+            await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
+          } else {
+            console.log(`No processing prospect found for email: ${email}`);
+          }
+        } else if (firstName && lastName) {
+          // Get all prospects and find match by name
           const allUsers = await db.select().from(users);
           let matchedProspect = null;
           
@@ -419,7 +482,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           if (matchedProspect) {
             console.log(`Updating prospect ${matchedProspect.id} with research results`);
-            await storage.updateProspectStatus(matchedProspect.id, 'completed', result);
+            // Use same organized data structure as above
+            const researchData = {
+              firstname: result.output?.firstname,
+              lastname: result.output?.lastname,
+              location: result.output?.location,
+              linkedinUrl: result.output?.linkedinUrl,
+              email: result.output?.email,
+              website: result.output?.website,
+              primaryJobCompany: result.output?.['Primary Job Company'],
+              primaryJobTitle: result.output?.['Primary Job Title'],
+              primaryJobCompanyLinkedInUrl: result.output?.['Primary Job Company LinkedIn URL'],
+              industry: result.output?.Industry,
+              painPoints: result.output?.['Pain Points'],
+              businessGoals: result.output?.['Business Goals'],
+              competitors: result.output?.Competitors,
+              competitiveAdvantages: result.output?.['Competitive Advantages'],
+              locationResearch: result.output?.['Location Research'],
+              almaMaterResearch: result.output?.['Alma Mater Research'],
+              linkedInPostSummary: result.output?.['LinkedIn Post Summary'],
+              companyLinkedInPostSummary: result.output?.['Company LinkedIn Post Summary'],
+              companyNews: result.output?.['Company News'],
+              overallProspectSummary: result.output?.['Overall Prospect Summary'],
+              overallCompanySummary: result.output?.['Overall Company Summary'],
+              emailSubject: result.output?.Email?.subject,
+              emailBody: result.output?.Email?.body,
+              fullOutput: result.output
+            };
+            await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
           } else {
             console.log(`No processing prospect found for ${firstName} ${lastName}`);
             // Log all processing prospects for debugging
