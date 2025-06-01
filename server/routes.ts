@@ -374,7 +374,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Webhook endpoint for n8n to send results back
   app.post('/webhook/results', async (req, res) => {
-    console.log('=== Webhook Results Endpoint Hit ===');
+    console.log('=== WEBHOOK RESULTS ENDPOINT TRIGGERED ===');
+    console.log('Timestamp:', new Date().toISOString());
     console.log('Request headers:', req.headers);
     console.log('Raw request body type:', typeof req.body);
     console.log('Raw request body:', req.body);
