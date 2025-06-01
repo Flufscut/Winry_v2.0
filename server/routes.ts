@@ -16,6 +16,7 @@ const DEFAULT_SETTINGS = {
   maxRetries: 1, // Add one retry for 524 errors
   retryDelaySeconds: 30, // Longer delay between retries
   batchSize: 10,
+  useProductionWebhook: true,
 };
 
 // In-memory settings storage (could be moved to database later)
