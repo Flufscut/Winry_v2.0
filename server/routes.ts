@@ -358,26 +358,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Raw body capture middleware for debugging - capture EVERYTHING
-  app.use('/webhook/results', (req, res, next) => {
-    let data = '';
-    req.on('data', chunk => {
-      data += chunk;
-    });
-    req.on('end', () => {
-      console.log('=== INCOMING WEBHOOK DATA DETECTED ===');
-      console.log('Timestamp:', new Date().toISOString());
-      console.log('Method:', req.method);
-      console.log('URL:', req.url);
-      console.log('Headers:', JSON.stringify(req.headers, null, 2));
-      console.log('Raw body string:', data);
-      console.log('Raw body length:', data.length);
-      console.log('Content-Type:', req.headers['content-type']);
-      console.log('User-Agent:', req.headers['user-agent']);
-      console.log('=== END WEBHOOK DATA ===');
-      next();
-    });
-  });
+
 
   // Test endpoint for connectivity
   app.get('/webhook/test', (req, res) => {
@@ -389,9 +370,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/webhook/results', async (req, res) => {
     console.log('=== WEBHOOK RESULTS ENDPOINT TRIGGERED ===');
     console.log('Timestamp:', new Date().toISOString());
-    console.log('Request headers:', req.headers);
+    console.log('Request headers:', JSON.stringify(req.headers, null, 2));
     console.log('Raw request body type:', typeof req.body);
     console.log('Raw request body:', JSON.stringify(req.body, null, 2));
+    console.log('Content-Type:', req.headers['content-type']);
+    console.log('User-Agent:', req.headers['user-agent']);
     
     // Always respond with success immediately to prevent timeouts
     res.status(200).json({ message: 'Data received successfully', timestamp: new Date().toISOString() });
