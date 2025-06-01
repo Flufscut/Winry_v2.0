@@ -384,7 +384,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Timestamp:', new Date().toISOString());
     console.log('Request headers:', req.headers);
     console.log('Raw request body type:', typeof req.body);
-    console.log('Raw request body:', req.body);
+    console.log('Raw request body:', JSON.stringify(req.body, null, 2));
+    
+    // Handle different possible data structures from n8n
+    let dataToProcess = req.body;
+    
+    // If it's wrapped in an array, extract the first item
+    if (Array.isArray(req.body) && req.body.length > 0) {
+      dataToProcess = req.body[0];
+    }
+    
+    // If it has a response.body structure (from HTTP Request node), extract that
+    if (dataToProcess.response && dataToProcess.response.body) {
+      dataToProcess = dataToProcess.response.body;
+    }
+    
+    console.log('Processed data structure:', JSON.stringify(dataToProcess, null, 2));
     
     try {
       console.log('Received webhook results:', JSON.stringify(req.body, null, 2));
