@@ -8,6 +8,7 @@ import {
   serial,
   integer,
   boolean,
+  unique,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
@@ -64,6 +65,20 @@ export const csvUploads = pgTable("csv_uploads", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
+// User settings table for storing Reply.io configuration and other preferences
+export const userSettings = pgTable("user_settings", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
+  replyIoApiKey: varchar("reply_io_api_key"), // Encrypted Reply.io API key
+  replyIoCampaignId: varchar("reply_io_campaign_id"), // Default campaign ID
+  replyIoAutoSend: boolean("reply_io_auto_send").default(true), // Auto-send to Reply.io when research completes
+  webhookUrl: varchar("webhook_url"), // n8n webhook URL
+  webhookTimeout: integer("webhook_timeout").default(300), // Webhook timeout in seconds
+  batchSize: integer("batch_size").default(10), // Batch processing size
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Create insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   id: true,
@@ -92,6 +107,81 @@ export const insertCsvUploadSchema = createInsertSchema(csvUploads).omit({
   updatedAt: true,
 });
 
+export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  replyIoApiKey: z.string().optional(),
+  replyIoCampaignId: z.string().optional(),
+  replyIoAutoSend: z.boolean().optional(),
+  webhookUrl: z.string().url().optional().or(z.literal("")),
+  webhookTimeout: z.number().min(30).max(1800).optional(),
+  batchSize: z.number().min(1).max(100).optional(),
+});
+
+// Reply.io Accounts table for storing multiple API keys per user
+export const replyioAccounts = pgTable("replyio_accounts", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  name: varchar("name").notNull(), // User-friendly name (e.g., "Main Account", "Sales Team")
+  apiKey: varchar("api_key").notNull(), // Encrypted Reply.io API key
+  isDefault: boolean("is_default").default(false), // Only one default per user
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  userIdIdx: index("replyio_accounts_user_id_idx").on(table.userId),
+  userDefaultIdx: unique("replyio_accounts_user_default_unique").on(table.userId, table.isDefault),
+}));
+
+// Reply.io Campaigns table for storing multiple campaigns per API key
+export const replyioCampaigns = pgTable("replyio_campaigns", {
+  id: serial("id").primaryKey(),
+  accountId: integer("account_id").notNull().references(() => replyioAccounts.id, { onDelete: "cascade" }),
+  campaignId: integer("campaign_id").notNull(), // Reply.io campaign ID
+  campaignName: varchar("campaign_name").notNull(), // Campaign name from Reply.io
+  campaignStatus: varchar("campaign_status"), // active, paused, etc.
+  isDefault: boolean("is_default").default(false), // Only one default per account
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => ({
+  accountIdIdx: index("replyio_campaigns_account_id_idx").on(table.accountId),
+  accountDefaultIdx: unique("replyio_campaigns_account_default_unique").on(table.accountId, table.isDefault),
+  accountCampaignIdx: unique("replyio_campaigns_account_campaign_unique").on(table.accountId, table.campaignId),
+}));
+
+// Validation schemas for Reply.io accounts
+export const insertReplyioAccountSchema = createInsertSchema(replyioAccounts).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(1).max(100),
+  apiKey: z.string().min(1),
+  isDefault: z.boolean().optional(),
+});
+
+export const updateReplyioAccountSchema = insertReplyioAccountSchema.partial().extend({
+  id: z.number(),
+});
+
+// Validation schemas for Reply.io campaigns
+export const insertReplyioCampaignSchema = createInsertSchema(replyioCampaigns).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  accountId: z.number(),
+  campaignId: z.number(),
+  campaignName: z.string().min(1).max(200),
+  campaignStatus: z.string().optional(),
+  isDefault: z.boolean().optional(),
+});
+
+export const updateReplyioCampaignSchema = insertReplyioCampaignSchema.partial().extend({
+  id: z.number(),
+});
+
 // Export types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -99,3 +189,5 @@ export type InsertProspect = z.infer<typeof insertProspectSchema>;
 export type Prospect = typeof prospects.$inferSelect;
 export type InsertCsvUpload = z.infer<typeof insertCsvUploadSchema>;
 export type CsvUpload = typeof csvUploads.$inferSelect;
+export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
+export type UserSettings = typeof userSettings.$inferSelect;

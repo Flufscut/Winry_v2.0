@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -8,11 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Sparkles, Plus, Upload, Users, CheckCircle2, Clock, TrendingUp, Search, 
-  Loader2, LogOut, Filter, Eye, Trash2, RotateCcw, Target, Brain, Rocket, AlertTriangle
+  Loader2, LogOut, Filter, Eye, Trash2, RotateCcw, Target, Brain, Rocket, 
+  AlertTriangle, Settings, Send, UserPlus, RefreshCw, Download, 
+  MoreHorizontal, Activity, User
 } from "lucide-react";
 import ProspectForm from "@/components/prospect-form";
 import CsvUpload from "@/components/csv-upload";
@@ -20,6 +24,19 @@ import ProspectProfileInteractive from "@/components/prospect-profile-interactiv
 import ProspectTableInteractive from "@/components/prospect-table-interactive";
 import SettingsMenu from "@/components/settings-menu";
 import ProcessingIndicator from "@/components/processing-indicator";
+import { ReplyIoSettings } from "@/components/reply-io-settings";
+import { CommandCenterDashboard } from "@/components/analytics-dashboard";
+import { AnalyticsLoading, BrainLoader } from "@/components/enhanced-loading";
+import { ReplyIoAnalytics } from "@/components/reply-io-analytics";
+
+// Add Reply.io settings interface after the imports
+interface ReplyIoSettings {
+  replyIoCampaignId?: string;
+  hasApiKey?: boolean;
+  webhookUrl?: string;
+  webhookTimeout?: number;
+  batchSize?: number;
+}
 
 export default function Dashboard() {
   const { user, isLoading: authLoading } = useAuth();
@@ -30,7 +47,9 @@ export default function Dashboard() {
   const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
   const [showProspectForm, setShowProspectForm] = useState(false);
   const [showCsvUpload, setShowCsvUpload] = useState(false);
+  const [showReplyIoSettings, setShowReplyIoSettings] = useState(false);
   const [selectedProspects, setSelectedProspects] = useState<number[]>([]);
+  const [activeTab, setActiveTab] = useState('analytics');
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -47,16 +66,45 @@ export default function Dashboard() {
     }
   }, [user, authLoading, toast]);
 
-  // Fetch dashboard stats
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
+  // REF: Fetch Reply.io accounts to get selected campaign
+  const { data: replyIoAccounts } = useQuery({
+    queryKey: ["/api/reply-io/accounts"],
+    retry: false,
+    enabled: !!user,
+  });
+
+  // REF: Get the selected campaign ID from Reply.io statistics response
+  const { data: replyIoStats } = useQuery<any>({
+    queryKey: ["/api/reply-io/statistics"],
+    retry: false,
+    enabled: !!user && !!replyIoAccounts,
+  });
+
+  // REF: Extract selected campaign ID from Reply.io statistics
+  const selectedCampaignId = React.useMemo(() => {
+    if (replyIoStats?.success && replyIoStats?.statistics?.selectedCampaign) {
+      return replyIoStats.statistics.selectedCampaign.campaignId;
+    }
+    return null;
+  }, [replyIoStats]);
+
+  // Fetch dashboard stats - filtered by campaign if selected
+  const { data: statsData, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ["/api/stats"],
     retry: false,
     enabled: !!user,
   });
 
-  // Fetch prospects with search and filter
+  // Fetch prospects with search and filter - filtered by campaign if selected
   const { data: prospects, isLoading: prospectsLoading, refetch: refetchProspects } = useQuery({
     queryKey: ["/api/prospects", searchQuery, statusFilter],
+    retry: false,
+    enabled: !!user,
+  });
+
+  // Fetch Reply.io settings
+  const { data: replyIoSettings } = useQuery({
+    queryKey: ["/api/reply-io/settings"],
     retry: false,
     enabled: !!user,
   });
@@ -64,7 +112,7 @@ export default function Dashboard() {
   // Auto-refresh data when there are processing prospects
   useEffect(() => {
     const hasProcessing = (Array.isArray(prospects) && prospects.some((p: any) => p.status === 'processing')) || 
-                         (stats && typeof stats === 'object' && 'processing' in stats && (stats as any).processing > 0);
+                         (statsData && typeof statsData === 'object' && 'processing' in statsData && (statsData as any).processing > 0);
     
     if (hasProcessing) {
       const interval = setInterval(() => {
@@ -74,7 +122,7 @@ export default function Dashboard() {
       
       return () => clearInterval(interval);
     }
-  }, [prospects, stats, refetchProspects, refetchStats]);
+  }, [prospects, statsData, refetchProspects, refetchStats]);
 
   // Delete prospect mutation
   const deleteProspectMutation = useMutation({
@@ -148,6 +196,56 @@ export default function Dashboard() {
     },
   });
 
+  // Bulk send to Reply.io mutation
+  const bulkSendToReplyMutation = useMutation({
+    mutationFn: async ({ prospectIds, campaignId }: { prospectIds: number[], campaignId: string }) => {
+      const response = await apiRequest('POST', '/api/reply-io/send-prospects', { prospectIds, campaignId });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      const { successful, failed, totalSent, errors } = data;
+      
+      if (successful > 0) {
+        toast({
+          title: "Success",
+          description: `${successful} out of ${totalSent} prospects sent to Reply.io successfully`,
+        });
+      }
+      
+      if (failed > 0) {
+        console.log('Failed sends:', errors);
+        toast({
+          title: "Partial Success", 
+          description: `${failed} prospects failed to send. Check console for details.`,
+          variant: "destructive",
+        });
+      }
+      
+      setSelectedProspects([]);
+      queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+    },
+    onError: (error: Error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+
+      toast({
+        title: "Error",
+        description: "Failed to send prospects to Reply.io",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
     mutationFn: async (prospectIds: number[]) => {
@@ -178,6 +276,7 @@ export default function Dashboard() {
         }, 500);
         return;
       }
+
       toast({
         title: "Error",
         description: "Failed to delete prospects",
@@ -186,21 +285,17 @@ export default function Dashboard() {
     },
   });
 
-  // Bulk selection handlers
   const handleSelectProspect = (prospectId: number, selected: boolean) => {
-    setSelectedProspects(prev => {
-      if (selected) {
-        return [...prev, prospectId];
-      } else {
-        return prev.filter(id => id !== prospectId);
-      }
-    });
+    setSelectedProspects(prev => 
+      selected 
+        ? [...prev, prospectId]
+        : prev.filter(id => id !== prospectId)
+    );
   };
 
   const handleSelectAll = () => {
-    if (prospects && Array.isArray(prospects)) {
-      setSelectedProspects(prospects.map(p => p.id));
-    }
+    const visibleProspectIds = filteredProspects.map((p: any) => p.id);
+    setSelectedProspects(visibleProspectIds);
   };
 
   const handleDeselectAll = () => {
@@ -211,6 +306,32 @@ export default function Dashboard() {
     bulkDeleteMutation.mutate(selectedProspects);
   };
 
+  const handleBulkSendToReply = () => {
+    // Check if Reply.io is configured before allowing bulk send
+    const settings = replyIoSettings as ReplyIoSettings;
+    const isNotConfigured = !settings?.hasApiKey || !settings?.replyIoCampaignId || settings?.replyIoCampaignId?.trim() === '';
+    
+    if (isNotConfigured) {
+      setShowReplyIoSettings(true);
+      return;
+    }
+
+    // Send selected prospects to Reply.io
+    if (selectedProspects.length === 0) {
+      toast({
+        title: "No Prospects Selected",
+        description: "Please select prospects to send to Reply.io",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    bulkSendToReplyMutation.mutate({
+      prospectIds: selectedProspects,
+      campaignId: settings?.replyIoCampaignId || '',
+    });
+  };
+
   if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -219,7 +340,7 @@ export default function Dashboard() {
             <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
             <Sparkles className="w-6 h-6 text-primary absolute top-3 left-3" />
           </div>
-          <p className="text-muted-foreground animate-pulse">Loading SalesLeopard...</p>
+          <p className="text-muted-foreground animate-pulse">Loading Winry.AI...</p>
         </div>
       </div>
     );
@@ -233,13 +354,14 @@ export default function Dashboard() {
     ? `${(user as any).firstName[0]}${(user as any).lastName[0]}`.toUpperCase()
     : (user as any)?.email?.[0]?.toUpperCase() || "U";
 
-  const processingCount = (stats as any)?.processing || 0;
-  const completedCount = (stats as any)?.completed || 0;
-  const totalCount = (stats as any)?.totalProspects || 0;
-  const successRate = (stats as any)?.successRate || 0;
+  const processingCount = (statsData as any)?.processing || 0;
+  const completedCount = (statsData as any)?.completed || 0;
+  const totalCount = (statsData as any)?.totalProspects || 0;
+  const successRate = (statsData as any)?.successRate || 0;
+  const failedCount = (statsData as any)?.failed || 0;
 
   // Filter prospects based on search and status
-  const filteredProspects = prospects?.filter((prospect: any) => {
+  const filteredProspects = (prospects && Array.isArray(prospects)) ? prospects.filter((prospect: any) => {
     const matchesSearch = !searchQuery || 
       `${prospect.firstName} ${prospect.lastName}`.toLowerCase().includes(searchQuery.toLowerCase()) ||
       prospect.company.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -248,402 +370,295 @@ export default function Dashboard() {
     const matchesStatus = statusFilter === "all" || prospect.status === statusFilter;
     
     return matchesSearch && matchesStatus;
-  });
+  }) : [];
+
+  // Command Center stats for the dashboard
+  const commandCenterStats = {
+    totalProspects: totalCount,
+    completed: completedCount,
+    processing: processingCount,
+    failed: failedCount,
+    successRate: successRate
+  };
 
   return (
-    <div className="min-h-screen" style={{ background: 'var(--gradient-mesh), hsl(var(--background))' }}>
-      {/* Distinctive Header */}
-      <header className="sticky top-0 z-50 border-b border-border/60 backdrop-blur-xl" style={{ background: 'hsla(var(--background), 0.85)' }}>
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex items-center justify-between h-18">
-            <div className="flex items-center space-x-5">
-              <div className="relative group">
-                <div 
-                  className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-lg transition-all duration-300 group-hover:animate-float"
-                  style={{ background: 'var(--gradient-primary)' }}
-                >
-                  <Sparkles className="w-6 h-6 text-white" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-3 h-3 rounded-full animate-pulse-glow" style={{ background: 'var(--gradient-accent)' }}></div>
-              </div>
-              <div className="space-y-1">
-                <h1 className="text-xl font-bold text-foreground tracking-tight">SalesLeopard</h1>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 rounded-full bg-success animate-pulse"></div>
-                  <p className="text-xs text-muted-foreground font-medium">Intelligence Platform</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex items-center space-x-6">
-              {/* Distinctive Processing Display */}
-              {processingCount > 0 && (
-                <div className="relative px-4 py-2 rounded-2xl border border-warning/20 overflow-hidden" style={{ background: 'linear-gradient(135deg, hsl(var(--warning) / 0.05), hsl(var(--info) / 0.05))' }}>
-                  <div className="flex items-center space-x-3 relative z-10">
-                    <div className="relative">
-                      <div className="w-8 h-8 rounded-xl border-2 border-warning/30 flex items-center justify-center" style={{ background: 'var(--gradient-accent)' }}>
-                        <Brain className="w-4 h-4 text-white animate-pulse" />
-                      </div>
-                      <div className="absolute inset-0 w-8 h-8 rounded-xl border-2 border-warning animate-spin"></div>
-                    </div>
-                    <div className="space-y-0.5">
-                      <p className="text-sm font-semibold text-foreground">{processingCount} Processing</p>
-                      <div className="flex items-center space-x-1">
-                        <div className="w-1 h-1 rounded-full bg-warning animate-pulse"></div>
-                        <div className="w-1 h-1 rounded-full bg-warning animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                        <div className="w-1 h-1 rounded-full bg-warning animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                        <span className="text-xs text-muted-foreground ml-1">AI analyzing</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="absolute inset-0 opacity-20 animate-gradient-shift" style={{ background: 'linear-gradient(-45deg, transparent, hsl(var(--warning) / 0.3), transparent)', backgroundSize: '200% 200%' }}></div>
-                </div>
-              )}
-              
-              {/* Contemporary User Profile */}
-              <div className="flex items-center space-x-4">
-                <div className="text-right hidden sm:block space-y-0.5">
-                  <p className="text-sm font-semibold text-foreground">{(user as any)?.firstName || 'User'}</p>
-                  <p className="text-xs text-muted-foreground font-medium">{(user as any)?.email}</p>
-                </div>
-                <div className="relative group">
-                  <div 
-                    className="w-11 h-11 rounded-2xl flex items-center justify-center shadow-md transition-all duration-300 group-hover:shadow-lg border border-border/50"
-                    style={{ background: 'var(--gradient-accent)' }}
-                  >
-                    <span className="text-sm font-bold text-white">{userInitials}</span>
-                  </div>
-                  <div className="absolute inset-0 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{ background: 'var(--shadow-glow)' }}></div>
-                </div>
-                <SettingsMenu />
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  className="w-10 h-10 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all duration-200"
-                  onClick={() => window.location.href = '/api/logout'}
-                >
-                  <LogOut className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
-
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-10">
-        {/* Contemporary Hero */}
-        <div className="mb-10">
-          <div className="relative rounded-3xl p-8 overflow-hidden" style={{ background: 'var(--gradient-surface)' }}>
-            <div className="absolute inset-0 opacity-30" style={{ background: 'var(--gradient-mesh)' }}></div>
-            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-8">
-              <div className="space-y-4 max-w-2xl">
-                <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full border border-primary/20" style={{ background: 'hsl(var(--primary) / 0.08)' }}>
-                  <div className="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
-                  <span className="text-sm font-medium text-primary">Live Intelligence</span>
-                </div>
-                <h2 className="text-4xl font-bold text-foreground tracking-tight leading-tight">
-                  Research Pipeline
-                </h2>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Transform prospects into personalized outreach with AI-powered research and intelligent insights that drive meaningful conversations.
-                </p>
-              </div>
-              
-              {/* Action Center */}
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Dialog open={showProspectForm} onOpenChange={setShowProspectForm}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      size="lg" 
-                      className="relative px-6 py-3 rounded-2xl font-semibold transition-all duration-300 hover:scale-105 hover:shadow-xl border-0"
-                      style={{ background: 'var(--gradient-primary)', color: 'white' }}
-                    >
-                      <Plus className="w-5 h-5 mr-2" />
-                      Add Prospect
-                      <div className="absolute inset-0 rounded-2xl opacity-0 hover:opacity-20 transition-opacity duration-300" style={{ background: 'linear-gradient(45deg, white, transparent)' }}></div>
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Add New Prospect</DialogTitle>
-                    </DialogHeader>
-                    <ProspectForm 
-                      onSuccess={() => {
-                        setShowProspectForm(false);
-                        refetchProspects();
-                      }}
-                      onCancel={() => setShowProspectForm(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
-                
-                <Dialog open={showCsvUpload} onOpenChange={setShowCsvUpload}>
-                  <DialogTrigger asChild>
-                    <Button 
-                      variant="outline" 
-                      size="lg" 
-                      className="relative px-6 py-3 rounded-2xl font-semibold border-2 border-border hover:border-primary/50 transition-all duration-300 hover:scale-105"
-                      style={{ background: 'var(--gradient-surface)' }}
-                    >
-                      <Upload className="w-5 h-5 mr-2" />
-                      Bulk Import
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-2xl">
-                    <DialogHeader>
-                      <DialogTitle>Import CSV File</DialogTitle>
-                    </DialogHeader>
-                    <CsvUpload 
-                      onSuccess={() => {
-                        setShowCsvUpload(false);
-                        refetchProspects();
-                      }}
-                      onCancel={() => setShowCsvUpload(false)}
-                    />
-                  </DialogContent>
-                </Dialog>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Data Analytics Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          {/* Total Prospects - Network Node Style */}
-          <div className="stat-card p-6 transition-all duration-300 hover:scale-[1.02]">
-            <div className="flex items-start justify-between mb-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Pipeline</p>
-                <div className="flex items-baseline space-x-1">
-                  <span className="text-3xl font-bold text-foreground tabular-nums">
-                    {statsLoading ? "..." : totalCount}
-                  </span>
-                  <span className="text-sm text-muted-foreground">prospects</span>
-                </div>
-              </div>
-              <div className="relative">
-                <div className="w-14 h-14 rounded-2xl border-2 border-primary/20 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--secondary) / 0.1))' }}>
-                  <Users className="w-7 h-7 text-primary" />
-                </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-background" style={{ background: 'var(--gradient-accent)' }}></div>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Active Research</span>
-              <div className="flex space-x-1">
-                <div className="w-2 h-1 rounded-full bg-primary"></div>
-                <div className="w-4 h-1 rounded-full bg-primary/60"></div>
-                <div className="w-3 h-1 rounded-full bg-primary/30"></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Completed - Progress Arc Style */}
-          <div className="stat-card p-6 transition-all duration-300 hover:scale-[1.02]">
-            <div className="flex items-start justify-between mb-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Complete</p>
-                <div className="flex items-baseline space-x-1">
-                  <span className="text-3xl font-bold text-foreground tabular-nums">
-                    {statsLoading ? "..." : completedCount}
-                  </span>
-                  <span className="text-sm text-muted-foreground">ready</span>
-                </div>
-              </div>
-              <div className="relative">
-                <div className="w-14 h-14 rounded-2xl border-2 border-success/20 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, hsl(var(--success) / 0.1), hsl(var(--info) / 0.1))' }}>
-                  <Target className="w-7 h-7 text-success" />
-                </div>
-                <svg className="absolute inset-0 w-14 h-14 -rotate-90" viewBox="0 0 56 56">
-                  <circle cx="28" cy="28" r="26" fill="none" stroke="hsl(var(--success) / 0.2)" strokeWidth="2"/>
-                  <circle 
-                    cx="28" cy="28" r="26" fill="none" stroke="hsl(var(--success))" strokeWidth="2"
-                    strokeDasharray={`${(completedCount / Math.max(totalCount, 1)) * 163} 163`}
-                    className="transition-all duration-1000"
-                  />
-                </svg>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">Outreach Ready</span>
-              <div className="px-2 py-0.5 rounded-full text-xs font-semibold" style={{ background: 'hsl(var(--success) / 0.1)', color: 'hsl(var(--success))' }}>
-                {totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0}%
-              </div>
-            </div>
-          </div>
-
-          {/* Processing - Pulse Animation Style */}
-          <div className="stat-card p-6 transition-all duration-300 hover:scale-[1.02]">
-            <div className="flex items-start justify-between mb-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Active</p>
-                <div className="flex items-baseline space-x-1">
-                  <span className="text-3xl font-bold text-foreground tabular-nums">
-                    {statsLoading ? "..." : processingCount}
-                  </span>
-                  <span className="text-sm text-muted-foreground">analyzing</span>
-                </div>
-              </div>
-              <div className="relative">
-                <div className="w-14 h-14 rounded-2xl border-2 border-warning/20 flex items-center justify-center" style={{ background: 'linear-gradient(135deg, hsl(var(--warning) / 0.1), hsl(var(--accent) / 0.1))' }}>
-                  <Brain className="w-7 h-7 text-warning" />
-                </div>
-                {processingCount > 0 && (
-                  <div className="absolute inset-0 rounded-2xl border-2 border-warning animate-ping opacity-30"></div>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground font-medium">AI Processing</span>
-              {processingCount > 0 && (
-                <div className="flex items-center space-x-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-warning animate-bounce"></div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-warning animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                  <div className="w-1.5 h-1.5 rounded-full bg-warning animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Success Rate - Gradient Progress Style */}
-          <div className="stat-card p-6 transition-all duration-300 hover:scale-[1.02]">
-            <div className="flex items-start justify-between mb-4">
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">Quality</p>
-                <div className="flex items-baseline space-x-1">
-                  <span className="text-3xl font-bold text-foreground tabular-nums">
-                    {statsLoading ? "..." : successRate}
-                  </span>
-                  <span className="text-sm text-muted-foreground">%</span>
-                </div>
-              </div>
-              <div className="relative">
-                <div className="w-14 h-14 rounded-2xl border-2 border-accent/20 flex items-center justify-center" style={{ background: 'var(--gradient-accent)' }}>
-                  <Rocket className="w-7 h-7 text-white" />
-                </div>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-muted-foreground font-medium">Research Success</span>
-                <span className="text-xs font-semibold text-accent">{successRate >= 90 ? 'Excellent' : successRate >= 70 ? 'Good' : 'Improving'}</span>
-              </div>
-              <div className="w-full h-1.5 rounded-full bg-muted">
-                <div 
-                  className="h-1.5 rounded-full transition-all duration-1000" 
-                  style={{ 
-                    width: `${successRate}%`,
-                    background: 'var(--gradient-accent)'
-                  }}
-                ></div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Interactive Prospect Management */}
-        <div className="space-y-6">
-          {/* Search and Filter Controls */}
-          <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 p-6 rounded-2xl border border-border/50"
-               style={{ background: 'var(--gradient-surface)' }}>
-            <div className="space-y-1">
-              <h3 className="text-xl font-bold text-foreground">Prospect Pipeline</h3>
-              <p className="text-sm text-muted-foreground">Manage and track your research progress</p>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-              <div className="relative">
-                <Input
-                  type="text"
-                  placeholder="Search prospects..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-12 pr-4 py-2 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm w-full sm:w-72"
+    <div className="min-h-screen bg-slate-950">
+      {/* Header */}
+      <motion.header
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-sm sticky top-0 z-40"
+      >
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="flex items-center gap-3"
+            >
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-blue-600 flex items-center justify-center">
+                <img 
+                  src="/salesleopard-logo.png" 
+                  alt="SalesLeopard Logo" 
+                  className="w-7 h-7 object-contain"
                 />
-                <Search className="w-5 h-5 text-muted-foreground absolute left-4 top-2.5" />
               </div>
-              
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-full sm:w-48 rounded-xl border-border/50 bg-background/50 backdrop-blur-sm">
-                  <Filter className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="All Status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="failed">Failed</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">Winry.AI</h1>
+                <p className="text-sm text-slate-400">True Sales Intelligence by Sales Leopard</p>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex items-center gap-4"
+            >
+              <div className="text-right">
+                <p className="text-sm text-white font-medium">
+                  {(user as any)?.firstName} {(user as any)?.lastName}
+                </p>
+                <p className="text-xs text-slate-400">{(user as any)?.email}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-semibold">
+                {(user as any)?.firstName?.[0]}{(user as any)?.lastName?.[0]}
+              </div>
+            </motion.div>
           </div>
 
-          {/* Processing Status Overview */}
-          {filteredProspects && filteredProspects.filter((p: any) => p.status === 'processing').length > 0 && (
-            <div className="p-6 rounded-2xl border border-warning/20 overflow-hidden"
-                 style={{ background: 'linear-gradient(135deg, hsl(var(--warning) / 0.05), hsl(var(--info) / 0.05))' }}>
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="w-10 h-10 rounded-xl border-2 border-warning/30 flex items-center justify-center"
-                     style={{ background: 'var(--gradient-accent)' }}>
-                  <Brain className="w-5 h-5 text-white animate-pulse" />
-                </div>
-                <div>
-                  <h4 className="font-semibold text-foreground">Active Research</h4>
-                  <p className="text-sm text-muted-foreground">
-                    {filteredProspects.filter((p: any) => p.status === 'processing').length} prospects being analyzed
-                  </p>
-                </div>
-              </div>
-              <div className="space-y-3">
-                {filteredProspects.filter((p: any) => p.status === 'processing').slice(0, 3).map((prospect: any, index: number) => {
-                  const createdAt = new Date(prospect.createdAt);
-                  const now = new Date();
-                  const elapsed = (now.getTime() - createdAt.getTime()) / 1000;
-                  const estimatedProgress = Math.min(Math.floor((elapsed / 180) * 100), 95);
-                  
-                  return (
-                    <ProcessingIndicator
-                      key={prospect.id}
-                      status="processing"
-                      progress={estimatedProgress}
-                      message={`${prospect.firstName} ${prospect.lastName} at ${prospect.company}`}
-                      estimatedTime={estimatedProgress < 50 ? "2-3 min" : "1-2 min"}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
-          
-          {/* Interactive Table */}
-          <ProspectTableInteractive
-            prospects={filteredProspects || []}
-            isLoading={prospectsLoading}
-            onViewDetails={setSelectedProspectId}
-            onDelete={(prospectId: number) => deleteProspectMutation.mutate(prospectId)}
-            onRetry={(prospectId: number) => retryProspectMutation.mutate(prospectId)}
-            selectedProspects={selectedProspects}
-            onSelectProspect={handleSelectProspect}
-            onSelectAll={handleSelectAll}
-            onDeselectAll={handleDeselectAll}
-            onBulkDelete={handleBulkDelete}
-          />
+          {/* Navigation Tabs */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="mt-6"
+          >
+            <nav className="flex space-x-1 bg-slate-900/50 p-1 rounded-xl border border-slate-800/50">
+              {[
+                { id: 'analytics', label: 'Pipeline Analytics', icon: TrendingUp },
+                { id: 'prospects', label: 'Prospect Management', icon: Users },
+                { id: 'upload', label: 'Upload Prospects', icon: Upload },
+                { id: 'settings', label: 'Settings', icon: Settings }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`
+                    flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200
+                    ${activeTab === tab.id
+                      ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-white border border-purple-500/30 shadow-lg'
+                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                    }
+                  `}
+                >
+                  <tab.icon className="w-5 h-5" />
+                  {tab.label}
+                </button>
+              ))}
+            </nav>
+          </motion.div>
         </div>
-      </div>
+      </motion.header>
 
-      {/* Interactive Prospect Profile */}
-      <Dialog open={selectedProspectId !== null} onOpenChange={() => setSelectedProspectId(null)}>
-        <DialogContent className="max-w-7xl max-h-[95vh] overflow-y-auto p-0 border-0" style={{ background: 'var(--gradient-surface)' }}>
-          <div className="p-8">
+      {/* Main Content */}
+      <main className="container mx-auto px-6 py-8">
+        <AnimatePresence mode="wait">
+          {activeTab === 'analytics' && (
+            <motion.div
+              key="analytics"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <CommandCenterDashboard stats={commandCenterStats} />
+            </motion.div>
+          )}
+
+          {activeTab === 'prospects' && (
+            <motion.div
+              key="prospects"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="space-y-6">
+            <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-3xl font-bold text-white">Prospect Management</h2>
+                    <p className="text-slate-400 mt-1">Manage your prospects and track their progress</p>
+          </div>
+
+                  <div className="flex items-center gap-3">
+                    {/* Add Prospect and Upload CSV buttons - always visible */}
+                    <Button
+                      onClick={() => setShowProspectForm(true)}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Prospect
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setActiveTab('upload')}
+                      variant="outline"
+                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
+                    >
+                      <Upload className="w-4 h-4 mr-2" />
+                      Upload CSV
+                    </Button>
+                  </div>
+                </div>
+
+                <ProspectTableInteractive
+                  prospects={filteredProspects || []}
+                  isLoading={prospectsLoading}
+                  onSelectProspect={handleSelectProspect}
+                  onSelectAll={handleSelectAll}
+                  onDeselectAll={handleDeselectAll}
+                  selectedProspects={selectedProspects}
+                  onViewDetails={setSelectedProspectId}
+                  onDelete={(prospectId: number) => deleteProspectMutation.mutate(prospectId)}
+                  onRetry={(prospectId: number) => retryProspectMutation.mutate(prospectId)}
+                  onBulkDelete={handleBulkDelete}
+                  onBulkSendToReply={handleBulkSendToReply}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'upload' && (
+            <motion.div
+              key="upload"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-3xl font-bold text-white">Upload Prospects</h2>
+                  <p className="text-slate-400 mt-1">Upload CSV files to add prospects to your pipeline</p>
+                </div>
+                <CsvUpload 
+                  onSuccess={() => {
+                    refetchProspects();
+                    refetchStats();
+                    setActiveTab('prospects'); // Navigate back to prospects tab
+                  }}
+                  onCancel={() => {}}
+                />
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'settings' && (
+            <motion.div
+              key="settings"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-3xl font-bold text-white">Settings</h2>
+                  <p className="text-slate-400 mt-1">Configure your application settings and integrations</p>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <Card className="bg-slate-900/50 border-slate-800">
+                    <CardHeader>
+                      <CardTitle className="text-white flex items-center gap-2">
+                        <Settings className="w-5 h-5" />
+                        Application Settings
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <SettingsMenu />
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-slate-900/50 border-slate-800">
+                    <CardHeader>
+                      <CardTitle className="text-white flex items-center gap-2">
+                        <Send className="w-5 h-5" />
+                        Reply.io Integration
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ReplyIoSettings />
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      {/* Prospect Details Modal */}
+      <AnimatePresence>
             {selectedProspectId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setSelectedProspectId(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.5, opacity: 0 }}
+              className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-7xl max-h-[95vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
               <ProspectProfileInteractive 
                 prospectId={selectedProspectId} 
                 onClose={() => setSelectedProspectId(null)}
               />
+            </motion.div>
+          </motion.div>
             )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      </AnimatePresence>
+
+      {/* Add Prospect Dialog */}
+      {showProspectForm && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setShowProspectForm(false)}
+        >
+          <motion.div
+            initial={{ scale: 0.5, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.5, opacity: 0 }}
+            className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6">
+              <div className="mb-4">
+                <h2 className="text-2xl font-bold text-white">Add New Prospect</h2>
+                <p className="text-slate-400 mt-1">Start AI-powered research for a new prospect</p>
+              </div>
+              <ProspectForm 
+                onSuccess={() => {
+                  setShowProspectForm(false);
+                  refetchProspects();
+                  refetchStats();
+                }}
+                onCancel={() => setShowProspectForm(false)}
+              />
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
     </div>
   );
 }

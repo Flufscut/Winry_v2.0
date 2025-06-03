@@ -1,3 +1,7 @@
+// Temporarily using SQLite for local development
+// Comment out Neon config and use local SQLite instead
+
+/*
 import { Pool, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-serverless';
 import ws from "ws";
@@ -13,3 +17,7 @@ if (!process.env.DATABASE_URL) {
 
 export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 export const db = drizzle({ client: pool, schema });
+*/
+
+// Use local SQLite for development
+export { db, pool } from './db-local';

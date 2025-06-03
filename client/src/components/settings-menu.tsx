@@ -4,11 +4,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Settings, Save, RotateCcw } from "lucide-react";
+import { Save, RotateCcw } from "lucide-react";
 
 interface AppSettings {
   webhookUrl: string;
@@ -21,7 +19,6 @@ interface AppSettings {
 export default function SettingsMenu() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ["/api/settings"],
@@ -38,8 +35,12 @@ export default function SettingsMenu() {
 
   // Update form data when settings are loaded
   useEffect(() => {
-    if (settings) {
-      setFormData(settings);
+    if (settings && typeof settings === 'object' && settings !== null) {
+      // Merge with default values to ensure all required fields exist
+      setFormData(prev => ({
+        ...prev,
+        ...(settings as Partial<AppSettings>)
+      }));
     }
   }, [settings]);
 
@@ -59,7 +60,6 @@ export default function SettingsMenu() {
         title: "Success",
         description: "Settings updated successfully",
       });
-      setOpen(false);
     },
     onError: (error: Error) => {
       if (isUnauthorizedError(error)) {
@@ -84,9 +84,8 @@ export default function SettingsMenu() {
 
   const resetToDefaultsMutation = useMutation({
     mutationFn: async () => {
-      await apiRequest("/api/settings/reset", {
-        method: "POST",
-      });
+      const response = await apiRequest("POST", "/api/settings/reset");
+      return await response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
@@ -128,39 +127,38 @@ export default function SettingsMenu() {
     }));
   };
 
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <div className="h-4 bg-slate-700 rounded animate-pulse"></div>
+        <div className="h-4 bg-slate-700 rounded animate-pulse w-3/4"></div>
+        <div className="h-4 bg-slate-700 rounded animate-pulse w-1/2"></div>
+      </div>
+    );
+  }
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="flex items-center">
-          <Settings className="h-4 w-4 mr-2" />
-          Settings
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Application Settings</DialogTitle>
-        </DialogHeader>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Webhook Configuration */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-medium text-white mb-3">Webhook Configuration</h3>
+        </div>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Webhook Configuration</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="webhookUrl">Webhook URL</Label>
+          <Label htmlFor="webhookUrl" className="text-slate-300">Webhook URL</Label>
                 <Input
                   id="webhookUrl"
                   value={formData.webhookUrl}
                   onChange={(e) => handleInputChange("webhookUrl", e.target.value)}
                   placeholder="https://your-n8n-instance.com/webhook/..."
-                  className="font-mono text-sm"
+            className="font-mono text-sm bg-slate-800 border-slate-600 text-white"
                 />
               </div>
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="webhookTimeoutSeconds">Timeout (seconds)</Label>
+            <Label htmlFor="webhookTimeoutSeconds" className="text-slate-300">Timeout (seconds)</Label>
                   <Input
                     id="webhookTimeoutSeconds"
                     type="number"
@@ -168,12 +166,13 @@ export default function SettingsMenu() {
                     max="1800"
                     value={formData.webhookTimeoutSeconds}
                     onChange={(e) => handleInputChange("webhookTimeoutSeconds", parseInt(e.target.value))}
+              className="bg-slate-800 border-slate-600 text-white"
                   />
-                  <p className="text-xs text-muted-foreground">Max wait time for webhook response</p>
+            <p className="text-xs text-slate-400">Max wait time for webhook response</p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="maxRetries">Max Retries</Label>
+            <Label htmlFor="maxRetries" className="text-slate-300">Max Retries</Label>
                   <Input
                     id="maxRetries"
                     type="number"
@@ -181,13 +180,14 @@ export default function SettingsMenu() {
                     max="10"
                     value={formData.maxRetries}
                     onChange={(e) => handleInputChange("maxRetries", parseInt(e.target.value))}
+              className="bg-slate-800 border-slate-600 text-white"
                   />
-                  <p className="text-xs text-muted-foreground">Number of retry attempts</p>
+            <p className="text-xs text-slate-400">Number of retry attempts</p>
                 </div>
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="retryDelaySeconds">Retry Delay (seconds)</Label>
+          <Label htmlFor="retryDelaySeconds" className="text-slate-300">Retry Delay (seconds)</Label>
                 <Input
                   id="retryDelaySeconds"
                   type="number"
@@ -195,19 +195,20 @@ export default function SettingsMenu() {
                   max="60"
                   value={formData.retryDelaySeconds}
                   onChange={(e) => handleInputChange("retryDelaySeconds", parseInt(e.target.value))}
+            className="bg-slate-800 border-slate-600 text-white"
                 />
-                <p className="text-xs text-muted-foreground">Delay between retry attempts</p>
-              </div>
-            </CardContent>
-          </Card>
+          <p className="text-xs text-slate-400">Delay between retry attempts</p>
+        </div>
+      </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Processing Configuration</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      {/* Processing Configuration */}
+      <div className="space-y-4">
+        <div>
+          <h3 className="text-lg font-medium text-white mb-3">Processing Configuration</h3>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="batchSize">Batch Size</Label>
+          <Label htmlFor="batchSize" className="text-slate-300">Batch Size</Label>
                 <Input
                   id="batchSize"
                   type="number"
@@ -215,19 +216,20 @@ export default function SettingsMenu() {
                   max="50"
                   value={formData.batchSize}
                   onChange={(e) => handleInputChange("batchSize", parseInt(e.target.value))}
+            className="bg-slate-800 border-slate-600 text-white"
                 />
-                <p className="text-xs text-muted-foreground">Number of prospects processed per batch</p>
+          <p className="text-xs text-slate-400">Number of prospects processed per batch</p>
+        </div>
               </div>
-            </CardContent>
-          </Card>
 
-          <div className="flex justify-between pt-4">
+      {/* Action Buttons */}
+      <div className="flex justify-between pt-4 border-t border-slate-700">
             <Button
               type="button"
               variant="outline"
               onClick={() => resetToDefaultsMutation.mutate()}
               disabled={resetToDefaultsMutation.isPending}
-              className="flex items-center"
+          className="flex items-center border-slate-600 text-slate-300 hover:bg-slate-700"
             >
               <RotateCcw className="h-4 w-4 mr-2" />
               Reset to Defaults
@@ -236,14 +238,12 @@ export default function SettingsMenu() {
             <Button 
               type="submit" 
               disabled={updateSettingsMutation.isPending}
-              className="flex items-center"
+          className="flex items-center bg-blue-600 hover:bg-blue-700"
             >
               <Save className="h-4 w-4 mr-2" />
               Save Settings
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
   );
 }

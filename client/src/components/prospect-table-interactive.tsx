@@ -1,3 +1,15 @@
+/**
+ * FILE: prospect-table-interactive.tsx
+ * PURPOSE: Interactive prospect table component with location column and simplified research summary
+ * DEPENDENCIES: shadcn/ui components, lucide icons, date-fns
+ * LAST_UPDATED: Current date
+ * 
+ * REF: Main table component for displaying prospects in dashboard
+ * REF: Shows prospect data with location instead of email column
+ * REF: Expandable rows show simplified Prospect Summary and Company Summary
+ * TODO: Add sorting capabilities, enhanced filtering options
+ */
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +23,7 @@ import {
   RotateCcw, 
   Users, 
   Building, 
-  Mail, 
+  MapPin, 
   Brain, 
   Target, 
   Sparkles, 
@@ -22,11 +34,11 @@ import {
   ChevronDown,
   Calendar,
   Activity,
-  MapPin,
   BookOpen,
   FileText,
   Award,
-  TrendingUp
+  TrendingUp,
+  Send
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -51,6 +63,8 @@ interface Prospect {
     businessGoals?: string;
     emailSubject?: string;
     emailBody?: string;
+    fullOutput?: any;
+    [key: string]: any; // For dynamic field access
   };
 }
 
@@ -65,6 +79,7 @@ interface ProspectTableProps {
   onSelectAll: () => void;
   onDeselectAll: () => void;
   onBulkDelete: () => void;
+  onBulkSendToReply?: () => void;
 }
 
 export default function ProspectTableInteractive({ 
@@ -77,10 +92,32 @@ export default function ProspectTableInteractive({
   onSelectProspect, 
   onSelectAll, 
   onDeselectAll, 
-  onBulkDelete 
+  onBulkDelete,
+  onBulkSendToReply
 }: ProspectTableProps) {
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+
+  // Helper function to get field value from research results
+  const getResearchField = (prospect: Prospect, ...fieldNames: string[]) => {
+    const results = prospect?.researchResults;
+    if (!results) return null;
+    
+    // Check direct fields first
+    for (const fieldName of fieldNames) {
+      if (results[fieldName]) return results[fieldName];
+    }
+    
+    // Check fullOutput object
+    const fullOutput = results.fullOutput;
+    if (fullOutput) {
+      for (const fieldName of fieldNames) {
+        if (fullOutput[fieldName]) return fullOutput[fieldName];
+      }
+    }
+    
+    return null;
+  };
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -214,6 +251,17 @@ export default function ProspectTableInteractive({
             >
               Clear Selection
             </Button>
+            {onBulkSendToReply && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onBulkSendToReply}
+                className="rounded-xl bg-primary hover:bg-primary/90"
+              >
+                <Send className="w-4 h-4 mr-2" />
+                Send to Reply.io
+              </Button>
+            )}
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button
@@ -246,7 +294,7 @@ export default function ProspectTableInteractive({
 
       {/* Interactive Table */}
       <div className="space-y-2">
-        {/* Table Header */}
+        {/* Table Header - REF: Updated to show Location instead of Email */}
         <div className="grid grid-cols-12 gap-4 p-4 border border-border/50 rounded-xl font-medium text-sm text-muted-foreground"
              style={{ background: 'var(--gradient-surface)' }}>
           <div className="col-span-1 flex items-center">
@@ -266,8 +314,8 @@ export default function ProspectTableInteractive({
             <span>Company</span>
           </div>
           <div className="col-span-2 flex items-center space-x-2">
-            <Mail className="w-4 h-4" />
-            <span>Email</span>
+            <MapPin className="w-4 h-4" />
+            <span>Location</span>
           </div>
           <div className="col-span-2 flex items-center space-x-2">
             <Target className="w-4 h-4" />
@@ -302,12 +350,18 @@ export default function ProspectTableInteractive({
           return (
             <div key={prospect.id} className="space-y-0">
               <div
-                className="grid grid-cols-12 gap-4 p-4 border border-border/50 rounded-xl transition-all duration-300 cursor-pointer group hover:scale-[1.01] hover:shadow-md"
+                className={`
+                  grid grid-cols-12 gap-4 p-4 border border-border/50 rounded-xl transition-all duration-300 cursor-pointer group 
+                  hover:scale-[1.01] hover:shadow-md hover:bg-gradient-to-r hover:from-muted/30 hover:to-muted/10
+                  analytics-card
+                  ${isSelected ? 'bg-primary/5 border-primary/20' : ''}
+                  ${isExpanded ? 'bg-muted/20' : ''}
+                `}
                 style={{ 
                   background: isSelected ? 'linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--secondary) / 0.05))' : 
-                             isHovered ? 'var(--gradient-surface)' : 'hsl(var(--card))',
-                  borderColor: isSelected ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border) / 0.5)',
-                  animation: `fadeIn 0.3s ease ${index * 0.1}s both`,
+                             isHovered ? statusConfig.bgColor : 'hsl(var(--card))',
+                  borderColor: isSelected ? 'hsl(var(--primary) / 0.3)' : isExpanded ? statusConfig.borderColor : 'hsl(var(--border) / 0.5)',
+                  animation: `chart-entrance 0.3s ease ${index * 0.1}s both`,
                   borderBottomLeftRadius: isExpanded ? '0' : undefined,
                   borderBottomRightRadius: isExpanded ? '0' : undefined
                 }}
@@ -326,8 +380,8 @@ export default function ProspectTableInteractive({
                 </div>
 
                 {/* Prospect Info */}
-                <div className="col-span-3 flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-xl border-2 border-border/50 flex items-center justify-center flex-shrink-0"
+                <div className="col-span-3 flex items-center space-x-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl border-2 border-border/50 flex items-center justify-center flex-shrink-0 animate-float-enhanced"
                        style={{ background: 'var(--gradient-accent)' }}>
                     <span className="text-sm font-bold text-white">
                       {prospect.firstName.charAt(0)}{prospect.lastName.charAt(0)}
@@ -339,29 +393,29 @@ export default function ProspectTableInteractive({
                         e.stopPropagation();
                         onViewDetails(prospect.id);
                       }}
-                      className="text-left hover:text-primary transition-colors duration-200"
+                      className="text-left hover:text-primary transition-colors duration-200 btn-enhanced w-full"
                     >
                       <p className="font-semibold text-foreground truncate">
                         {prospect.firstName} {prospect.lastName}
                       </p>
+                      <p className="text-sm text-muted-foreground truncate" title={prospect.title}>
+                        {prospect.title}
+                      </p>
                     </button>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {prospect.title}
-                    </p>
                   </div>
                 </div>
 
                 {/* Company */}
-                <div className="col-span-2 flex items-center">
-                  <p className="font-medium text-foreground truncate">
+                <div className="col-span-2 flex items-center min-w-0">
+                  <p className="font-medium text-foreground truncate" title={prospect.company}>
                     {prospect.company}
                   </p>
                 </div>
 
-                {/* Email */}
-                <div className="col-span-2 flex items-center">
-                  <p className="text-sm text-muted-foreground truncate">
-                    {prospect.email}
+                {/* Location - REF: Replaced Email column with Location */}
+                <div className="col-span-2 flex items-center min-w-0">
+                  <p className="text-sm text-muted-foreground truncate" title={prospect.researchResults?.location || "Unknown"}>
+                    {prospect.researchResults?.location || "Unknown"}
                   </p>
                 </div>
 
@@ -387,9 +441,9 @@ export default function ProspectTableInteractive({
                         e.stopPropagation();
                         onViewDetails(prospect.id);
                       }}
-                      className="w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-primary/10"
+                      className="h-8 w-8 p-0 rounded-lg hover:bg-primary/10 transition-all duration-200 btn-enhanced"
                     >
-                      <Eye className="w-4 h-4 text-primary" />
+                      <Eye className="w-4 h-4" />
                     </Button>
                     
                     {prospect.status === "failed" && (
@@ -400,21 +454,21 @@ export default function ProspectTableInteractive({
                           e.stopPropagation();
                           onRetry(prospect.id);
                         }}
-                        className="w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-warning/10"
+                        className="h-8 w-8 p-0 rounded-lg hover:bg-warning/10 transition-all duration-200 btn-enhanced"
                       >
-                        <RotateCcw className="w-4 h-4 text-warning" />
+                        <RotateCcw className="w-4 h-4" />
                       </Button>
                     )}
-
+                    
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={(e) => e.stopPropagation()}
-                          className="w-8 h-8 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 hover:bg-destructive/10"
+                          className="h-8 w-8 p-0 rounded-lg hover:bg-destructive/10 transition-all duration-200 btn-enhanced"
                         >
-                          <Trash2 className="w-4 h-4 text-destructive" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       </AlertDialogTrigger>
                       <AlertDialogContent>
@@ -433,124 +487,72 @@ export default function ProspectTableInteractive({
                       </AlertDialogContent>
                     </AlertDialog>
                   </div>
-
-                  {/* Expand/Collapse Indicator */}
-                  <div className="ml-2">
-                    {isExpanded ? 
-                      <ChevronDown className="w-4 h-4 text-muted-foreground transition-transform duration-200" /> :
-                      <ChevronRight className="w-4 h-4 text-muted-foreground transition-transform duration-200" />
-                    }
-                  </div>
+                  
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setExpandedRow(isExpanded ? null : prospect.id);
+                    }}
+                    className="h-8 w-8 p-0 rounded-lg hover:bg-muted/20 transition-all duration-200 btn-enhanced"
+                  >
+                    {isExpanded ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
+                  </Button>
                 </div>
               </div>
 
-              {/* Collapsible Summary */}
+              {/* Simplified Research Summary - REF: Only showing Prospect Summary and Company Summary */}
               {isExpanded && (
                 <div 
-                  className="border-l border-r border-b border-border/50 rounded-b-xl p-6 animate-slideUp"
+                  className="border-l border-r border-b border-border/50 rounded-b-xl p-6 chart-container"
                   style={{ 
                     background: 'var(--gradient-surface)',
                     borderColor: isSelected ? 'hsl(var(--primary) / 0.3)' : 'hsl(var(--border) / 0.5)'
                   }}
                 >
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    {/* Left Column - Personal Summary */}
+                    {/* Overall Prospect Summary */}
                     <div className="space-y-4">
                       <h4 className="text-lg font-semibold text-foreground flex items-center">
-                        <Users className="w-5 h-5 mr-2 text-primary" />
-                        Personal Summary
+                        <Users className="w-5 h-5 mr-2 text-primary animate-pulse-glow-enhanced" />
+                        Prospect Summary
                       </h4>
                       
-                      <div className="space-y-3">
-                        {prospect.researchResults?.location && (
-                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
-                            <MapPin className="w-4 h-4 text-secondary mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">Location</p>
-                              <p className="text-sm text-muted-foreground">{prospect.researchResults.location}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {prospect.researchResults?.almaMaterResearch && (
-                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
-                            <BookOpen className="w-4 h-4 text-accent mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">Education</p>
-                              <p className="text-sm text-muted-foreground line-clamp-2">{prospect.researchResults.almaMaterResearch}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {prospect.researchResults?.linkedInPostSummary && (
-                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
-                            <Activity className="w-4 h-4 text-info mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">Social Activity</p>
-                              <p className="text-sm text-muted-foreground line-clamp-2">{prospect.researchResults.linkedInPostSummary}</p>
-                            </div>
-                          </div>
-                        )}
+                      <div className="p-4 rounded-lg border border-border/50 glass-enhanced">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {getResearchField(prospect, 'Overall Prospect Summary') || 
+                           `${prospect.firstName} ${prospect.lastName} is the ${prospect.title} at ${prospect.company}${prospect.researchResults?.location ? `, based in ${prospect.researchResults.location}` : ''}.`}
+                        </p>
                       </div>
                     </div>
 
-                    {/* Right Column - Company Summary */}
+                    {/* Overall Company Summary */}
                     <div className="space-y-4">
                       <h4 className="text-lg font-semibold text-foreground flex items-center">
-                        <Building className="w-5 h-5 mr-2 text-success" />
+                        <Building className="w-5 h-5 mr-2 text-success animate-pulse-glow-enhanced" />
                         Company Summary
                       </h4>
                       
-                      <div className="space-y-3">
-                        {prospect.researchResults?.industry && (
-                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
-                            <Target className="w-4 h-4 text-warning mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">Industry</p>
-                              <p className="text-sm text-muted-foreground">{prospect.researchResults.industry}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {prospect.researchResults?.companyNews && (
-                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
-                            <FileText className="w-4 h-4 text-destructive mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">Recent News</p>
-                              <p className="text-sm text-muted-foreground line-clamp-2">{prospect.researchResults.companyNews}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {prospect.researchResults?.painPoints && (
-                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
-                            <Award className="w-4 h-4 text-primary mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">Pain Points</p>
-                              <p className="text-sm text-muted-foreground line-clamp-2">{prospect.researchResults.painPoints}</p>
-                            </div>
-                          </div>
-                        )}
-
-                        {prospect.researchResults?.businessGoals && (
-                          <div className="flex items-start space-x-3 p-3 rounded-lg border border-border/50" style={{ background: 'hsl(var(--card))' }}>
-                            <TrendingUp className="w-4 h-4 text-accent mt-0.5" />
-                            <div>
-                              <p className="text-sm font-medium text-foreground">Business Goals</p>
-                              <p className="text-sm text-muted-foreground line-clamp-2">{prospect.researchResults.businessGoals}</p>
-                            </div>
-                          </div>
-                        )}
+                      <div className="p-4 rounded-lg border border-border/50 glass-enhanced">
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {getResearchField(prospect, 'Overall Company Summary') || 
+                           `${prospect.company}${prospect.researchResults?.industry ? ` operates in the ${prospect.researchResults.industry} industry` : ''}.`}
+                        </p>
                       </div>
                     </div>
                   </div>
 
                   {/* Quick Actions in Summary */}
-                  {prospect.status === "completed" && prospect.researchResults?.emailSubject && (
+                  {prospect.status === "completed" && getResearchField(prospect, 'Email Subject', 'emailSubject') && (
                     <div className="mt-6 pt-4 border-t border-border/50">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <Sparkles className="w-4 h-4" />
+                          <Sparkles className="w-4 h-4 animate-pulse-glow-enhanced" />
                           <span>Personalized email ready</span>
                         </div>
                         <Button
@@ -559,7 +561,7 @@ export default function ProspectTableInteractive({
                             e.stopPropagation();
                             onViewDetails(prospect.id);
                           }}
-                          className="rounded-xl"
+                          className="rounded-xl btn-enhanced"
                           style={{ background: 'var(--gradient-primary)', color: 'white' }}
                         >
                           View Full Profile

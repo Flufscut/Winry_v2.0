@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -34,6 +33,42 @@ import {
   Activity
 } from "lucide-react";
 
+interface Prospect {
+  id: number;
+  firstName: string;
+  lastName: string;
+  company: string;
+  title: string;
+  email: string;
+  status: string;
+  createdAt: string;
+  linkedinUrl?: string;
+  errorMessage?: string;
+  researchResults?: {
+    location?: string;
+    industry?: string;
+    primaryJobCompany?: string;
+    primaryJobTitle?: string;
+    primaryJobCompanyLinkedInUrl?: string;
+    website?: string;
+    firstname?: string;
+    lastname?: string;
+    locationResearch?: string;
+    almaMaterResearch?: string;
+    linkedInPostSummary?: string;
+    companyLinkedInPostSummary?: string;
+    companyNews?: string;
+    painPoints?: string;
+    businessGoals?: string;
+    competitors?: string;
+    competitiveAdvantages?: string;
+    emailSubject?: string;
+    emailBody?: string;
+    fullOutput?: any;
+    [key: string]: any; // For dynamic field access
+  };
+}
+
 interface ProspectProfileProps {
   prospectId: number;
   onClose: () => void;
@@ -45,7 +80,8 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
     personal: true,
     company: true,
     intelligence: true,
-    outreach: true
+    outreach: true,
+    research: true
   });
   const [animationPhase, setAnimationPhase] = useState(0);
 
@@ -70,7 +106,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
     return null;
   };
 
-  const { data: prospect, isLoading, error } = useQuery({
+  const { data: prospect, isLoading, error } = useQuery<Prospect>({
     queryKey: [`/api/prospects/${prospectId}`],
     retry: false,
   });
@@ -81,10 +117,23 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
   }, []);
 
   const toggleSection = (section: string) => {
-    setExpandedSections(prev => ({
+    setExpandedSections(prev => {
+      // Special case: Personal and Company Intelligence toggle together
+      if (section === 'personal' || section === 'company') {
+        const newPersonalState = section === 'personal' ? !prev.personal : !prev.company;
+        return {
+          ...prev,
+          personal: newPersonalState,
+          company: newPersonalState
+        };
+      }
+      
+      // Default behavior for other sections
+      return {
       ...prev,
       [section]: !prev[section]
-    }));
+      };
+    });
   };
 
   if (isLoading) {
@@ -124,9 +173,11 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
   }
 
   const copyEmailToClipboard = () => {
-    const results = prospect?.researchResults;
-    if (results?.emailSubject && results?.emailBody) {
-      const emailText = `Subject: ${results.emailSubject}\n\n${results.emailBody}`;
+    const emailSubject = getResearchField(prospect, 'Email Subject', 'emailSubject');
+    const emailBody = getResearchField(prospect, 'Email Body', 'emailBody');
+    
+    if (emailSubject && emailBody) {
+      const emailText = `Subject: ${emailSubject}\n\n${emailBody}`;
       
       navigator.clipboard.writeText(emailText).then(() => {
         toast({
@@ -182,7 +233,6 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
       <div className="relative mb-8 p-8 rounded-3xl overflow-hidden" style={{ background: 'var(--gradient-surface)' }}>
         <div className="absolute inset-0 opacity-20" style={{ background: 'var(--gradient-mesh)' }}></div>
         <div className="relative z-10">
-          <DialogHeader className="space-y-4">
             <div className="flex items-start justify-between">
               <div className="space-y-3">
                 <div className="flex items-center space-x-3">
@@ -193,7 +243,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     </span>
                   </div>
                   <div className="space-y-1">
-                    <DialogTitle className="text-3xl font-bold text-foreground tracking-tight">{fullName}</DialogTitle>
+                  <h3 className="text-3xl font-bold text-foreground tracking-tight">{fullName}</h3>
                     {prospect.title && (
                       <p className="text-lg text-muted-foreground font-medium">{prospect.title}</p>
                     )}
@@ -223,7 +273,6 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                 {statusConfig.icon}
               </div>
             </div>
-          </DialogHeader>
 
           {/* Quick Actions */}
           <div className="mt-6 flex flex-wrap gap-3">
@@ -322,6 +371,57 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
       {/* Interactive Content Sections */}
       {results && (
         <div className="space-y-6">
+          {/* Research Summary Section */}
+          <div className="card-modern">
+            <button
+              onClick={() => toggleSection('research')}
+              className="w-full p-6 flex items-center justify-between text-left hover:bg-muted/30 transition-colors duration-200"
+            >
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-xl border-2 border-primary/20 flex items-center justify-center"
+                     style={{ background: 'linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--secondary) / 0.1))' }}>
+                  <Eye className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-foreground">Research Summary</h3>
+                  <p className="text-sm text-muted-foreground">Comprehensive prospect and company analysis</p>
+                </div>
+              </div>
+              {expandedSections.research ? 
+                <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform duration-200" /> :
+                <ChevronRight className="w-5 h-5 text-muted-foreground transition-transform duration-200" />
+              }
+            </button>
+              
+            {expandedSections.research && (
+              <div className="px-6 pb-6 animate-slideUp">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Overall Prospect Summary */}
+                {getResearchField(prospect, 'Overall Prospect Summary') && (
+                  <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
+                    <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                      <User className="w-4 h-4 mr-2 text-primary" />
+                      Prospect Summary
+                    </h4>
+                    <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Overall Prospect Summary')}</p>
+                  </div>
+                )}
+
+                {/* Overall Company Summary */}
+                {getResearchField(prospect, 'Overall Company Summary') && (
+                  <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
+                    <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                      <Building className="w-4 h-4 mr-2 text-success" />
+                      Company Summary
+                    </h4>
+                    <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Overall Company Summary')}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            )}
+          </div>
+
           {/* Side-by-Side Intelligence Sections */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Personal Intelligence */}
@@ -348,36 +448,40 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
               
               {expandedSections.personal && (
                 <div className="px-6 pb-6 space-y-4 animate-slideUp">
-                  {/* Contact Information */}
+                  {/* Personal Information */}
                   <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                     <h4 className="font-semibold text-foreground mb-3 flex items-center">
-                      <Mail className="w-4 h-4 mr-2 text-primary" />
-                      Contact Details
+                      <User className="w-4 h-4 mr-2 text-primary" />
+                      Personal Information
                     </h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Email</span>
-                        <span className="font-medium text-foreground">{prospect.email}</span>
+                        <span className="text-muted-foreground">Name</span>
+                        <span className="font-medium text-foreground">{getResearchField(prospect, 'firstname') || prospect.firstName} {getResearchField(prospect, 'lastname') || prospect.lastName}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Location</span>
                         <span className="font-medium text-foreground">{getResearchField(prospect, 'location') || "N/A"}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Position</span>
-                        <span className="font-medium text-foreground">{prospect.title}</span>
+                        <span className="text-muted-foreground">Company</span>
+                        <span className="font-medium text-foreground">{getResearchField(prospect, 'Primary Job Company', 'primaryJobCompany') || prospect.company}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Title</span>
+                        <span className="font-medium text-foreground">{getResearchField(prospect, 'Primary Job Title', 'primaryJobTitle') || prospect.title}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Location Research */}
-                  {getResearchField(prospect, 'Location Research', 'location') && (
+                  {getResearchField(prospect, 'Location Research', 'locationResearch') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <MapPin className="w-4 h-4 mr-2 text-primary" />
-                        Location Insights
+                        Location Research
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Location Research', 'location')}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Location Research', 'locationResearch')}</p>
                     </div>
                   )}
 
@@ -386,7 +490,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <BookOpen className="w-4 h-4 mr-2 text-secondary" />
-                        Educational Background
+                        Alma Mater Research
                       </h4>
                       <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Alma Mater Research', 'almaMaterResearch')}</p>
                     </div>
@@ -397,7 +501,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Activity className="w-4 h-4 mr-2 text-accent" />
-                        LinkedIn Activity
+                        LinkedIn Post Summary
                       </h4>
                       <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'LinkedIn Post Summary', 'linkedInPostSummary')}</p>
                     </div>
@@ -434,21 +538,24 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                   <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                     <h4 className="font-semibold text-foreground mb-3 flex items-center">
                       <Building className="w-4 h-4 mr-2 text-success" />
-                      Company Profile
+                      Company Information
                     </h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
-                        <span className="text-muted-foreground">Primary Employer</span>
+                        <span className="text-muted-foreground">Company</span>
                         <span className="font-medium text-foreground">{getResearchField(prospect, 'Primary Job Company', 'primaryJobCompany') || prospect.company}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Title</span>
-                        <span className="font-medium text-foreground">{getResearchField(prospect, 'Primary Job Title') || prospect.title}</span>
-                      </div>
-                      {getResearchField(prospect, 'Primary Job Company LinkedIn URL') && (
+                      {getResearchField(prospect, 'website') && (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Website</span>
+                          <a href={getResearchField(prospect, 'website')} target="_blank" rel="noopener noreferrer" 
+                             className="text-primary hover:underline text-sm">Visit Website</a>
+                        </div>
+                      )}
+                      {getResearchField(prospect, 'Primary Job Company LinkedIn URL', 'primaryJobCompanyLinkedInUrl') && (
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Company LinkedIn</span>
-                          <a href={getResearchField(prospect, 'Primary Job Company LinkedIn URL')} target="_blank" rel="noopener noreferrer" 
+                          <a href={getResearchField(prospect, 'Primary Job Company LinkedIn URL', 'primaryJobCompanyLinkedInUrl')} target="_blank" rel="noopener noreferrer" 
                              className="text-primary hover:underline text-sm">View Company</a>
                         </div>
                       )}
@@ -460,31 +567,9 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Target className="w-4 h-4 mr-2 text-secondary" />
-                        Industry Analysis
+                        Industry
                       </h4>
                       <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Industry', 'industry')}</p>
-                    </div>
-                  )}
-
-                  {/* Competitors */}
-                  {getResearchField(prospect, 'Competitors') && (
-                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
-                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
-                        <Users className="w-4 h-4 mr-2 text-warning" />
-                        Competitive Landscape
-                      </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Competitors')}</p>
-                    </div>
-                  )}
-
-                  {/* Competitive Advantages */}
-                  {getResearchField(prospect, 'Competitive Advantages') && (
-                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
-                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
-                        <Award className="w-4 h-4 mr-2 text-success" />
-                        Competitive Advantages
-                      </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Competitive Advantages')}</p>
                     </div>
                   )}
 
@@ -493,7 +578,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <FileText className="w-4 h-4 mr-2 text-warning" />
-                        Recent Company News
+                        Company News
                       </h4>
                       <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Company News', 'companyNews')}</p>
                     </div>
@@ -504,7 +589,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Activity className="w-4 h-4 mr-2 text-info" />
-                        Company Social Activity
+                        Company LinkedIn Post Summary
                       </h4>
                       <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Company LinkedIn Post Summary', 'companyLinkedInPostSummary')}</p>
                     </div>
@@ -514,7 +599,7 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
             </div>
           </div>
 
-          {/* Business Intelligence */}
+          {/* Strategic Intelligence */}
           <div className="card-modern">
             <button
               onClick={() => toggleSection('intelligence')}
@@ -560,40 +645,26 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
                       <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Business Goals', 'businessGoals')}</p>
                     </div>
                   )}
-                </div>
-
-                {/* Overall Summaries */}
-                <div className="space-y-4">
-                  {/* Overall Prospect Summary */}
-                  {getResearchField(prospect, 'Overall Prospect Summary') && (
-                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
-                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
-                        <User className="w-4 h-4 mr-2 text-primary" />
-                        Prospect Summary
-                      </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Overall Prospect Summary')}</p>
-                    </div>
-                  )}
-
-                  {/* Overall Company Summary */}
-                  {getResearchField(prospect, 'Overall Company Summary') && (
-                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
-                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
-                        <Building className="w-4 h-4 mr-2 text-success" />
-                        Company Summary
-                      </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Overall Company Summary')}</p>
-                    </div>
-                  )}
 
                   {/* Competitors */}
-                  {results?.competitors && (
+                  {getResearchField(prospect, 'Competitors', 'competitors') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
-                        <Shield className="w-4 h-4 mr-2 text-secondary" />
-                        Competition
+                        <Users className="w-4 h-4 mr-2 text-warning" />
+                        Competitors
                       </h4>
-                      <p className="text-sm text-foreground leading-relaxed">{results.competitors}</p>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Competitors', 'competitors')}</p>
+                    </div>
+                  )}
+
+                  {/* Competitive Advantages */}
+                  {getResearchField(prospect, 'Competitive Advantages', 'competitiveAdvantages') && (
+                    <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
+                      <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                        <Award className="w-4 h-4 mr-2 text-success" />
+                        Competitive Advantages
+                      </h4>
+                      <p className="text-sm text-foreground leading-relaxed">{getResearchField(prospect, 'Competitive Advantages', 'competitiveAdvantages')}</p>
                     </div>
                   )}
                 </div>
@@ -601,8 +672,8 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
             )}
           </div>
 
-          {/* Outreach Intelligence */}
-          {(results?.emailSubject || results?.emailBody) && (
+          {/* Personalized Outreach */}
+          {(getResearchField(prospect, 'Email Subject', 'emailSubject') || getResearchField(prospect, 'Email Body', 'emailBody')) && (
             <div className="card-modern">
               <button
                 onClick={() => toggleSection('outreach')}
@@ -626,26 +697,26 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
               
               {expandedSections.outreach && (
                 <div className="px-6 pb-6 space-y-4 animate-slideUp">
-                  {results?.emailSubject && (
+                  {getResearchField(prospect, 'Email Subject', 'emailSubject') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <Mail className="w-4 h-4 mr-2 text-primary" />
                         Email Subject
                       </h4>
                       <p className="text-sm text-foreground font-medium bg-muted/30 p-3 rounded-lg">
-                        {results.emailSubject}
+                        {getResearchField(prospect, 'Email Subject', 'emailSubject')}
                       </p>
                     </div>
                   )}
 
-                  {results?.emailBody && (
+                  {getResearchField(prospect, 'Email Body', 'emailBody') && (
                     <div className="p-4 rounded-xl border border-border/50" style={{ background: 'var(--gradient-surface)' }}>
                       <h4 className="font-semibold text-foreground mb-3 flex items-center">
                         <FileText className="w-4 h-4 mr-2 text-secondary" />
-                        Email Content
+                        Email Body
                       </h4>
                       <div className="text-sm text-foreground bg-muted/30 p-4 rounded-lg leading-relaxed whitespace-pre-wrap">
-                        {results.emailBody}
+                        {getResearchField(prospect, 'Email Body', 'emailBody')}
                       </div>
                     </div>
                   )}

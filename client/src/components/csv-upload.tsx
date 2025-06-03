@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Upload, Info, Loader2 } from "lucide-react";
@@ -49,6 +48,33 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
     email: "",
     linkedinUrl: "none",
   });
+
+  /**
+   * REF: Reset component to initial state
+   * PURPOSE: Clear all state after successful upload to start fresh
+   */
+  const resetComponent = () => {
+    setFile(null);
+    setCsvPreview(null);
+    setHasHeaders(true);
+    setBatchSize(10);
+    setStartRow(1);
+    setMaxRows(null);
+    setMapping({
+      firstName: "",
+      lastName: "",
+      company: "",
+      title: "",
+      email: "",
+      linkedinUrl: "none",
+    });
+    
+    // Reset the file input field
+    const fileInput = document.getElementById('csvFile') as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
 
   // Upload and preview CSV
   const uploadCsvMutation = useMutation({
@@ -151,6 +177,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
       queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
       
+      resetComponent();
       onSuccess();
     },
     onError: (error) => {
@@ -177,10 +204,17 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.type !== 'text/csv' && !selectedFile.name.endsWith('.csv')) {
+      // REF: More flexible CSV validation - accept various MIME types and file extensions
+      const isCSVFile = selectedFile.type === 'text/csv' || 
+                       selectedFile.type === 'text/plain' || 
+                       selectedFile.type === 'application/csv' ||
+                       selectedFile.type === 'application/vnd.ms-excel' ||
+                       selectedFile.name.toLowerCase().endsWith('.csv');
+      
+      if (!isCSVFile) {
         toast({
           title: "Error",
-          description: "Please select a CSV file",
+          description: `Please select a CSV file. Detected file type: ${selectedFile.type}`,
           variant: "destructive",
         });
         return;
@@ -221,11 +255,7 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
 
   return (
     <div>
-      <DialogHeader>
-        <DialogTitle>Upload CSV File</DialogTitle>
-      </DialogHeader>
-      
-      <div className="space-y-6 mt-6">
+      <div className="space-y-6">
         {/* CSV Options */}
         <div className="space-y-4">
           <div className="flex items-center space-x-2">

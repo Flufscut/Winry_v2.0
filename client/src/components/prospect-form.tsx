@@ -9,7 +9,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Loader2 } from "lucide-react";
 
 const prospectFormSchema = z.object({
@@ -88,11 +87,7 @@ export default function ProspectForm({ onSuccess, onCancel }: ProspectFormProps)
 
   return (
     <div>
-      <DialogHeader>
-        <DialogTitle>Add New Prospect</DialogTitle>
-      </DialogHeader>
-      
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 mt-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
         <div>
           <Label htmlFor="firstName">First Name *</Label>
           <Input

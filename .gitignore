@@ -4,3 +4,41 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+
+# Database files
+*.db
+local.db
+
+# Log files
+*.log
+server.log
+server_debug.log
+
+# Environment and sensitive files
+.env
+.env.local
+.env.production
+cookies.txt
+
+# Test files
+test-*.csv
+test-*.jpg
+sally-photo-test.jpg
+test-photo.jpg
+
+# User uploads and samples
+sample-prospects.csv
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+Thumbs.db
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
