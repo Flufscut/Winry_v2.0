@@ -5,6 +5,9 @@ server/public
 vite.config.ts.*
 *.tar.gz
 
+# Temporary and development files
+attached_assets/
+
 # Database files
 *.db
 local.db
