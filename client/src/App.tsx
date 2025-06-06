@@ -74,12 +74,12 @@ function Router() {
             <div className="text-center">Loading...</div>
           </div>
         ) : isAuthenticated ? (
-          <ClientProvider>
+        <ClientProvider>
             <Dashboard />
-          </ClientProvider>
+        </ClientProvider>
         ) : (
           <Landing />
-        )}
+      )}
       </Route>
       
       {/* REF: 404 fallback */}

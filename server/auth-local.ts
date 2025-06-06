@@ -114,7 +114,7 @@ export async function setupAuth(app: Express) {
         return res.status(500).json({ error: 'Session save failed' });
       }
       console.log('✓ Session saved successfully');
-      res.redirect('/');
+    res.redirect('/');
     });
   });
 
@@ -178,15 +178,15 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   // REF: For development, be more permissive with authentication
   // REF: Auto-login for both API and page requests if not explicitly logged out
   console.log('🔍 AUTH MIDDLEWARE: No session found, auto-logging in for development');
-  (req.session as any).user = mockUser;
-  (req as any).user = {
-    claims: {
-      sub: mockUser.id,
-      email: mockUser.email,
-      first_name: mockUser.firstName,
-      last_name: mockUser.lastName,
-    }
-  };
+    (req.session as any).user = mockUser;
+    (req as any).user = {
+      claims: {
+        sub: mockUser.id,
+        email: mockUser.email,
+        first_name: mockUser.firstName,
+        last_name: mockUser.lastName,
+      }
+    };
   
   // REF: Force save the session
   req.session.save((err) => {
