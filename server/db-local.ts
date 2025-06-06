@@ -61,6 +61,7 @@ function getDrizzleInstance() {
   if (!_db) {
     const sqlite = getSqliteInstance();
     _db = drizzle(sqlite);
+    console.log('✓ SQLite database initialized successfully');
   }
   
   return _db;
@@ -534,8 +535,6 @@ export type UpdateReplyioAccount = z.infer<typeof updateReplyioAccountSchema>;
 export type InsertReplyioCampaign = z.infer<typeof insertReplyioCampaignSchema>;
 export type ReplyioCampaign = typeof replyioCampaigns.$inferSelect;
 export type UpdateReplyioCampaign = z.infer<typeof updateReplyioCampaignSchema>;
-
-console.log('✓ SQLite database initialized successfully');
 
 // REF: Export database and pool instances (lazy initialization)
 export const db = getDrizzleInstance();
