@@ -2,6 +2,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
 import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+import { fileURLToPath } from 'url';
+
+// REF: Get __dirname equivalent for ESM modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default defineConfig({
   plugins: [
@@ -18,79 +23,68 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      "@": path.resolve(__dirname, "client", "src"),
+      "@shared": path.resolve(__dirname, "shared"),
+      "@assets": path.resolve(__dirname, "attached_assets"),
     },
   },
-  root: path.resolve(import.meta.dirname, "client"),
+  root: path.resolve(__dirname, "client"),
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
     rollupOptions: {
       output: {
-        manualChunks: (id) => {
-          // REF: Vendor chunk optimization - separate large libraries
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom')) {
-              return 'vendor';
-            }
-            if (id.includes('@tanstack/react-query')) {
-              return 'query';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'ui';
-            }
-            if (id.includes('framer-motion')) {
-              return 'motion';
-            }
-            if (id.includes('lucide-react')) {
-              return 'icons';
-            }
-            if (id.includes('recharts')) {
-              return 'charts';
-            }
-            // REF: Group other vendor dependencies
-            return 'vendor-misc';
-          }
-          
-          // REF: Split heavy components into separate chunks
-          if (id.includes('analytics-dashboard') || id.includes('enhanced-loading')) {
-            return 'analytics';
-          }
-          if (id.includes('prospect-') || id.includes('csv-upload')) {
-            return 'prospects';
-          }
-          if (id.includes('settings-menu') || id.includes('reply-io-settings') || id.includes('ClientManagement')) {
-            return 'settings';
-          }
+        manualChunks: {
+          vendor: ['react', 'react-dom'],
+          motion: ['framer-motion'],
+          charts: ['recharts', 'lodash'],
+          analytics: [
+            '@tanstack/react-query',
+            'date-fns'
+          ],
+          ui: [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-select',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-toast',
+            'clsx',
+            'class-variance-authority'
+          ],
+          forms: [
+            'react-hook-form',
+            '@hookform/resolvers',
+            'zod'
+          ]
         }
       }
     },
-    chunkSizeWarningLimit: 1000,
-    // REF: Enable source maps for better debugging but minimize size impact
-    sourcemap: false,
-    // REF: Optimize CSS code splitting
-    cssCodeSplit: true,
-    // REF: Enable minification for production
+    target: 'esnext',
     minify: 'esbuild',
-    target: 'esnext'
+    sourcemap: false,
+    chunkSizeWarningLimit: 1000,
   },
-  // REF: Optimize dependency pre-bundling
   optimizeDeps: {
     include: [
       'react',
-      'react-dom', 
+      'react-dom',
       '@tanstack/react-query',
-      'lucide-react',
       'framer-motion',
+      'recharts',
       'lodash',
-      'lodash/get',
-      'recharts'
+      'date-fns',
+      'zod',
+      'react-hook-form'
     ],
-    exclude: [
-      // REF: Exclude large optional dependencies that can be lazy loaded
-      '@radix-ui/react-navigation-menu'
-    ]
+    force: true
+  },
+  server: {
+    port: 3000,
+    proxy: {
+      '/api': 'http://localhost:5001'
+    }
+  },
+  esbuild: {
+    drop: process.env.NODE_ENV === 'production' ? ['console', 'debugger'] : []
   }
 });
