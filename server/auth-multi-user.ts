@@ -26,7 +26,7 @@ const AUTH_CONFIG = {
   google: {
     clientId: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.GOOGLE_CALLBACK_URL || "http://localhost:5001/auth/google/callback"
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || (process.env.NODE_ENV === 'production' ? "https://winry-ai-production.up.railway.app/auth/google/callback" : "http://localhost:5001/auth/google/callback")
   }
 };
 
@@ -223,6 +223,14 @@ export async function setupAuth(app: Express) {
         preferences: JSON.stringify({}),
       });
 
+      // REF: Create default client for new user
+      await storage.createClient({
+        userId: newUser.id,
+        name: 'Default',
+        description: 'Default workspace',
+        isActive: true,
+      });
+
       // REF: Create session
       (req.session as any).user = {
         id: newUser.id,
@@ -330,18 +338,33 @@ export async function setupAuth(app: Express) {
   });
 
   // GET /auth/google - Google OAuth login
-  app.get('/auth/google', 
-    passport.authenticate('google', { scope: ['profile', 'email'] })
-  );
+  app.get('/auth/google', (req, res, next) => {
+    // REF: Check if Google OAuth is configured
+    if (!AUTH_CONFIG.google.clientId || !AUTH_CONFIG.google.clientSecret) {
+      return res.status(500).json({
+        message: "Google OAuth is not configured on this server"
+      });
+    }
+    
+    passport.authenticate('google', { scope: ['profile', 'email'] })(req, res, next);
+  });
 
   // GET /auth/google/callback - Google OAuth callback
-  app.get('/auth/google/callback',
-    passport.authenticate('google', { failureRedirect: '/login?error=oauth_failed' }),
-    (req, res) => {
+  app.get('/auth/google/callback', (req, res, next) => {
+    // REF: Check if Google OAuth is configured
+    if (!AUTH_CONFIG.google.clientId || !AUTH_CONFIG.google.clientSecret) {
+      return res.redirect('/login?error=oauth_not_configured');
+    }
+    
+    passport.authenticate('google', { failureRedirect: '/login?error=oauth_failed' })(req, res, (err) => {
+      if (err) {
+        console.error('Google OAuth callback error:', err);
+        return res.redirect('/login?error=oauth_failed');
+      }
       // REF: Successful authentication, redirect to dashboard
       res.redirect('/dashboard');
-    }
-  );
+    });
+  });
 
   // POST /auth/logout - User logout
   app.post('/auth/logout', (req, res) => {
