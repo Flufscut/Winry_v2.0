@@ -42,6 +42,9 @@ const sql = postgres(connectionString, {
 // REF: Initialize Drizzle with PostgreSQL schema and connection
 export const db = drizzle(sql, { schema });
 
+// REF: Export the SQL connection for pool compatibility
+export { sql };
+
 /**
  * REF: Validates database connection and schema compatibility
  * PURPOSE: Ensures database is accessible and properly configured before startup
