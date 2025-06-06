@@ -546,16 +546,17 @@ git push origin main
 - **Database**: Managed PostgreSQL with automatic backups
 - **SSL/HTTPS**: Automatically configured by Railway
 
-### 🚨 Recent Production Fixes Deployed (December 15, 2024):
-**Status**: 🔄 **DEPLOYMENT UPDATING** - Critical authentication fixes deployed • ETA: 2-3 minutes
+### 🚨 EMERGENCY PRODUCTION FIXES (December 15, 2024):
+**Status**: 🚀 **CRITICAL FIXES DEPLOYED** - Emergency authentication circuit breaker deployed • ETA: 2-3 minutes
 
-**Issues Resolved**:
-- **Authentication Redirect Loop**: ✅ **FIXED** - Resolved infinite loading screen by changing `/api/login` redirects to `/login`
-- **Google OAuth Error**: ✅ **FIXED** - Added proper error handling for unconfigured OAuth with meaningful error messages  
-- **Manual Signup SQLite Compatibility**: ✅ **FIXED** - Resolved "SQLite3 can only bind numbers, strings, bigints, buffers, and null" error by converting boolean `isActive: true` to `isActive: 1`
-- **Default Client Creation**: ✅ **FIXED** - New users now automatically get default workspace to prevent empty dashboard
-- **Production Callback URL**: ✅ **FIXED** - Railway-compatible OAuth callback URL configuration
-- **Environment Variable Handling**: ✅ **IMPROVED** - Better error messages when OAuth credentials not configured
+**🔥 CRITICAL Issues Resolved**:
+- **Authentication Infinite Loop**: ✅ **EMERGENCY FIX** - Implemented circuit breaker pattern to stop infinite 401 requests causing CPU overload and container crashes
+- **Google OAuth Railway 404**: ✅ **FIXED** - Fixed callback URL routing and removed problematic setTimeout causing Railway "Not Found" errors  
+- **SQLite Boolean Compatibility**: ✅ **FIXED** - Fixed ALL instances of `isActive: true` to `isActive: 1` for SQLite compatibility in both manual signup and OAuth flows
+- **Authentication Circuit Breaker**: ✅ **NEW** - Stops auth requests after 3 consecutive failures for 30 seconds
+- **Query Retry Prevention**: ✅ **ENHANCED** - Completely disabled React Query retries to prevent loops
+- **OAuth Callback Logging**: ✅ **ADDED** - Enhanced debugging for OAuth flow issues
+- **Production Stability**: ✅ **CRITICAL** - Prevents Railway container crashes from auth loops
 
 ### 🚨 **LATEST CRITICAL FIXES (Just Deployed)**:
 - **Google OAuth Callback Railway Error**: ✅ **FIXED** - Enhanced OAuth callback to create default client workspace and establish proper session context
