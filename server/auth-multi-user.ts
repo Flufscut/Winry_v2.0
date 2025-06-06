@@ -14,9 +14,10 @@ import { Strategy as LocalStrategy } from 'passport-local';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import bcrypt from 'bcryptjs';
 import session from 'express-session';
-import type { Express, Request, Response, NextFunction } from 'express';
+import type { Express, Request, Response, NextFunction, RequestHandler } from 'express';
 import { eq } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
+import { z } from 'zod';
 
 // REF: Import unified database system and schema
 import { getDatabase } from './db.js';
@@ -31,7 +32,21 @@ const AUTH_CONFIG = {
   baseUrl: process.env.NODE_ENV === 'production' 
     ? process.env.BASE_URL || 'https://winry-ai-production.up.railway.app'
     : 'http://localhost:5001',
+  saltRounds: 12,
 };
+
+// REF: Validation schemas
+const signupSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  email: z.string().email("Valid email is required"),
+  password: z.string().min(8, "Password must be at least 8 characters"),
+});
+
+const loginSchema = z.object({
+  email: z.string().email("Valid email is required"),
+  password: z.string().min(1, "Password is required"),
+});
 
 // REF: Database and schema references
 let db: any;
@@ -192,6 +207,11 @@ function setupPassportStrategies() {
 
 // REF: Main authentication setup function
 export async function setupAuth(app: Express) {
+  // REF: CRITICAL - Ensure database is initialized before setting up authentication
+  console.log('🔄 Auth: Waiting for database initialization...');
+  await authInitPromise;
+  console.log('✅ Auth: Database initialization completed');
+  
   // REF: Configure session management
   app.use(getSession());
   
@@ -199,8 +219,10 @@ export async function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
   
-  // REF: Setup authentication strategies
+  // REF: Setup authentication strategies AFTER database is ready
+  console.log('🔄 Auth: Setting up Passport strategies...');
   setupPassportStrategies();
+  console.log('✅ Auth: Passport strategies configured');
 
   // REF: Authentication routes
   
