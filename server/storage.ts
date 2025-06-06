@@ -1,36 +1,36 @@
 /**
  * FILE: storage.ts
- * PURPOSE: Database storage operations with environment-specific schema handling
- * DEPENDENCIES: drizzle-orm, local or shared schema based on environment
- * LAST_UPDATED: Current date
+ * PURPOSE: Database storage operations with unified database system
+ * DEPENDENCIES: ./db.ts (unified database system), drizzle-orm
+ * LAST_UPDATED: December 15, 2024
  * 
  * REF: Main storage interface for all database operations
- * REF: Uses local SQLite schema for development, PostgreSQL schema for production
+ * REF: Uses unified database system that automatically selects PostgreSQL or SQLite based on environment
  * TODO: Add connection pooling for production environment
  */
 
 import { eq, desc, and, count, sql, isNotNull } from "drizzle-orm";
 
-// REF: Import appropriate schema based on environment
-let users: any, prospects: any, csvUploads: any, userSettings: any, replyioAccounts: any, replyioCampaigns: any, clients: any, db: any;
+// REF: Import unified database system and schema
+import { getDatabase } from './db.js';
+import * as sharedSchema from '@shared/schema.js';
 
-// REF: Initialize database connection and schema based on environment
-async function initializeDatabase() {
-  if (process.env.NODE_ENV === 'development') {
-    // REF: Use local SQLite schema for development
-    const localDb = await import('./db-local');
-    users = localDb.users;
-    prospects = localDb.prospects;
-    csvUploads = localDb.csvUploads;
-    userSettings = localDb.userSettings;
-    replyioAccounts = localDb.replyioAccounts;
-    replyioCampaigns = localDb.replyioCampaigns;
-    clients = localDb.clients;
-    db = localDb.db;
-  } else {
-    // REF: Use shared PostgreSQL schema for production
-    const sharedSchema = await import('@shared/schema');
-    const prodDb = await import('./db');
+// REF: Initialize database connection using unified system
+let users: any, prospects: any, csvUploads: any, userSettings: any, replyioAccounts: any, replyioCampaigns: any, clients: any, db: any;
+let isInitialized = false;
+
+async function initializeStorage() {
+  if (isInitialized) {
+    return;
+  }
+
+  try {
+    console.log('🔄 Storage: Initializing unified database system...');
+    
+    // REF: Use unified database system from db.ts
+    db = await getDatabase();
+    
+    // REF: Use shared schema for all environments (PostgreSQL compatible)
     users = sharedSchema.users;
     prospects = sharedSchema.prospects;
     csvUploads = sharedSchema.csvUploads;
@@ -38,12 +38,23 @@ async function initializeDatabase() {
     replyioAccounts = sharedSchema.replyioAccounts;
     replyioCampaigns = sharedSchema.replyioCampaigns;
     clients = sharedSchema.clients;
-    db = prodDb.db;
+    
+    isInitialized = true;
+    console.log('✅ Storage: Unified database system initialized successfully');
+  } catch (error) {
+    console.error('❌ Storage: Failed to initialize database:', error);
+    throw error;
   }
 }
 
-// REF: Initialize on module load
-const dbInitPromise = initializeDatabase();
+// REF: Auto-initialize on module load
+const initPromise = initializeStorage();
+
+// REF: Helper to ensure initialization
+async function ensureInitialized() {
+  await initPromise;
+  return { db, users, prospects, csvUploads, userSettings, replyioAccounts, replyioCampaigns, clients };
+}
 
 // Interface for storage operations
 export interface IStorage {
@@ -131,7 +142,7 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // REF: Ensure database is initialized before operations
   private async ensureInitialized() {
-    await dbInitPromise;
+    await initPromise;
   }
 
   // REF: Helper function to get current timestamp in appropriate format

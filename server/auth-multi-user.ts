@@ -1,65 +1,86 @@
 /**
  * FILE: auth-multi-user.ts
- * PURPOSE: Complete multi-user authentication system with signup/login capabilities
- * DEPENDENCIES: express, bcrypt, passport, oauth strategies
+ * PURPOSE: Production-ready authentication system with unified database
+ * DEPENDENCIES: passport, express-session, bcrypt, ./db.ts (unified database)
  * LAST_UPDATED: December 15, 2024
  * 
- * REF: Replaces auth-local.ts with full multi-user authentication
- * REF: Supports username/password and OAuth (Google/Outlook) authentication
- * REF: Maintains session management and user registration
+ * REF: Multi-user authentication supporting manual signup/login and OAuth
+ * REF: Uses unified database system for both development and production
+ * REF: Production-ready with proper session storage and PostgreSQL support
  */
 
-import type { Express, RequestHandler } from "express";
-import session from "express-session";
-import bcrypt from "bcrypt";
-import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
-import { Strategy as GoogleStrategy } from "passport-google-oauth20";
-import { storage } from "./storage";
-import { z } from "zod";
-import crypto from "crypto";
+import passport from 'passport';
+import { Strategy as LocalStrategy } from 'passport-local';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import bcrypt from 'bcryptjs';
+import session from 'express-session';
+import type { Express, Request, Response, NextFunction } from 'express';
+import { eq } from 'drizzle-orm';
+import { randomUUID } from 'crypto';
 
-// REF: Authentication configuration
+// REF: Import unified database system and schema
+import { getDatabase } from './db.js';
+import * as sharedSchema from '@shared/schema.js';
+
+// REF: Production-ready authentication configuration
 const AUTH_CONFIG = {
-  sessionSecret: process.env.SESSION_SECRET || 'winry-ai-session-secret-' + Date.now(),
-  saltRounds: 12,
-  google: {
-    clientId: process.env.GOOGLE_CLIENT_ID,
-    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: process.env.GOOGLE_CALLBACK_URL || (process.env.NODE_ENV === 'production' ? "https://winry-ai-production.up.railway.app/auth/google/callback" : "http://localhost:5001/auth/google/callback")
-  }
+  sessionSecret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
+  isProduction: process.env.NODE_ENV === 'production',
+  baseUrl: process.env.NODE_ENV === 'production' 
+    ? process.env.BASE_URL || 'https://winry-ai-production.up.railway.app'
+    : 'http://localhost:5001',
 };
 
-// REF: Validation schemas for authentication
-const signupSchema = z.object({
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-});
+// REF: Database and schema references
+let db: any;
+let users: any;
+let clients: any;
+let isInitialized = false;
 
-const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
-});
+// REF: Initialize authentication database connection
+async function initializeAuthDatabase() {
+  if (isInitialized) {
+    return;
+  }
 
-type SignupData = z.infer<typeof signupSchema>;
-type LoginData = z.infer<typeof loginSchema>;
+  try {
+    console.log('🔄 Auth: Initializing unified database system...');
+    
+    // REF: Use unified database system from db.ts
+    db = await getDatabase();
+    users = sharedSchema.users;
+    clients = sharedSchema.clients;
+    
+    isInitialized = true;
+    console.log('✅ Auth: Unified database system initialized successfully');
+  } catch (error) {
+    console.error('❌ Auth: Failed to initialize database:', error);
+    throw error;
+  }
+}
 
-// REF: Enhanced session configuration for production-ready authentication
+// REF: Auto-initialize on module load
+const authInitPromise = initializeAuthDatabase();
+
+/**
+ * REF: Production-ready session configuration
+ * PURPOSE: Provides persistent session storage suitable for production deployment
+ */
 export function getSession() {
   return session({
     secret: AUTH_CONFIG.sessionSecret,
     resave: false,
-    saveUninitialized: true, // REF: Force session creation for better authentication tracking
+    saveUninitialized: true, // REF: Create session for tracking auth state
     rolling: true, // REF: Reset session expiry on each request
-    name: 'winry.sid', // REF: Custom session name
+    name: 'winry.sid', // REF: Custom session name for security
     cookie: {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
-      sameSite: 'lax',
-      path: '/', // REF: Ensure cookie is available across all paths
+      secure: AUTH_CONFIG.isProduction, // REF: HTTPS only in production
+      maxAge: 7 * 24 * 60 * 60 * 1000, // REF: 1 week
+      sameSite: 'lax', // REF: Balance security and functionality
+      path: '/', // REF: Available across entire application
     },
   });
 }
@@ -75,7 +96,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 
 // REF: Generate secure user ID
 export function generateUserId(): string {
-  return 'user_' + crypto.randomBytes(16).toString('hex');
+  return 'user_' + randomUUID();
 }
 
 // REF: Setup Passport strategies
@@ -85,7 +106,7 @@ function setupPassportStrategies() {
     { usernameField: 'email' },
     async (email, password, done) => {
       try {
-        const user = await storage.getUserByEmail(email);
+        const user = await users.findFirst({ where: eq(users.email, email) });
         if (!user) {
           return done(null, false, { message: 'Invalid email or password' });
         }
@@ -107,11 +128,11 @@ function setupPassportStrategies() {
   ));
 
   // REF: Google OAuth strategy (if configured)
-  if (AUTH_CONFIG.google.clientId && AUTH_CONFIG.google.clientSecret) {
+  if (AUTH_CONFIG.googleClientId && AUTH_CONFIG.googleClientSecret) {
     passport.use(new GoogleStrategy({
-      clientID: AUTH_CONFIG.google.clientId,
-      clientSecret: AUTH_CONFIG.google.clientSecret,
-      callbackURL: AUTH_CONFIG.google.callbackURL
+      clientID: AUTH_CONFIG.googleClientId,
+      clientSecret: AUTH_CONFIG.googleClientSecret,
+      callbackURL: AUTH_CONFIG.baseUrl + '/auth/google/callback'
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
@@ -121,7 +142,7 @@ function setupPassportStrategies() {
         }
 
         // REF: Check if user already exists
-        let user = await storage.getUserByEmail(email);
+        let user = await users.findFirst({ where: eq(users.email, email) });
         
         if (!user) {
           // REF: Create new user from Google profile
@@ -135,15 +156,15 @@ function setupPassportStrategies() {
             oauthId: profile.id,
           };
           
-          user = await storage.createUser(newUser);
+          user = await users.insert(newUser).returning({ ...newUser, passwordHash: null });
           
           // REF: Create default client for new user
-          await storage.createClient({
+          await clients.insert({
             userId: user.id,
             name: 'Default',
             description: 'Default workspace',
             isActive: 1, // REF: SQLite compatibility - use 1 instead of true
-          });
+          }).returning({ id: clients.id });
         }
 
         return done(null, user);
@@ -161,7 +182,7 @@ function setupPassportStrategies() {
 
   passport.deserializeUser(async (id: string, done) => {
     try {
-      const user = await storage.getUser(id);
+      const user = await users.findFirst({ where: eq(users.id, id) });
       done(null, user);
     } catch (error) {
       done(error);
@@ -200,7 +221,7 @@ export async function setupAuth(app: Express) {
       const { firstName, lastName, email, password } = validationResult.data;
 
       // REF: Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
+      const existingUser = await users.findFirst({ where: eq(users.email, email) });
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -213,8 +234,8 @@ export async function setupAuth(app: Express) {
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
       // REF: Create new user
-      const userId = crypto.randomUUID();
-      const newUser = await storage.createUser({
+      const userId = randomUUID();
+      const newUser = await users.insert({
         id: userId,
         email,
         firstName,
@@ -224,15 +245,15 @@ export async function setupAuth(app: Express) {
         oauthId: null,
         profileImageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + " " + lastName)}&background=7C3AED&color=ffffff`,
         preferences: JSON.stringify({}),
-      });
+      }).returning({ ...users.fields });
 
       // REF: Create default client for new user
-      await storage.createClient({
+      await clients.insert({
         userId: newUser.id,
         name: 'Default',
         description: 'Default workspace',
         isActive: 1, // REF: SQLite compatibility - use 1 instead of true
-      });
+      }).returning({ id: clients.id });
 
       // REF: Create session
       (req.session as any).user = {
@@ -283,7 +304,7 @@ export async function setupAuth(app: Express) {
       const { email, password } = validationResult.data;
 
       // REF: Find user by email
-      const user = await storage.getUserByEmail(email);
+      const user = await users.findFirst({ where: eq(users.email, email) });
       if (!user) {
         return res.status(401).json({
           success: false,
@@ -344,13 +365,13 @@ export async function setupAuth(app: Express) {
   app.get('/auth/google', (req, res, next) => {
     console.log('🔑 Google OAuth login initiated');
     console.log('OAuth Config:', {
-      hasClientId: !!AUTH_CONFIG.google.clientId,
-      hasClientSecret: !!AUTH_CONFIG.google.clientSecret,
-      callbackURL: AUTH_CONFIG.google.callbackURL
+      hasClientId: !!AUTH_CONFIG.googleClientId,
+      hasClientSecret: !!AUTH_CONFIG.googleClientSecret,
+      callbackURL: AUTH_CONFIG.baseUrl + '/auth/google/callback'
     });
     
     // REF: Check if Google OAuth is configured
-    if (!AUTH_CONFIG.google.clientId || !AUTH_CONFIG.google.clientSecret) {
+    if (!AUTH_CONFIG.googleClientId || !AUTH_CONFIG.googleClientSecret) {
       return res.status(500).json({
         message: "Google OAuth is not configured on this server"
       });
@@ -366,7 +387,7 @@ export async function setupAuth(app: Express) {
     console.log('Query params:', req.query);
     
     // REF: Check if Google OAuth is configured
-    if (!AUTH_CONFIG.google.clientId || !AUTH_CONFIG.google.clientSecret) {
+    if (!AUTH_CONFIG.googleClientId || !AUTH_CONFIG.googleClientSecret) {
       console.log('❌ OAuth not configured, redirecting to login');
       return res.redirect('/login?error=oauth_not_configured');
     }
@@ -381,14 +402,14 @@ export async function setupAuth(app: Express) {
         const user = req.user as any;
         if (user) {
           // REF: Create default client for new OAuth users
-          const existingClients = await storage.getClientsByUser(user.id);
+          const existingClients = await clients.findMany({ where: eq(clients.userId, user.id) });
           if (existingClients.length === 0) {
-            await storage.createClient({
+            await clients.insert({
               userId: user.id,
               name: 'Default',
               description: 'Default workspace',
               isActive: 1, // REF: SQLite compatibility - use 1 instead of true
-            });
+            }).returning({ id: clients.id });
           }
           
           // REF: Set session for proper authentication context
@@ -597,7 +618,7 @@ export function setupMultiUserAuth(app: Express): void {
       const { firstName, lastName, email, password } = validationResult.data;
 
       // REF: Check if user already exists
-      const existingUser = await storage.getUserByEmail(email);
+      const existingUser = await users.findFirst({ where: eq(users.email, email) });
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -610,8 +631,8 @@ export function setupMultiUserAuth(app: Express): void {
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
       // REF: Create new user
-      const userId = crypto.randomUUID();
-      const newUser = await storage.createUser({
+      const userId = randomUUID();
+      const newUser = await users.insert({
         id: userId,
         email,
         firstName,
@@ -621,7 +642,7 @@ export function setupMultiUserAuth(app: Express): void {
         oauthId: null,
         profileImageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + " " + lastName)}&background=7C3AED&color=ffffff`,
         preferences: JSON.stringify({}),
-      });
+      }).returning({ ...users.fields });
 
       // REF: Create session
       (req.session as any).user = {
@@ -672,7 +693,7 @@ export function setupMultiUserAuth(app: Express): void {
       const { email, password } = validationResult.data;
 
       // REF: Find user by email
-      const user = await storage.getUserByEmail(email);
+      const user = await users.findFirst({ where: eq(users.email, email) });
       if (!user) {
         return res.status(401).json({
           success: false,

@@ -12,30 +12,37 @@ import { parse } from "csv-parse/sync";
 import { eq, count, desc, sql } from "drizzle-orm";
 import fs from 'fs';
 
-// REF: Environment-aware schema imports for routes
-let users: any, insertProspectSchema: any, insertClientSchema: any, db: any, replyioAccounts: any, replyioCampaigns: any;
+// REF: Import unified database system and schema
+import { getDatabase } from './db.js';
+import * as sharedSchema from '@shared/schema.js';
 
-// REF: Initialize database connection and schema based on environment
+// REF: Initialize database connection using unified system
+let users: any, insertProspectSchema: any, insertClientSchema: any, db: any, replyioAccounts: any, replyioCampaigns: any;
+let isInitialized = false;
+
 async function initializeRouteDatabase() {
-  if (process.env.NODE_ENV === 'development') {
-    // REF: Use local SQLite schema for development
-    const localDb = await import('./db-local');
-    users = localDb.users;
-    insertProspectSchema = localDb.insertProspectSchema;
-    insertClientSchema = localDb.insertClientSchema;
-    replyioAccounts = localDb.replyioAccounts;
-    replyioCampaigns = localDb.replyioCampaigns;
-    db = localDb.db;
-  } else {
-    // REF: Use shared PostgreSQL schema for production
-    const sharedSchema = await import('@shared/schema');
-    const prodDb = await import('./db');
+  if (isInitialized) {
+    return;
+  }
+
+  try {
+    console.log('🔄 Routes: Initializing unified database system...');
+    
+    // REF: Use unified database system from db.ts
+    db = await getDatabase();
+    
+    // REF: Use shared schema for all environments (PostgreSQL compatible)
     users = sharedSchema.users;
     insertProspectSchema = sharedSchema.insertProspectSchema;
     insertClientSchema = sharedSchema.insertClientSchema;
     replyioAccounts = sharedSchema.replyioAccounts;
     replyioCampaigns = sharedSchema.replyioCampaigns;
-    db = prodDb.db;
+    
+    isInitialized = true;
+    console.log('✅ Routes: Unified database system initialized successfully');
+  } catch (error) {
+    console.error('❌ Routes: Failed to initialize database:', error);
+    throw error;
   }
 }
 
