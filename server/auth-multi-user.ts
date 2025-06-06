@@ -228,7 +228,7 @@ export async function setupAuth(app: Express) {
         userId: newUser.id,
         name: 'Default',
         description: 'Default workspace',
-        isActive: true,
+        isActive: 1, // REF: SQLite compatibility - use 1 instead of true
       });
 
       // REF: Create session
