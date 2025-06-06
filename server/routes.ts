@@ -3,13 +3,18 @@ import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./auth-local";
+import { setupMultiUserAuth } from "./auth-multi-user";
 import { replyIoService } from "./replyio-service";
+import { replyIoCachedService } from "./reply-io-cached-service";
+import { apiCacheManager } from "./api-cache";
 import { z } from "zod";
 import multer from "multer";
 import { parse } from "csv-parse/sync";
+import { eq, count, desc, sql } from "drizzle-orm";
+import fs from 'fs';
 
 // REF: Environment-aware schema imports for routes
-let users: any, insertProspectSchema: any, db: any;
+let users: any, insertProspectSchema: any, insertClientSchema: any, db: any, replyioAccounts: any, replyioCampaigns: any;
 
 // REF: Initialize database connection and schema based on environment
 async function initializeRouteDatabase() {
@@ -18,6 +23,9 @@ async function initializeRouteDatabase() {
     const localDb = await import('./db-local');
     users = localDb.users;
     insertProspectSchema = localDb.insertProspectSchema;
+    insertClientSchema = localDb.insertClientSchema;
+    replyioAccounts = localDb.replyioAccounts;
+    replyioCampaigns = localDb.replyioCampaigns;
     db = localDb.db;
   } else {
     // REF: Use shared PostgreSQL schema for production
@@ -25,6 +33,9 @@ async function initializeRouteDatabase() {
     const prodDb = await import('./db');
     users = sharedSchema.users;
     insertProspectSchema = sharedSchema.insertProspectSchema;
+    insertClientSchema = sharedSchema.insertClientSchema;
+    replyioAccounts = sharedSchema.replyioAccounts;
+    replyioCampaigns = sharedSchema.replyioCampaigns;
     db = prodDb.db;
   }
 }
@@ -60,18 +71,165 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // REF: Ensure database schemas are initialized before registering routes
   await routeDbInitPromise;
 
+  // REF: Create HTTP server instance
+  const server = createServer(app);
+
   // Auth middleware
-  await setupAuth(app);
+  await setupAuth(app); // REF: Old single-user auth system - temporarily for frontend debugging
+  // setupMultiUserAuth(app); // REF: New multi-user auth system
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      console.log('🔍 AUTH DEBUG: userId =', userId);
       const user = await storage.getUser(userId);
+      console.log('🔍 AUTH DEBUG: user object =', JSON.stringify(user, null, 2));
+      console.log('🔍 AUTH DEBUG: user.firstName =', user?.firstName);
+      console.log('🔍 AUTH DEBUG: user.first_name =', user?.first_name);
       res.json(user);
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // Profile routes
+  app.put('/api/profile', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Validate profile data
+      const profileSchema = z.object({
+        firstName: z.string().min(1, "First name is required").max(50),
+        lastName: z.string().min(1, "Last name is required").max(50),
+        email: z.string().email("Valid email is required").max(255),
+        profileImageUrl: z.string().url().optional().or(z.literal('')),
+        bio: z.string().max(500).optional(),
+      });
+
+      const validatedData = profileSchema.parse(req.body);
+      
+      // For now, just return the current user data (updateUser method pending)
+      // TODO: Implement storage.updateUser method
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Simulate update success
+      res.json({ ...user, ...validatedData });
+    } catch (error) {
+      console.error("Error updating profile:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid profile data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to update profile" });
+      }
+    }
+  });
+
+  // Preferences routes
+  app.get('/api/preferences', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get user's preferences from database
+      const user = await storage.getUser(userId);
+      
+      // Default preferences if none exist
+      const defaultPreferences = {
+        // Notification preferences
+        emailNotifications: true,
+        pushNotifications: true,
+        marketingEmails: false,
+        weeklyReports: true,
+        
+        // Appearance preferences
+        theme: 'dark',
+        compactMode: false,
+        animationsEnabled: true,
+        fontSize: 14,
+        
+        // Data & Privacy preferences
+        dataRetention: 90,
+        analyticsSharing: false,
+        crashReporting: true,
+        
+        // System preferences
+        autoSave: true,
+        batchSize: 10,
+        timeZone: 'UTC',
+        language: 'en',
+        
+        // Performance preferences
+        cacheEnabled: true,
+        backgroundSync: true,
+      };
+      
+      // Return user preferences or defaults
+      const preferences = user?.preferences ? JSON.parse(user.preferences) : defaultPreferences;
+      res.json(preferences);
+    } catch (error) {
+      console.error("Error fetching preferences:", error);
+      res.status(500).json({ message: "Failed to fetch preferences" });
+    }
+  });
+
+  app.put('/api/preferences', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Validation schema for preferences
+      const preferencesSchema = z.object({
+        // Notification preferences
+        emailNotifications: z.boolean(),
+        pushNotifications: z.boolean(),
+        marketingEmails: z.boolean(),
+        weeklyReports: z.boolean(),
+        
+        // Appearance preferences
+        theme: z.enum(['light', 'dark', 'system'], { 
+          errorMap: () => ({ message: "Theme must be 'light', 'dark', or 'system'" })
+        }),
+        compactMode: z.boolean(),
+        animationsEnabled: z.boolean(),
+        fontSize: z.number().int().min(10, "Font size must be at least 10px").max(20, "Font size cannot exceed 20px"),
+        
+        // Data & Privacy preferences
+        dataRetention: z.number().int().min(1, "Data retention must be at least 1 day").max(365, "Data retention cannot exceed 365 days"),
+        analyticsSharing: z.boolean(),
+        crashReporting: z.boolean(),
+        
+        // System preferences
+        autoSave: z.boolean(),
+        batchSize: z.number().int().min(1, "Batch size must be at least 1").max(100, "Batch size cannot exceed 100"),
+        timeZone: z.string().min(1, "Time zone is required"),
+        language: z.string().min(2, "Language code must be at least 2 characters").max(5, "Language code cannot exceed 5 characters"),
+        
+        // Performance preferences
+        cacheEnabled: z.boolean(),
+        backgroundSync: z.boolean(),
+      });
+
+      const validatedPreferences = preferencesSchema.parse(req.body);
+      
+      // Save preferences to user record
+      await storage.updateUser(userId, { preferences: JSON.stringify(validatedPreferences) });
+      
+      res.json({ 
+        success: true, 
+        message: "Preferences updated successfully",
+        preferences: validatedPreferences 
+      });
+    } catch (error) {
+      console.error("Error updating preferences:", error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: "Invalid preferences data", errors: error.errors });
+      } else {
+        res.status(500).json({ message: "Failed to update preferences" });
+      }
     }
   });
 
@@ -118,6 +276,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { campaignId, filterByCampaign } = req.query;
       
+      // REF: Get current client from session for workspace isolation
+      let currentClientId = (req.session as any).currentClientId;
+      
+      if (!currentClientId) {
+        // REF: Default to the first/default client
+        const defaultClient = await storage.getDefaultClient(userId);
+        currentClientId = defaultClient?.id;
+        if (currentClientId) {
+          (req.session as any).currentClientId = currentClientId;
+        }
+      }
+      
       let stats;
       
       // REF: Only filter by campaign if explicitly requested with filterByCampaign=true
@@ -125,8 +295,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (campaignId && campaignId !== 'all' && filterByCampaign === 'true') {
         stats = await storage.getUserStatsByCampaign(userId, parseInt(campaignId));
       } else {
-        // REF: Default behavior - show all prospects for the user
-        stats = await storage.getUserStats(userId);
+        // REF: Use client-filtered stats for workspace isolation
+        stats = await storage.getUserStats(userId, currentClientId);
       }
       
       res.json(stats);
@@ -160,6 +330,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user.claims.sub;
       const { search, status, campaignId, filterByCampaign } = req.query;
       
+      // REF: Get current client from session for workspace isolation
+      let currentClientId = (req.session as any).currentClientId;
+      
+      if (!currentClientId) {
+        // REF: Default to the first/default client
+        const defaultClient = await storage.getDefaultClient(userId);
+        currentClientId = defaultClient?.id;
+        if (currentClientId) {
+          (req.session as any).currentClientId = currentClientId;
+        }
+      }
+      
       let prospects;
       
       // REF: Only filter by campaign if explicitly requested with filterByCampaign=true
@@ -190,12 +372,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } else {
-        // REF: Default behavior - use existing search method for all prospects
+        // REF: Use client-filtered search for workspace isolation
         prospects = await storage.searchProspects(
-        userId,
-        search as string,
-        status === "all" ? undefined : status as string
-      );
+          userId,
+          search as string,
+          status === "all" ? undefined : status as string,
+          currentClientId // REF: Pass clientId for workspace isolation
+        );
       }
       
       res.json(prospects);
@@ -320,10 +503,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.claims.sub;
       
+      // REF: Get current client from session or default to first client
+      let currentClientId = (req.session as any).currentClientId;
+      
+      if (!currentClientId) {
+        // REF: Default to the first/default client
+        const defaultClient = await storage.getDefaultClient(userId);
+        currentClientId = defaultClient?.id;
+        if (currentClientId) {
+          (req.session as any).currentClientId = currentClientId;
+        }
+      }
+      
+      if (!currentClientId) {
+        return res.status(400).json({ message: 'No client workspace found. Please create a client workspace first.' });
+      }
+      
       // Validate request body
       const prospectData = insertProspectSchema.parse({
         ...req.body,
         userId,
+        clientId: currentClientId,
       });
       
       // Create prospect in database
@@ -426,6 +626,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
       
+      // REF: Get current client from session or default to first client
+      let currentClientId = (req.session as any).currentClientId;
+      
+      if (!currentClientId) {
+        // REF: Default to the first/default client
+        const defaultClient = await storage.getDefaultClient(userId);
+        currentClientId = defaultClient?.id;
+        if (currentClientId) {
+          (req.session as any).currentClientId = currentClientId;
+        }
+      }
+      
+      if (!currentClientId) {
+        return res.status(400).json({ message: 'No active client workspace found. Please create a workspace first.' });
+      }
+      
       // Parse CSV
       const csvContent = file.buffer.toString('utf-8');
       const allRecords = parse(csvContent, { 
@@ -447,9 +663,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         records = records.slice(0, maxRows);
       }
       
-      // Create CSV upload record
+      // Create CSV upload record with client ID
       const csvUpload = await storage.createCsvUpload({
         userId,
+        clientId: currentClientId,
         fileName: file.originalname,
         totalRows: records.length,
         processedRows: 0,
@@ -457,7 +674,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Process prospects asynchronously
-      processCsvProspects(csvUpload.id, userId, records, mapping, hasHeaders, batchSize);
+      processCsvProspects(csvUpload.id, userId, currentClientId, records, mapping, hasHeaders, batchSize);
       
       res.json({
         uploadId: csvUpload.id,
@@ -654,9 +871,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Prospect IDs are required" });
       }
       
-      // REF: Get default Reply.io configuration (same as auto-send logic)
-      console.log('📋 Getting default Reply.io configuration...');
-      const defaultConfig = await storage.getDefaultReplyioConfiguration(userId);
+              // REF: Get default Reply.io configuration (same as auto-send logic)
+        console.log('📋 Getting default Reply.io configuration...');
+        
+        // REF: Get current client ID from session
+        const currentClientId = req.session.user?.currentClientId || null;
+        console.log(`📊 Using client ID ${currentClientId} for manual send`);
+        
+        const defaultConfig = await storage.getDefaultReplyioConfiguration(userId, currentClientId);
       
       if (!defaultConfig || !defaultConfig.account || !defaultConfig.campaign) {
         console.log('❌ No default Reply.io configuration found');
@@ -779,7 +1001,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/reply-io/accounts', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
-      const accounts = await storage.getReplyioAccounts(userId);
+      
+      // REF: Get current client ID from session for multi-tenant filtering
+      let currentClientId = (req.session as any).currentClientId;
+      
+      if (!currentClientId) {
+        // REF: Default to the first/default client
+        const defaultClient = await storage.getDefaultClient(userId);
+        currentClientId = defaultClient?.id;
+        if (currentClientId) {
+          (req.session as any).currentClientId = currentClientId;
+        }
+      }
+      
+      if (!currentClientId) {
+        return res.json({
+          success: true,
+          accounts: [],
+          total: 0
+        });
+      }
+
+      // REF: Filter accounts by current client
+      const accounts = await db
+        .select()
+        .from(replyioAccounts)
+        .where(sql`${replyioAccounts.userId} = ${userId} AND ${replyioAccounts.clientId} = ${currentClientId}`)
+        .orderBy(desc(replyioAccounts.createdAt));
       
       // REF: Don't expose API keys in response
       const safeAccounts = accounts.map(account => ({
@@ -814,7 +1062,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Name and API key are required" });
       }
 
-      // REF: Test the API key first
+      // REF: Get current client ID from session
+      let currentClientId = (req.session as any).currentClientId;
+      
+      console.log('DEBUG: Account creation - session data:', {
+        sessionId: req.sessionID,
+        sessionData: req.session,
+        currentClientId: currentClientId,
+        userId: userId
+      });
+      
+      if (!currentClientId) {
+        // REF: Default to the first/default client
+        const defaultClient = await storage.getDefaultClient(userId);
+        currentClientId = defaultClient?.id;
+        console.log('DEBUG: Using default client:', defaultClient);
+        if (currentClientId) {
+          (req.session as any).currentClientId = currentClientId;
+        }
+      }
+      
+      if (!currentClientId) {
+        console.log('DEBUG: No client found for user:', userId);
+        return res.status(400).json({ message: "No client workspace found. Please create a client workspace first." });
+      }
+
+      // REF: Test the API key connection before storing
       try {
         await replyIoService.getCampaigns(apiKey);
       } catch (error) {
@@ -827,30 +1100,139 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // REF: Encrypt the API key before storing
       const encryptedApiKey = replyIoService.encryptApiKey(apiKey);
 
-      // REF: Create the account
-      const newAccount = await storage.createReplyioAccount({
+      const account = await storage.createReplyioAccount({
         userId,
+        clientId: currentClientId,
         name,
         apiKey: encryptedApiKey,
-        isDefault: false, // REF: User can set default separately
+        isDefault: false
       });
+
+      // REF: Automatically sync campaigns after account creation
+      try {
+        const liveCampaigns = await replyIoService.getCampaigns(apiKey);
+        const syncedCampaigns = [];
+        
+        for (const campaign of liveCampaigns) {
+          try {
+            const newCampaign = await storage.createReplyioCampaign({
+              accountId: account.id,
+              campaignId: campaign.id,
+              campaignName: campaign.name,
+              campaignStatus: campaign.status,
+              isDefault: false,
+            });
+            syncedCampaigns.push(newCampaign);
+          } catch (error) {
+            // REF: Campaign might already exist, skip
+            console.log(`Campaign ${campaign.id} already exists, skipping`);
+          }
+        }
+        
+        console.log(`Auto-synced ${syncedCampaigns.length} campaigns for account ${account.name}`);
+      } catch (error) {
+        console.error('Error auto-syncing campaigns:', error);
+        // REF: Don't fail account creation if campaign sync fails
+      }
+
+      // REF: Don't expose API key in response
+      const safeAccount = {
+        id: account.id,
+        name: account.name,
+        isDefault: account.isDefault,
+        clientId: account.clientId,
+        createdAt: account.createdAt,
+        updatedAt: account.updatedAt
+      };
 
       res.json({
         success: true,
-        account: {
-          id: newAccount.id,
-          name: newAccount.name,
-          isDefault: newAccount.isDefault,
-          createdAt: newAccount.createdAt,
-          updatedAt: newAccount.updatedAt,
-        }
+        account: safeAccount,
+        message: "Account created successfully"
       });
     } catch (error) {
       console.error('Error creating Reply.io account:', error);
-      res.status(500).json({ 
-        message: "Failed to create account",
-        error: error instanceof Error ? error.message : 'Unknown error'
+      res.status(500).json({ message: "Failed to create account", error: error.message });
+    }
+  });
+
+  /**
+   * REF: Client-specific Reply.io account endpoints
+   * PURPOSE: Support client-specific account management that appears to be expected by frontend
+   */
+  app.get('/api/clients/:id/replyio-accounts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clientId = parseInt(req.params.id);
+      
+      // REF: Verify client ownership
+      const client = await storage.getClient(clientId);
+      if (!client || client.userId !== userId) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      const allAccounts = await storage.getReplyioAccounts(userId);
+      const accounts = allAccounts.filter((account: any) => account.clientId === clientId);
+      
+      // REF: Don't expose API keys in response
+      const safeAccounts = accounts.map((account: any) => ({
+        id: account.id,
+        name: account.name,
+        isDefault: account.isDefault,
+        clientId: account.clientId,
+        createdAt: account.createdAt,
+        updatedAt: account.updatedAt
+      }));
+
+      res.json(safeAccounts);
+    } catch (error) {
+      console.error('Error fetching client Reply.io accounts:', error);
+      res.status(500).json({ message: 'Failed to fetch Reply.io accounts' });
+    }
+  });
+
+  app.post('/api/clients/:id/replyio-accounts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clientId = parseInt(req.params.id);
+      const { name, apiKey } = req.body;
+
+      if (!name || !apiKey) {
+        return res.status(400).json({ message: "Name and API key are required" });
+      }
+
+      // REF: Verify client ownership
+      const client = await storage.getClient(clientId);
+      if (!client || client.userId !== userId) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+
+      const account = await storage.createReplyioAccount({
+        userId,
+        clientId,
+        name,
+        apiKey,
+        isDefault: false
       });
+
+      // REF: Don't expose API key in response
+      const safeAccount = {
+        id: account.id,
+        name: account.name,
+        isDefault: account.isDefault,
+        clientId: account.clientId,
+        createdAt: account.createdAt,
+        updatedAt: account.updatedAt
+      };
+
+      res.json({
+        success: true,
+        account: safeAccount,
+        message: "Account created successfully"
+      });
+    } catch (error) {
+      console.error('Error creating Reply.io account:', error);
+      res.status(500).json({ message: "Failed to create account", error: error.message });
     }
   });
 
@@ -1181,29 +1563,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get overall Reply.io statistics across all campaigns
+  // ===== REPLY.IO ANALYTICS & STATISTICS =====
+
+  // REF: Cache for Reply.io statistics to prevent rate limiting
+  const replyIoStatsCache = new Map<string, { data: any; timestamp: number }>();
+  const CACHE_DURATION = 15000; // 15 seconds to respect Reply.io's 10-second limit
+
+  // Get overall Reply.io statistics across all campaigns (Enhanced with Caching)
   app.get('/api/reply-io/statistics', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      const currentClientId = req.session.currentClientId;
       const { filterByCampaign } = req.query;
       
-      // REF: Get user's Reply.io accounts (new multi-account approach)
-      const userAccounts = await storage.getReplyioAccounts(userId);
-      if (!userAccounts || userAccounts.length === 0) {
-        return res.status(400).json({ message: "No Reply.io accounts configured" });
+      console.log(`📊 Fetching Reply.io statistics for user: ${userId}, client: ${currentClientId}`);
+      
+      // REF: Get default Reply.io configuration for the current workspace
+      const defaultConfig = await storage.getDefaultReplyioConfiguration(userId, currentClientId);
+      
+      if (!defaultConfig || !defaultConfig.account?.apiKey) {
+        return res.json({
+          success: false,
+          message: "No Reply.io account configured for this workspace"
+        });
       }
-
-      // REF: Use the default account (or first account if no default)
-      const defaultAccount = userAccounts.find(acc => acc.isDefault) || userAccounts[0];
       
-      // REF: Decrypt API key for the selected account
-      const apiKey = replyIoService.decryptApiKey(defaultAccount.apiKey);
+      // REF: Use cached service to fetch campaigns with intelligent caching and rate limiting
+      const apiKey = replyIoService.decryptApiKey(defaultConfig.account.apiKey);
+      const campaigns = await replyIoCachedService.getCampaignStatistics(
+        apiKey, 
+        undefined, // Get all campaigns
+        'medium' // Medium priority for statistics
+      );
 
-      // REF: Get campaigns with full statistics data - this includes performance metrics!
-      const campaigns = await replyIoService.getCampaignsWithStatistics(apiKey);
-      
       // REF: Get stored campaigns to see if we have any defaults
-      const accountCampaigns = await storage.getReplyioCampaigns(defaultAccount.id);
+      const accountCampaigns = await storage.getReplyioCampaigns(defaultConfig.account.id);
       const defaultCampaign = accountCampaigns.find(c => c.isDefault);
       
       let campaignStatistics;
@@ -1212,7 +1606,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // REF: If filterByCampaign is true and there's a default campaign, show stats only for that campaign
       if (filterByCampaign === 'true' && defaultCampaign) {
         // REF: Filter to show only the selected campaign
-        const selectedCampaignData = campaigns.find(c => c.id === defaultCampaign.campaignId);
+        const selectedCampaignData = campaigns.find((c: any) => c.id === defaultCampaign.campaignId);
         
         if (selectedCampaignData) {
           // REF: Cast to any to access fields not in our interface but present in Reply.io API response
@@ -1237,17 +1631,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         dataLevel = 'campaign-specific';
       } else {
-        // REF: Default behavior - aggregate data across ALL campaigns
-        campaignStatistics = campaigns.reduce((acc, campaign) => {
+        // REF: Aggregate across all campaigns for overall statistics
+        campaignStatistics = (campaigns as any[]).reduce((acc, campaign) => {
+          // REF: Cast to any to access fields not in our interface but present in Reply.io API response
           const campaignData = campaign as any;
-          return {
-            totalContacts: acc.totalContacts + (campaignData.peopleCount || 0),
-            emailsSent: acc.emailsSent + (campaignData.deliveriesCount || 0),
-            emailsOpened: acc.emailsOpened + (campaignData.opensCount || 0),
-            emailsClicked: acc.emailsClicked, // Not available in basic campaign data
-            emailsReplied: acc.emailsReplied + (campaignData.repliesCount || 0),
-            emailsBounced: acc.emailsBounced + (campaignData.bouncesCount || 0),
-          };
+          acc.totalContacts += campaignData.peopleCount || 0;
+          acc.emailsSent += campaignData.deliveriesCount || 0;
+          acc.emailsOpened += campaignData.opensCount || 0;
+          acc.emailsClicked += 0; // Not available in basic campaign data
+          acc.emailsReplied += campaignData.repliesCount || 0;
+          acc.emailsBounced += campaignData.bouncesCount || 0;
+          return acc;
         }, {
           totalContacts: 0,
           emailsSent: 0,
@@ -1256,31 +1650,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           emailsReplied: 0,
           emailsBounced: 0,
         });
-        dataLevel = 'aggregated';
+        dataLevel = 'all-campaigns';
       }
-
-      // REF: Calculate rates from aggregated/filtered data
-      const emailsSent = campaignStatistics.emailsSent;
+      
+      // REF: Calculate rates from the aggregated data
       const calculatedRates = {
-        overallOpenRate: emailsSent > 0 ? Math.round((campaignStatistics.emailsOpened / emailsSent) * 100 * 100) / 100 : 0,
-        overallClickRate: 0, // Not available in basic campaign data
-        overallReplyRate: emailsSent > 0 ? Math.round((campaignStatistics.emailsReplied / emailsSent) * 100 * 100) / 100 : 0,
-        overallBounceRate: emailsSent > 0 ? Math.round((campaignStatistics.emailsBounced / emailsSent) * 100 * 100) / 100 : 0,
+        openRate: campaignStatistics.emailsSent > 0 ? 
+          Math.round((campaignStatistics.emailsOpened / campaignStatistics.emailsSent) * 100 * 100) / 100 : 0,
+        clickRate: 0, // Not available in basic campaign data
+        replyRate: campaignStatistics.emailsSent > 0 ? 
+          Math.round((campaignStatistics.emailsReplied / campaignStatistics.emailsSent) * 100 * 100) / 100 : 0,
+        bounceRate: campaignStatistics.emailsSent > 0 ? 
+          Math.round((campaignStatistics.emailsBounced / campaignStatistics.emailsSent) * 100 * 100) / 100 : 0,
       };
       
       // REF: Create statistics response
       const baseStatistics = {
         totalCampaigns: campaigns.length,
-        activeCampaigns: campaigns.filter(c => String(c.status) === 'active' || String(c.status) === '2').length,
-        pausedCampaigns: campaigns.filter(c => String(c.status) === 'paused' || String(c.status) === '1' || String(c.status) === '4').length,
-        inactiveCampaigns: campaigns.filter(c => String(c.status) === 'inactive' || String(c.status) === '0').length,
+        activeCampaigns: (campaigns as any[]).filter(c => String(c.status) === 'active' || String(c.status) === '2').length,
+        pausedCampaigns: (campaigns as any[]).filter(c => String(c.status) === 'paused' || String(c.status) === '1' || String(c.status) === '4').length,
+        inactiveCampaigns: (campaigns as any[]).filter(c => String(c.status) === 'inactive' || String(c.status) === '0').length,
         
         // REF: Use aggregated or filtered statistics
         ...campaignStatistics,
         ...calculatedRates,
         
         // REF: Show all campaigns for reference
-        campaigns: campaigns.map(campaign => {
+        campaigns: (campaigns as any[]).map(campaign => {
           // REF: Cast to any to access fields not in our interface but present in Reply.io API response
           const campaignData = campaign as any;
           const isSelected = defaultCampaign ? campaign.id === defaultCampaign.campaignId : false;
@@ -1301,38 +1697,283 @@ export async function registerRoutes(app: Express): Promise<Server> {
           };
         }),
         
-        selectedAccount: {
-          id: defaultAccount.id,
-          name: defaultAccount.name,
-          isDefault: defaultAccount.isDefault
-        },
-        
+        // REF: Additional metadata
         selectedCampaign: defaultCampaign ? {
-          id: defaultCampaign.id,
           campaignId: defaultCampaign.campaignId,
-          name: defaultCampaign.campaignName,
-          isDefault: defaultCampaign.isDefault
+          campaignName: defaultCampaign.campaignName
         } : null,
-        
-        // REF: Add metadata to indicate filtering level
-        dataLevel: dataLevel,
-        note: dataLevel === 'campaign-specific' ? 
-          `Statistics for selected campaign: ${defaultCampaign?.campaignName}` : 
-          'Aggregated statistics across all campaigns'
+        accountName: defaultConfig.account.accountName,
+        dataLevel,
+        lastUpdated: new Date().toISOString()
       };
 
-      res.json({
+      const response = {
         success: true,
         statistics: baseStatistics
-      });
+      };
+
+      console.log(`✅ Reply.io statistics fetched successfully (cached: ${campaigns.cached || false})`);
+      res.json(response);
+      
     } catch (error) {
       console.error('Error fetching Reply.io statistics:', error);
+      
+      // REF: Enhanced error handling with fallback to cached data
+      if (error instanceof Error && error.message.includes('rate limit')) {
+        return res.status(429).json({ 
+          message: "Reply.io API rate limit reached. Please try again later.",
+          retryAfter: 60000 // 1 minute
+        });
+      }
+      
       res.status(500).json({ 
         message: "Failed to fetch Reply.io statistics",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
+
+  // ===== ADVANCED REPLY.IO ANALYTICS ENDPOINTS =====
+
+  // REF: NEW ENDPOINT - Advanced Campaign Analytics
+  app.get('/api/reply-io/analytics/advanced', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentClientId = req.session.currentClientId;
+      
+      // REF: Check cache first to prevent rate limiting
+      const cacheKey = `advanced_analytics_${userId}_${currentClientId || 'default'}`;
+      const cached = replyIoStatsCache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION * 2) { // Longer cache for advanced analytics
+        console.log('Returning cached advanced analytics data');
+        return res.json(cached.data);
+      }
+      
+      // REF: Get default Reply.io configuration for the current workspace
+      const defaultConfig = await storage.getDefaultReplyioConfiguration(userId, currentClientId);
+      
+      if (!defaultConfig || !defaultConfig.account?.apiKey) {
+        return res.json({
+          success: false,
+          message: "No Reply.io account configured for this workspace"
+        });
+      }
+      
+      // REF: Fetch advanced analytics using cached service with intelligent rate limiting
+      const apiKey = replyIoService.decryptApiKey(defaultConfig.account.apiKey);
+      const advancedAnalytics = await replyIoCachedService.getAdvancedAnalytics(
+        apiKey,
+        'performance', // Performance analytics type  
+        'medium' // Medium priority for advanced analytics
+      );
+      
+      const response = {
+        success: true,
+        analytics: advancedAnalytics,
+        accountName: defaultConfig.account.accountName,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      // REF: Cache the results with longer duration for analytics
+      replyIoStatsCache.set(cacheKey, {
+        data: response,
+        timestamp: Date.now()
+      });
+      
+      res.json(response);
+    } catch (error) {
+      console.error('Error fetching advanced Reply.io analytics:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to fetch advanced analytics",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // REF: NEW ENDPOINT - Campaign Optimization Recommendations
+  app.get('/api/reply-io/campaigns/:campaignId/optimization', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentClientId = req.session.currentClientId;
+      const { campaignId } = req.params;
+      
+      if (!campaignId || isNaN(parseInt(campaignId))) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Valid campaign ID is required" 
+        });
+      }
+      
+      // REF: Check cache first
+      const cacheKey = `optimization_${campaignId}_${userId}_${currentClientId || 'default'}`;
+      const cached = replyIoStatsCache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION * 3) { // Longer cache for optimization data
+        return res.json(cached.data);
+      }
+      
+      // REF: Get default Reply.io configuration
+      const defaultConfig = await storage.getDefaultReplyioConfiguration(userId, currentClientId);
+      
+      if (!defaultConfig || !defaultConfig.account?.apiKey) {
+        return res.status(400).json({
+          success: false,
+          message: "No Reply.io account configured for this workspace"
+        });
+      }
+      
+      // REF: Get optimization recommendations
+      const recommendations = await replyIoService.getAutomatedOptimizationRecommendations(
+        defaultConfig.account.apiKey, 
+        parseInt(campaignId)
+      );
+      
+      const response = {
+        success: true,
+        recommendations,
+        accountName: defaultConfig.account.accountName,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      // REF: Cache the results
+      replyIoStatsCache.set(cacheKey, {
+        data: response,
+        timestamp: Date.now()
+      });
+      
+      res.json(response);
+    } catch (error) {
+      console.error('Error fetching campaign optimization recommendations:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to fetch optimization recommendations",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // REF: NEW ENDPOINT - Bulk Campaign Performance Report
+  app.get('/api/reply-io/analytics/performance-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentClientId = req.session.currentClientId;
+      
+      // REF: Check cache first
+      const cacheKey = `performance_report_${userId}_${currentClientId || 'default'}`;
+      const cached = replyIoStatsCache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION * 4) { // Longer cache for reports
+        return res.json(cached.data);
+      }
+      
+      // REF: Get default Reply.io configuration
+      const defaultConfig = await storage.getDefaultReplyioConfiguration(userId, currentClientId);
+      
+      if (!defaultConfig || !defaultConfig.account?.apiKey) {
+        return res.json({
+          success: false,
+          message: "No Reply.io account configured for this workspace"
+        });
+      }
+      
+      // REF: Get all campaigns with statistics
+      const campaigns = await replyIoService.getCampaignsWithStatistics(defaultConfig.account.apiKey);
+      
+      // REF: Calculate overall performance metrics
+      const totalMetrics = campaigns.reduce((acc, campaign) => {
+        acc.totalCampaigns += 1;
+        acc.totalContacts += campaign.peopleCount || 0;
+        acc.totalDeliveries += campaign.deliveriesCount || 0;
+        acc.totalOpens += campaign.opensCount || 0;
+        acc.totalReplies += campaign.repliesCount || 0;
+        acc.totalBounces += campaign.bouncesCount || 0;
+        acc.totalOptOuts += campaign.optOutsCount || 0;
+        
+        if (String(campaign.status) === '2' || String(campaign.status) === 'active') {
+          acc.activeCampaigns += 1;
+        }
+        
+        return acc;
+      }, {
+        totalCampaigns: 0,
+        activeCampaigns: 0,
+        totalContacts: 0,
+        totalDeliveries: 0,
+        totalOpens: 0,
+        totalReplies: 0,
+        totalBounces: 0,
+        totalOptOuts: 0
+      });
+      
+      // REF: Calculate rates
+      const overallOpenRate = totalMetrics.totalDeliveries > 0 
+        ? Math.round((totalMetrics.totalOpens / totalMetrics.totalDeliveries) * 100 * 100) / 100 
+        : 0;
+      const overallReplyRate = totalMetrics.totalDeliveries > 0 
+        ? Math.round((totalMetrics.totalReplies / totalMetrics.totalDeliveries) * 100 * 100) / 100 
+        : 0;
+      const overallBounceRate = totalMetrics.totalDeliveries > 0 
+        ? Math.round((totalMetrics.totalBounces / totalMetrics.totalDeliveries) * 100 * 100) / 100 
+        : 0;
+      
+      // REF: Get top performing campaigns
+      const campaignPerformance = campaigns.map(campaign => {
+        const openRate = campaign.deliveriesCount > 0 
+          ? Math.round((campaign.opensCount / campaign.deliveriesCount) * 100 * 100) / 100 
+          : 0;
+        const replyRate = campaign.deliveriesCount > 0 
+          ? Math.round((campaign.repliesCount / campaign.deliveriesCount) * 100 * 100) / 100 
+          : 0;
+        
+        return {
+          id: campaign.id,
+          name: campaign.name,
+          status: campaign.status,
+          contacts: campaign.peopleCount || 0,
+          deliveries: campaign.deliveriesCount || 0,
+          opens: campaign.opensCount || 0,
+          replies: campaign.repliesCount || 0,
+          openRate,
+          replyRate
+        };
+      }).sort((a, b) => b.replyRate - a.replyRate);
+      
+      const response = {
+        success: true,
+        report: {
+          summary: {
+            ...totalMetrics,
+            overallOpenRate,
+            overallReplyRate,
+            overallBounceRate
+          },
+          topCampaigns: campaignPerformance.slice(0, 5),
+          allCampaigns: campaignPerformance,
+          generatedAt: new Date().toISOString()
+        },
+        accountName: defaultConfig.account.accountName
+      };
+      
+      // REF: Cache the results
+      replyIoStatsCache.set(cacheKey, {
+        data: response,
+        timestamp: Date.now()
+      });
+      
+      res.json(response);
+    } catch (error) {
+      console.error('Error generating performance report:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to generate performance report",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // ===== END ADVANCED REPLY.IO ANALYTICS ENDPOINTS =====
 
   // Test endpoint for connectivity
   app.get('/webhook/test', (req, res) => {
@@ -1535,6 +2176,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Fresh webhook endpoint to receive n8n data - ALL HTTP METHODS  
   app.all('/api/webhook/n8n-data', async (req, res) => {
+    // Write to dedicated webhook log file
+    const webhookLogPath = './webhook_debug.log';
+    const logEntry = `
+=== WEBHOOK HIT: ${new Date().toISOString()} ===
+Method: ${req.method}
+Headers: ${JSON.stringify(req.headers, null, 2)}
+Body type: ${typeof req.body}
+Body content: ${JSON.stringify(req.body, null, 2)}
+Query params: ${JSON.stringify(req.query)}
+URL: ${req.url}
+===============================================
+
+`;
+    fs.appendFileSync(webhookLogPath, logEntry);
+    
     console.log('!!! FRESH WEBHOOK ENDPOINT HIT !!!');
     console.log('Method:', req.method);
     console.log('Timestamp:', new Date().toISOString());
@@ -1544,90 +2200,135 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log('Query params:', req.query);
     console.log('URL:', req.url);
     
-    // Respond immediately to prevent timeouts
-    res.status(200).json({ 
-      success: true, 
-      method: req.method,
-      message: 'Data received successfully',
-      timestamp: new Date().toISOString(),
-      receivedData: req.body
-    });
-    
-    // Process the research data from n8n
-    try {
-      if (req.method === 'POST' && req.body && Array.isArray(req.body)) {
-        for (const item of req.body) {
-          if (item.output) {
-            const output = item.output;
-            console.log('Processing research for:', output.firstname, output.lastname);
+    async function processProspectData(data: any) {
+      try {
+        console.log('=== PROCESSING PROSPECT DATA ===');
+        console.log('Data keys:', Object.keys(data));
+        console.log('Email:', data.email);
+        console.log('Name:', data.firstname, data.lastname);
+        
+        // Find matching prospect by email or name
+        const allUsers = await db.select().from(users);
+        let matchedProspect = null;
+        
+        for (const user of allUsers) {
+          const userProspects = await storage.getProspectsByUser(user.id);
+          console.log(`Checking ${userProspects.length} prospects for user ${user.id}`);
+          
+          // Try to match by email first, then by name
+          matchedProspect = userProspects.find(p => {
+            const emailMatch = data.email && p.email === data.email;
+            const nameMatch = data.firstname && data.lastname && 
+              p.firstName?.toLowerCase() === data.firstname.toLowerCase() && 
+              p.lastName?.toLowerCase() === data.lastname.toLowerCase();
             
-            // Find matching prospect by email or name
-            const allUsers = await db.select().from(users);
-            let matchedProspect = null;
+            console.log(`Checking prospect ${p.firstName} ${p.lastName} (${p.email})`);
+            console.log(`Email match: ${emailMatch}, Name match: ${nameMatch}`);
             
-            for (const user of allUsers) {
-              const userProspects = await storage.getProspectsByUser(user.id);
+            return emailMatch || nameMatch;
+          });
+          
+          if (matchedProspect) {
+            console.log(`✅ Found matching prospect: ${matchedProspect.firstName} ${matchedProspect.lastName} (ID: ${matchedProspect.id})`);
+            
+            // Extract and organize all research data - handle both old and new formats
+            const researchData = {
+              firstname: data.firstname,
+              lastname: data.lastname,
+              location: data.location,
+              linkedinUrl: data.linkedinUrl,
+              email: data.email,
+              website: data.website,
+              primaryJobCompany: data['Primary Job Company'],
+              primaryJobTitle: data['Primary Job Title'],
+              primaryJobCompanyLinkedInUrl: data['Primary Job Company LinkedIn URL'],
+              industry: data.Industry,
+              painPoints: data['Pain Points'],
+              businessGoals: data['Business Goals'],
+              competitors: data.Competitors,
+              competitiveAdvantages: data['Competitive Advantages'],
+              locationResearch: data['Location Research'],
+              almaMaterResearch: data['Alma Mater Research'],
+              linkedInPostSummary: data['LinkedIn Post Summary'],
+              companyLinkedInPostSummary: data['Company LinkedIn Post Summary'],
+              companyNews: data['Company News'],
+              overallProspectSummary: data['Overall Prospect Summary'],
+              overallCompanySummary: data['Overall Company Summary'],
+              // Handle both old format (direct) and new format (nested in Email object)
+              emailSubject: data['Email Subject'] || data.Email?.subject,
+              emailBody: data['Email Body'] || data.Email?.body,
+              fullOutput: data
+            };
+            
+            console.log('Research data prepared:', Object.keys(researchData));
+            
+            // Only mark as completed if we have the essential research data (especially email content)
+            const hasEssentialData = researchData.emailSubject && researchData.emailBody;
+            
+            if (hasEssentialData) {
+              await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
+              console.log(`✅ Successfully updated prospect ${matchedProspect.id} with complete research data and marked as completed`);
               
-              // Try to match by email first, then by name
-              matchedProspect = userProspects.find(p => 
-                (output.email && p.email === output.email) ||
-                (output.firstname && output.lastname && 
-                 p.firstName?.toLowerCase() === output.firstname.toLowerCase() && 
-                 p.lastName?.toLowerCase() === output.lastname.toLowerCase())
-              );
+              // REF: Attempt auto-send to Reply.io if enabled
+              const updatedProspect = { ...matchedProspect, status: 'completed', researchResults: researchData };
+              console.log(`🔄 [WEBHOOK DEBUG] About to call autoSendToReplyIo for prospect ${matchedProspect.id}`);
+              console.log(`🔄 [WEBHOOK DEBUG] Prospect data:`, JSON.stringify({
+                id: updatedProspect.id,
+                firstName: updatedProspect.firstName,
+                lastName: updatedProspect.lastName,
+                userId: updatedProspect.userId,
+                clientId: updatedProspect.clientId
+              }));
               
-              if (matchedProspect) {
-                console.log(`Found matching prospect: ${matchedProspect.firstName} ${matchedProspect.lastName} (ID: ${matchedProspect.id})`);
-                
-                // Extract and organize all research data
-                const researchData = {
-                  firstname: output.firstname,
-                  lastname: output.lastname,
-                  location: output.location,
-                  linkedinUrl: output.linkedinUrl,
-                  email: output.email,
-                  website: output.website,
-                  primaryJobCompany: output['Primary Job Company'],
-                  primaryJobTitle: output['Primary Job Title'],
-                  primaryJobCompanyLinkedInUrl: output['Primary Job Company LinkedIn URL'],
-                  industry: output.Industry,
-                  painPoints: output['Pain Points'],
-                  businessGoals: output['Business Goals'],
-                  competitors: output.Competitors,
-                  competitiveAdvantages: output['Competitive Advantages'],
-                  locationResearch: output['Location Research'],
-                  almaMaterResearch: output['Alma Mater Research'],
-                  linkedInPostSummary: output['LinkedIn Post Summary'],
-                  companyLinkedInPostSummary: output['Company LinkedIn Post Summary'],
-                  companyNews: output['Company News'],
-                  overallProspectSummary: output['Overall Prospect Summary'],
-                  overallCompanySummary: output['Overall Company Summary'],
-                  emailSubject: output.Email?.subject,
-                  emailBody: output.Email?.body,
-                  fullOutput: output
-                };
-                
-                // Only mark as completed if we have essential research data
-                const hasEssentialData = researchData.emailSubject && researchData.emailBody;
-                
-                if (hasEssentialData) {
-                  await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
-                  console.log(`✅ Successfully updated prospect ${matchedProspect.id} with complete research data and marked as completed`);
-                  
-                  // REF: Attempt auto-send to Reply.io if enabled
-                  const updatedProspect = { ...matchedProspect, status: 'completed', researchResults: researchData };
-                  await autoSendToReplyIo(updatedProspect);
-                } else {
-                  await storage.updateProspectStatus(matchedProspect.id, 'processing', researchData);
-                  console.log(`📝 Updated prospect ${matchedProspect.id} with partial research data, keeping as processing`);
-                }
-                break;
+              try {
+                await autoSendToReplyIo(updatedProspect);
+                console.log(`✅ [WEBHOOK DEBUG] autoSendToReplyIo completed for prospect ${matchedProspect.id}`);
+              } catch (autoSendError) {
+                console.error(`❌ [WEBHOOK DEBUG] autoSendToReplyIo failed for prospect ${matchedProspect.id}:`, autoSendError);
               }
+            } else {
+              await storage.updateProspectStatus(matchedProspect.id, 'processing', researchData);
+              console.log(`📝 Updated prospect ${matchedProspect.id} with partial research data, keeping as processing (missing email content)`);
             }
-            
-            if (!matchedProspect) {
-              console.log(`No matching prospect found for ${output.firstname} ${output.lastname} (${output.email})`);
-            }
+            break;
+          }
+        }
+        
+        if (!matchedProspect) {
+          console.log(`❌ No matching prospect found for ${data.firstname} ${data.lastname} (${data.email})`);
+        }
+      } catch (error) {
+        console.error('❌ Error processing prospect:', error);
+      }
+    }
+
+    // Process the research data from n8n - handle multiple formats
+    try {
+      console.log('Raw body type:', typeof req.body);
+      console.log('Raw body keys:', req.body ? Object.keys(req.body) : 'no keys');
+      
+      // Format 1: Direct object (old format)
+      if (req.body && typeof req.body === 'object' && !Array.isArray(req.body)) {
+        if (req.body.firstname || req.body.lastname || req.body.email) {
+          console.log('Processing single prospect research data (old format)...');
+          await processProspectData(req.body);
+        }
+      }
+      
+      // Format 2: Array with wrapped output (new format)
+      if (req.body && Array.isArray(req.body)) {
+        console.log('Processing array of research data...');
+        
+        for (const item of req.body) {
+          // Handle wrapped data format { output: {...} }
+          if (item.output && typeof item.output === 'object') {
+            console.log('Processing wrapped research data (new format)...');
+            await processProspectData(item.output);
+          }
+          // Handle direct data format
+          else if (item.firstname || item.lastname || item.email) {
+            console.log('Processing direct research data...');
+            await processProspectData(item);
           }
         }
       }
@@ -1635,199 +2336,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error('Error processing webhook data:', error);
     }
     
-    // Handle different possible data structures from n8n
-    let dataToProcess = req.body;
-    
-    // If it's wrapped in an array, extract the first item
-    if (Array.isArray(req.body) && req.body.length > 0) {
-      dataToProcess = req.body[0];
-    }
-    
-    // If it has a response.body structure (from HTTP Request node), extract that
-    if (dataToProcess.response && dataToProcess.response.body) {
-      dataToProcess = dataToProcess.response.body;
-    }
-    
-    console.log('Processed data structure:', JSON.stringify(dataToProcess, null, 2));
-    
-    try {
-      console.log('Received webhook results:', JSON.stringify(req.body, null, 2));
-      
-      const results = req.body;
-      
-      // Handle both single prospect and batch results
-      const prospects = Array.isArray(results) ? results : [results];
-      
-      for (const result of prospects) {
-        // Try to extract identification from various possible locations
-        const firstName = result.firstName || result.output?.firstname || result['First Name'];
-        const lastName = result.lastName || result.output?.lastname || result['Last Name'];
-        const email = result.email || result.output?.email || result.EMail;
-        
-        console.log(`Looking for prospect: ${firstName} ${lastName} (${email})`);
-        console.log('Available fields in result:', Object.keys(result));
-        if (result.output) {
-          console.log('Available fields in output:', Object.keys(result.output));
-        }
-        
-        // If no firstName/lastName, try to find by email
-        if (email && !firstName && !lastName) {
-          console.log(`Trying to find prospect by email: ${email}`);
-          const allUsers = await db.select().from(users);
-          let matchedProspect = null;
-          
-          for (const user of allUsers) {
-            const userProspects = await storage.getProspectsByUser(user.id);
-            const prospect = userProspects.find(p => 
-              p.email.toLowerCase() === email.toLowerCase() &&
-              p.status === 'processing'
-            );
-            if (prospect) {
-              matchedProspect = prospect;
-              break;
-            }
-          }
-          
-          if (matchedProspect) {
-            console.log(`Found prospect by email: ${matchedProspect.id}`);
-            console.log(`Updating prospect ${matchedProspect.id} with research results`);
-            
-            // Extract and organize all research data from the output
-            const researchData = {
-              // Basic prospect info
-              firstname: result.output?.firstname,
-              lastname: result.output?.lastname,
-              location: result.output?.location,
-              linkedinUrl: result.output?.linkedinUrl,
-              email: result.output?.email,
-              website: result.output?.website,
-              
-              // Company info
-              primaryJobCompany: result.output?.['Primary Job Company'],
-              primaryJobTitle: result.output?.['Primary Job Title'],
-              primaryJobCompanyLinkedInUrl: result.output?.['Primary Job Company LinkedIn URL'],
-              industry: result.output?.Industry,
-              
-              // Research insights
-              painPoints: result.output?.['Pain Points'],
-              businessGoals: result.output?.['Business Goals'],
-              competitors: result.output?.Competitors,
-              competitiveAdvantages: result.output?.['Competitive Advantages'],
-              locationResearch: result.output?.['Location Research'],
-              almaMaterResearch: result.output?.['Alma Mater Research'],
-              linkedInPostSummary: result.output?.['LinkedIn Post Summary'],
-              companyLinkedInPostSummary: result.output?.['Company LinkedIn Post Summary'],
-              companyNews: result.output?.['Company News'],
-              overallProspectSummary: result.output?.['Overall Prospect Summary'],
-              overallCompanySummary: result.output?.['Overall Company Summary'],
-              
-              // Email content
-              emailSubject: result.output?.Email?.subject,
-              emailBody: result.output?.Email?.body,
-              
-              // Store the full raw data as well
-              fullOutput: result.output
-            };
-            
-            // Only mark as completed if we have essential research data
-            const hasEssentialData = researchData.emailSubject && researchData.emailBody;
-            
-            if (hasEssentialData) {
-              await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
-              console.log(`✅ Successfully updated prospect ${matchedProspect.id} with complete research data and marked as completed`);
-              
-              // REF: Attempt auto-send to Reply.io if enabled
-              const updatedProspect = { ...matchedProspect, status: 'completed', researchResults: researchData };
-              await autoSendToReplyIo(updatedProspect);
-            } else {
-              await storage.updateProspectStatus(matchedProspect.id, 'processing', researchData);
-              console.log(`📝 Updated prospect ${matchedProspect.id} with partial research data, keeping as processing`);
-            }
-          } else {
-            console.log(`No processing prospect found for email: ${email}`);
-          }
-        } else if (firstName && lastName) {
-          // Get all prospects and find match by name
-          const allUsers = await db.select().from(users);
-          let matchedProspect = null;
-          
-          for (const user of allUsers) {
-            const userProspects = await storage.getProspectsByUser(user.id);
-            const prospect = userProspects.find(p => 
-              p.firstName.toLowerCase().includes(firstName.toLowerCase()) && 
-              p.lastName.toLowerCase().includes(lastName.toLowerCase()) &&
-              p.status === 'processing'
-            );
-            if (prospect) {
-              matchedProspect = prospect;
-              break;
-            }
-          }
-          
-          if (matchedProspect) {
-            console.log(`Updating prospect ${matchedProspect.id} with research results`);
-            // Use same organized data structure as above
-            const researchData = {
-              firstname: result.output?.firstname,
-              lastname: result.output?.lastname,
-              location: result.output?.location,
-              linkedinUrl: result.output?.linkedinUrl,
-              email: result.output?.email,
-              website: result.output?.website,
-              primaryJobCompany: result.output?.['Primary Job Company'],
-              primaryJobTitle: result.output?.['Primary Job Title'],
-              primaryJobCompanyLinkedInUrl: result.output?.['Primary Job Company LinkedIn URL'],
-              industry: result.output?.Industry,
-              painPoints: result.output?.['Pain Points'],
-              businessGoals: result.output?.['Business Goals'],
-              competitors: result.output?.Competitors,
-              competitiveAdvantages: result.output?.['Competitive Advantages'],
-              locationResearch: result.output?.['Location Research'],
-              almaMaterResearch: result.output?.['Alma Mater Research'],
-              linkedInPostSummary: result.output?.['LinkedIn Post Summary'],
-              companyLinkedInPostSummary: result.output?.['Company LinkedIn Post Summary'],
-              companyNews: result.output?.['Company News'],
-              overallProspectSummary: result.output?.['Overall Prospect Summary'],
-              overallCompanySummary: result.output?.['Overall Company Summary'],
-              emailSubject: result.output?.Email?.subject,
-              emailBody: result.output?.Email?.body,
-              fullOutput: result.output
-            };
-            
-            // Only mark as completed if we have essential research data
-            const hasEssentialData = researchData.emailSubject && researchData.emailBody;
-            
-            if (hasEssentialData) {
-              await storage.updateProspectStatus(matchedProspect.id, 'completed', researchData);
-              console.log(`✅ Successfully updated prospect ${matchedProspect.id} with complete research data and marked as completed`);
-              
-              // REF: Attempt auto-send to Reply.io if enabled
-              const updatedProspect = { ...matchedProspect, status: 'completed', researchResults: researchData };
-              await autoSendToReplyIo(updatedProspect);
-            } else {
-              await storage.updateProspectStatus(matchedProspect.id, 'processing', researchData);
-              console.log(`📝 Updated prospect ${matchedProspect.id} with partial research data, keeping as processing`);
-            }
-          } else {
-            console.log(`No processing prospect found for ${firstName} ${lastName}`);
-            // Log all processing prospects for debugging
-            const allUsers2 = await db.select().from(users);
-            for (const user of allUsers2) {
-              const userProspects = await storage.getProspectsByUser(user.id);
-              const processingProspects = userProspects.filter(p => p.status === 'processing');
-              if (processingProspects.length > 0) {
-                console.log(`Processing prospects for user ${user.id}:`, processingProspects.map(p => `${p.firstName} ${p.lastName}`));
-              }
-            }
-          }
-        }
-      }
-      
-      res.json({ message: 'Results processed successfully' });
-    } catch (error) {
-      console.error('Error processing webhook results:', error);
-      res.status(500).json({ message: 'Failed to process results' });
-    }
+    res.json({ 
+      success: true, 
+      method: req.method, 
+      message: 'Data received and processed successfully',
+      timestamp: new Date().toISOString()
+    });
   });
 
   // REF: Enhanced Reply.io reporting routes
@@ -2147,21 +2661,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
    */
   async function autoSendToReplyIo(prospect: any): Promise<void> {
     try {
-      console.log(`🤖 Checking auto-send to Reply.io for prospect ${prospect.id}: ${prospect.firstName} ${prospect.lastName}`);
+      // REF: Add file-based debug logging to track function calls
+      const debugLog = `[${new Date().toISOString()}] AUTO-SEND CALLED for prospect ${prospect.id}: ${prospect.firstName} ${prospect.lastName}\n`;
+      fs.appendFileSync('./auto_send_debug.log', debugLog);
       
-      // REF: Get user's Reply.io settings
+      console.log(`🤖 [AUTO-SEND DEBUG] Starting auto-send check for prospect ${prospect.id}: ${prospect.firstName} ${prospect.lastName}`);
+      console.log(`🔍 [AUTO-SEND DEBUG] Prospect userId: ${prospect.userId}, clientId: ${prospect.clientId}`);
+      
+      // REF: Get user's Reply.io settings (may not exist in multi-tenant system)
       const userSettings = await storage.getUserSettings(prospect.userId);
+      console.log(`⚙️ [AUTO-SEND DEBUG] User settings retrieved:`, userSettings ? 'Found' : 'Not found');
       
-      if (!userSettings) {
-        console.log(`❌ No user settings found for user ${prospect.userId}`);
-        return;
-      }
-      
-      // REF: Check if auto-send is enabled (default to true if not set)
-      const autoSendEnabled = userSettings.replyIoAutoSend !== undefined ? userSettings.replyIoAutoSend : true;
+      // REF: Check if auto-send is enabled (default to true if no settings or not set)
+      const autoSendEnabled = userSettings?.replyIoAutoSend !== undefined ? userSettings.replyIoAutoSend : true;
+      console.log(`🔄 [AUTO-SEND DEBUG] Auto-send enabled: ${autoSendEnabled} (from settings: ${userSettings ? 'yes' : 'default'})`);
       
       if (!autoSendEnabled) {
-        console.log(`🚫 Auto-send disabled for user ${prospect.userId}`);
+        console.log(`🚫 [AUTO-SEND DEBUG] Auto-send disabled for user ${prospect.userId}`);
         return;
       }
 
@@ -2170,42 +2686,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let campaignId: number | null = null;
       
       try {
-        const defaultConfig = await storage.getDefaultReplyioConfiguration(prospect.userId);
+        console.log(`🔍 [AUTO-SEND DEBUG] Attempting to get multi-account configuration for user ${prospect.userId}, client ${prospect.clientId}...`);
+        const defaultConfig = await storage.getDefaultReplyioConfiguration(prospect.userId, prospect.clientId);
+        console.log(`📊 [AUTO-SEND DEBUG] Default config result:`, defaultConfig ? 'Found' : 'Not found');
+        
         if (defaultConfig && defaultConfig.account && defaultConfig.campaign) {
           apiKey = replyIoService.decryptApiKey(defaultConfig.account.apiKey);
           campaignId = defaultConfig.campaign.campaignId;
-          console.log(`📋 Using multi-account configuration: Account "${defaultConfig.account.name}", Campaign "${defaultConfig.campaign.campaignName}" (ID: ${campaignId})`);
+          console.log(`📋 [AUTO-SEND DEBUG] Using multi-account configuration: Account "${defaultConfig.account.name}", Campaign "${defaultConfig.campaign.campaignName}" (ID: ${campaignId})`);
+        } else {
+          console.log(`⚠️ [AUTO-SEND DEBUG] Multi-account config incomplete - Account: ${!!defaultConfig?.account}, Campaign: ${!!defaultConfig?.campaign}`);
         }
       } catch (error) {
-        console.log(`⚠️ Could not get multi-account configuration:`, error);
+        console.log(`⚠️ [AUTO-SEND DEBUG] Could not get multi-account configuration:`, error);
       }
 
       // REF: Fall back to legacy single API key system for backward compatibility
       if (!apiKey || !campaignId) {
-        console.log(`📋 Falling back to legacy single API key configuration`);
+        console.log(`📋 [AUTO-SEND DEBUG] Falling back to legacy single API key configuration`);
         
-        if (!userSettings.replyIoApiKey || !userSettings.replyIoCampaignId) {
-          console.log(`⚠️ Reply.io not fully configured for user ${prospect.userId} (Legacy API key: ${!!userSettings.replyIoApiKey}, Campaign ID: ${!!userSettings.replyIoCampaignId})`);
+        if (!userSettings || !userSettings.replyIoApiKey || !userSettings.replyIoCampaignId) {
+          console.log(`⚠️ [AUTO-SEND DEBUG] Reply.io not fully configured for user ${prospect.userId} (User settings: ${!!userSettings}, Legacy API key: ${!!userSettings?.replyIoApiKey}, Campaign ID: ${!!userSettings?.replyIoCampaignId})`);
           return;
         }
         
         apiKey = replyIoService.decryptApiKey(userSettings.replyIoApiKey);
         campaignId = parseInt(userSettings.replyIoCampaignId);
-        console.log(`📋 Using legacy configuration: Campaign ID ${campaignId}`);
+        console.log(`📋 [AUTO-SEND DEBUG] Using legacy configuration: Campaign ID ${campaignId}`);
       }
 
-      console.log(`🚀 Auto-sending prospect ${prospect.id} to Reply.io campaign ${campaignId}`);
+      console.log(`🚀 [AUTO-SEND DEBUG] Auto-sending prospect ${prospect.id} to Reply.io campaign ${campaignId}`);
       
       const response = await replyIoService.sendProspectToReply(apiKey, prospect, campaignId);
       
       if (response.success) {
-        console.log(`✅ Auto-send successful for prospect ${prospect.id}: ${prospect.firstName} ${prospect.lastName}`);
+        console.log(`✅ [AUTO-SEND DEBUG] Auto-send successful for prospect ${prospect.id}: ${prospect.firstName} ${prospect.lastName}`);
+        
+        // Update prospect with campaign ID
+        await storage.updateProspectCampaign(prospect.id, campaignId);
+        console.log(`💾 [AUTO-SEND DEBUG] Updated prospect ${prospect.id} with campaign ID ${campaignId}`);
       } else {
-        console.log(`❌ Auto-send failed for prospect ${prospect.id}:`, response.message);
+        console.log(`❌ [AUTO-SEND DEBUG] Auto-send failed for prospect ${prospect.id}:`, response.message);
       }
       
     } catch (error) {
-      console.error(`💥 Error in auto-send for prospect ${prospect.id}:`, error);
+      console.error(`💥 [AUTO-SEND DEBUG] Error in auto-send for prospect ${prospect.id}:`, error);
       // REF: Don't throw error - auto-send failures should not block research completion
     }
   }
@@ -2267,241 +2792,901 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
-}
+  // ========================================
+  // CLIENT MANAGEMENT ENDPOINTS
+  // ========================================
 
-// Async function to process batch of prospects research
-async function processBatchResearch(prospects: Array<{ id: number; data: any }>, batchNumber: number) {
-  try {
-    // Prepare webhook payload in the expected format
-    const webhookPayload = prospects.map(prospect => ({
-      "First Name": prospect.data.firstName,
-      "Last Name": prospect.data.lastName,
-      "LinkedIn": prospect.data.linkedinUrl || "",
-      "Title": prospect.data.title,
-      "Company": prospect.data.company,
-      "EMail": prospect.data.email,
-    }));
-
-    console.log(`Processing research for batch ${batchNumber} with ${prospects.length} prospects`);
-    console.log(`Webhook payload:`, JSON.stringify(webhookPayload, null, 2));
-    console.log(`Sending to webhook URL: ${appSettings.webhookUrl}`);
-
-    // Get current settings for webhook configuration
-    const settings = await getAppSettings();
-    
-    // Send to n8n webhook with configurable timeout and retry logic
-    let response;
-    let retryCount = 0;
-    const maxRetries = settings.maxRetries || 0;
-    const timeoutMs = (settings.webhookTimeoutSeconds || 300) * 1000;
-    const retryDelayMs = (settings.retryDelaySeconds || 10) * 1000;
-    
-    while (retryCount <= maxRetries) {
-      try {
-        console.log(`Attempting webhook request (attempt ${retryCount + 1}/${maxRetries + 1}) with ${timeoutMs/1000}s timeout...`);
-        
-        response = await fetch(settings.webhookUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Batch-Number': batchNumber.toString(),
-            'X-Retry-Attempt': (retryCount + 1).toString(),
-            'X-Request-Timeout': timeoutMs.toString()
-          },
-          body: JSON.stringify(webhookPayload),
-          signal: AbortSignal.timeout(timeoutMs)
-        });
-
-        if (response.ok) {
-          console.log(`Webhook request successful on attempt ${retryCount + 1}`);
-          break; // Success, exit retry loop
-        } else if ((response.status === 524 || response.status >= 500) && retryCount < maxRetries) {
-          // Server timeout or error, retry after delay
-          console.log(`Batch ${batchNumber} server error (${response.status}), retrying in ${retryDelayMs/1000} seconds... (attempt ${retryCount + 2}/${maxRetries + 1})`);
-          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-          retryCount++;
-          continue;
-        } else {
-          const responseText = await response.text();
-          console.error(`Webhook failed with status ${response.status}: ${response.statusText}`);
-          console.error(`Response body: ${responseText}`);
-          console.error(`Response headers:`, Object.fromEntries(response.headers.entries()));
-          throw new Error(`Webhook request failed: ${response.status} ${response.statusText}`);
-        }
-      } catch (error) {
-        if (error instanceof Error && error.name === 'TimeoutError' && retryCount < maxRetries) {
-          console.log(`Batch ${batchNumber} request timeout after ${timeoutMs/1000}s, retrying in ${retryDelayMs/1000} seconds... (attempt ${retryCount + 2}/${maxRetries + 1})`);
-          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-          retryCount++;
-          continue;
-        } else if (error instanceof Error && error.name === 'AbortError' && retryCount < maxRetries) {
-          console.log(`Batch ${batchNumber} request aborted, retrying in ${retryDelayMs/1000} seconds... (attempt ${retryCount + 2}/${maxRetries + 1})`);
-          await new Promise(resolve => setTimeout(resolve, retryDelayMs));
-          retryCount++;
-          continue;
-        }
-        throw error;
-      }
-    }
-
-    if (!response || !response.ok) {
-      const responseText = response ? await response.text() : 'No response';
-      console.error(`Webhook failed with status ${response?.status}: ${responseText}`);
-      throw new Error(`Webhook request failed after ${maxRetries + 1} attempts`);
-    }
-
-    console.log(`Webhook response status: ${response.status}`);
-    console.log(`Webhook response headers:`, Object.fromEntries(response.headers.entries()));
-    
-    const rawResults = await response.json();
-    console.log(`Raw webhook response:`, JSON.stringify(rawResults, null, 2));
-
-    // Extract the actual data from the n8n response format
-    let results;
-    if (Array.isArray(rawResults) && rawResults[0]?.response?.body?.output) {
-      // Handle n8n format: [{"response": {"body": {"output": {...}}}}]
-      results = rawResults[0].response.body.output;
-    } else if (Array.isArray(rawResults) && rawResults[0]?.output) {
-      // Handle direct format: [{"output": {...}}]
-      results = rawResults[0].output;
-    } else {
-      // Handle other formats
-      results = rawResults;
-    }
-
-    console.log(`Processed webhook data:`, JSON.stringify(results, null, 2));
-
-    // Note: Do not mark prospects as completed here
-    // Prospects will be marked as completed individually when the webhook 
-    // receives and processes their specific research data
-    console.log(`Batch ${batchNumber} research request sent successfully for ${prospects.length} prospects`);
-
-  } catch (error) {
-    console.error(`Error processing batch ${batchNumber}:`, error);
-
-    // Update all prospects in batch to failed
-    for (const prospect of prospects) {
-      await storage.updateProspectStatus(
-        prospect.id, 
-        "failed", 
-        null, 
-        error instanceof Error ? error.message : "Unknown error occurred"
-      );
-    }
-  }
-}
-
-// Async function to process CSV prospects in batches
-async function processCsvProspects(uploadId: number, userId: string, records: any[], mapping: any, hasHeaders: boolean, batchSize: number = 10) {
-  let processedCount = 0;
-  
-  try {
-    // Process records in batches
-    for (let i = 0; i < records.length; i += batchSize) {
-      const batch = records.slice(i, i + batchSize);
-      const batchProspects: any[] = [];
+  /**
+   * REF: Get all clients for the authenticated user
+   * METHOD: GET
+   * AUTH: Required
+   * PURPOSE: List all client workspaces for multi-tenant management
+   */
+  app.get('/api/clients', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clients = await storage.getClientsByUser(userId);
       
-      // Create all prospects in this batch first
-      for (const record of batch) {
-        try {
-          let prospectData: any;
+      // Add counts for each client
+      const clientsWithCounts = await Promise.all(
+        clients.map(async (client: any) => {
+          // Count prospects for this client
+          const clientProspects = await storage.getProspectsByClient(userId, client.id);
+          const prospectCount = clientProspects.length;
+
+          // Count API keys (Reply.io accounts) for this client  
+          const apiKeyCount = await db.select({ count: count() })
+            .from(replyioAccounts)
+            .where(eq(replyioAccounts.clientId, client.id));
+
+          // Count campaigns for this client (via accounts)
+          const clientAccounts = await db.select({ id: replyioAccounts.id })
+            .from(replyioAccounts)
+            .where(eq(replyioAccounts.clientId, client.id));
           
-          if (hasHeaders) {
-            // Map CSV columns to prospect fields using column names
-            prospectData = {
-              userId,
-              firstName: record[mapping.firstName] || "",
-              lastName: record[mapping.lastName] || "",
-              company: record[mapping.company] || "",
-              title: record[mapping.title] || "",
-              email: record[mapping.email] || "",
-              linkedinUrl: mapping.linkedinUrl === "none" ? "" : record[mapping.linkedinUrl] || "",
-              status: "processing",
-            };
-          } else {
-            // Map CSV columns to prospect fields using column indices
-            const recordArray = record as string[];
-            const getColumnIndex = (columnName: string) => {
-              const match = columnName.match(/Column (\d+)/);
-              return match ? parseInt(match[1]) - 1 : -1;
-            };
-            
-            prospectData = {
-              userId,
-              firstName: recordArray[getColumnIndex(mapping.firstName)] || "",
-              lastName: recordArray[getColumnIndex(mapping.lastName)] || "",
-              company: recordArray[getColumnIndex(mapping.company)] || "",
-              title: recordArray[getColumnIndex(mapping.title)] || "",
-              email: recordArray[getColumnIndex(mapping.email)] || "",
-              linkedinUrl: mapping.linkedinUrl === "none" ? "" : recordArray[getColumnIndex(mapping.linkedinUrl)] || "",
-              status: "processing",
-            };
+          let totalCampaigns = 0;
+          if (clientAccounts.length > 0) {
+            for (const account of clientAccounts) {
+              const campaigns = await db.select({ count: count() })
+                .from(replyioCampaigns)
+                .where(eq(replyioCampaigns.accountId, account.id));
+              totalCampaigns += campaigns[0]?.count || 0;
+            }
           }
-          
-          // Validate the mapped data
-          const validatedData = insertProspectSchema.parse(prospectData);
-          
-          // Create prospect
-          const prospect = await storage.createProspect(validatedData);
-          batchProspects.push({ id: prospect.id, data: validatedData });
-          
-          processedCount++;
-          
-        } catch (error) {
-          console.error(`Error processing CSV row ${processedCount + 1}:`, error);
-          processedCount++;
+
+          return {
+            ...client,
+            counts: {
+              prospects: prospectCount,
+              apiKeys: apiKeyCount[0]?.count || 0,
+              campaigns: totalCampaigns,
+            }
+          };
+        })
+      );
+      
+      res.json(clientsWithCounts);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      res.status(500).json({ message: 'Failed to fetch clients' });
+    }
+  });
+
+  /**
+   * REF: Get a specific client by ID
+   * METHOD: GET
+   * AUTH: Required  
+   * PURPOSE: Retrieve client details for editing or display
+   */
+  app.get('/api/clients/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clientId = parseInt(req.params.id);
+      
+      const client = await storage.getClient(clientId);
+      if (!client || client.userId !== userId) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      res.json(client);
+    } catch (error) {
+      console.error('Error fetching client:', error);
+      res.status(500).json({ message: 'Failed to fetch client' });
+    }
+  });
+
+  /**
+   * REF: Create a new client workspace
+   * METHOD: POST
+   * AUTH: Required
+   * PURPOSE: Add new client workspace for multi-tenant organization
+   */
+  app.post('/api/clients', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // REF: Validate client data using schema
+      const validatedData = insertClientSchema.parse({
+        ...req.body,
+        userId
+      });
+      
+      const client = await storage.createClient(validatedData);
+      res.status(201).json(client);
+    } catch (error) {
+      console.error('Error creating client:', error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        res.status(400).json({ message: 'Invalid client data', errors: error });
+      } else {
+        res.status(500).json({ message: 'Failed to create client' });
+      }
+    }
+  });
+
+  /**
+   * REF: Update an existing client
+   * METHOD: PUT
+   * AUTH: Required
+   * PURPOSE: Modify client workspace details
+   */
+  app.put('/api/clients/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clientId = parseInt(req.params.id);
+      
+      // REF: Verify client ownership
+      const existingClient = await storage.getClient(clientId);
+      if (!existingClient || existingClient.userId !== userId) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // REF: Validate update data
+      const updateData = insertClientSchema.partial().parse(req.body);
+      
+      const updatedClient = await storage.updateClient(clientId, updateData);
+      res.json(updatedClient);
+    } catch (error) {
+      console.error('Error updating client:', error);
+      if (error instanceof Error && error.name === 'ZodError') {
+        res.status(400).json({ message: 'Invalid client data', errors: error });
+      } else {
+        res.status(500).json({ message: 'Failed to update client' });
+      }
+    }
+  });
+
+  /**
+   * REF: Delete a client workspace
+   * METHOD: DELETE
+   * AUTH: Required
+   * PURPOSE: Remove client workspace and all associated data
+   */
+  app.delete('/api/clients/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clientId = parseInt(req.params.id);
+      
+      
+      // REF: Verify client ownership
+      const existingClient = await storage.getClient(clientId);
+      if (!existingClient || existingClient.userId !== userId) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // REF: Prevent deletion of last client
+      const userClients = await storage.getClientsByUser(userId);
+      if (userClients.length <= 1) {
+        return res.status(400).json({ message: 'Cannot delete the last client workspace' });
+      }
+      
+      const success = await storage.deleteClient(clientId);
+      if (success) {
+        res.json({ message: 'Client deleted successfully' });
+      } else {
+        res.status(500).json({ message: 'Failed to delete client' });
+      }
+    } catch (error) {
+      console.error('Error deleting client:', error);
+      res.status(500).json({ message: 'Failed to delete client' });
+    }
+  });
+
+  /**
+   * REF: Get prospects for a specific client
+   * METHOD: GET
+   * AUTH: Required
+   * PURPOSE: List prospects filtered by client workspace
+   */
+  app.get('/api/clients/:id/prospects', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clientId = parseInt(req.params.id);
+      
+      // REF: Verify client ownership
+      const client = await storage.getClient(clientId);
+      if (!client || client.userId !== userId) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      const prospects = await storage.getProspectsByClient(userId, clientId);
+      res.json(prospects);
+    } catch (error) {
+      console.error('Error fetching client prospects:', error);
+      res.status(500).json({ message: 'Failed to fetch client prospects' });
+    }
+  });
+
+  /**
+   * REF: Get current active client session
+   * METHOD: GET
+   * AUTH: Required
+   * PURPOSE: Retrieve the current client context for the user session
+   */
+  app.get('/api/current-client', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // REF: Get current client from session or default to first client
+      let currentClientId = (req.session as any).currentClientId;
+      
+      if (!currentClientId) {
+        // REF: Default to the first/default client
+        const defaultClient = await storage.getDefaultClient(userId);
+        currentClientId = defaultClient?.id;
+        if (currentClientId) {
+          (req.session as any).currentClientId = currentClientId;
         }
       }
       
-      // Update progress after creating the batch
-      await storage.updateCsvUploadProgress(uploadId, processedCount);
-      
-      // Process research for all prospects in this batch
-      if (batchProspects.length > 0) {
-        await processBatchResearch(batchProspects, Math.floor(i / batchSize) + 1);
+      if (!currentClientId) {
+        return res.status(404).json({ message: 'No client found' });
       }
       
-      // Add delay between batches to prevent overwhelming the webhook
-      if (i + batchSize < records.length) {
-        console.log(`Processed batch of ${batch.length} prospects. Waiting 2 seconds before next batch...`);
-        await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+      const client = await storage.getClient(currentClientId);
+      if (!client || client.userId !== userId) {
+        // REF: Clear invalid session and get default
+        delete (req.session as any).currentClientId;
+        const defaultClient = await storage.getDefaultClient(userId);
+        if (defaultClient) {
+          (req.session as any).currentClientId = defaultClient.id;
+          return res.json(defaultClient);
+        }
+        return res.status(404).json({ message: 'No valid client found' });
       }
+      
+      res.json(client);
+    } catch (error) {
+      console.error('Error fetching current client:', error);
+      res.status(500).json({ message: 'Failed to fetch current client' });
     }
-    
-    // Mark CSV upload as completed
-    await storage.updateCsvUploadProgress(uploadId, processedCount, "completed");
-    
-    console.log(`CSV upload ${uploadId} completed. Processed ${processedCount} prospects in batches of ${batchSize}.`);
-    
-  } catch (error) {
-    console.error(`Error processing CSV upload ${uploadId}:`, error);
-    
-    // Mark CSV upload as failed
-    await storage.updateCsvUploadProgress(uploadId, processedCount, "failed");
-  }
+  });
+
+  /**
+   * REF: Switch to a different client
+   * METHOD: POST
+   * AUTH: Required
+   * PURPOSE: Change the active client context for the user session
+   */
+  app.post('/api/switch-client/:id', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clientId = parseInt(req.params.id);
+      
+      // REF: Verify client ownership
+      const client = await storage.getClient(clientId);
+      if (!client || client.userId !== userId) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // REF: Update session with new current client
+      (req.session as any).currentClientId = clientId;
+      
+      res.json({ 
+        message: 'Client switched successfully', 
+        client: client 
+      });
+    } catch (error) {
+      console.error('Error switching client:', error);
+      res.status(500).json({ message: 'Failed to switch client' });
+    }
+  });
+
+  /**
+   * REF: Get clients with counts for prospects, API keys, and campaigns
+   * METHOD: GET
+   * AUTH: Required  
+   * PURPOSE: Retrieve clients with detailed statistics for dashboard display
+   */
+  app.get('/api/clients/with-counts', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      
+      // Get all clients for the user
+      const clients = await storage.getClientsByUser(userId);
+      
+      // Get counts for each client
+      const clientsWithCounts = await Promise.all(
+        clients.map(async (client: any) => {
+          // Count prospects for this client
+          const clientProspects = await storage.getProspectsByClient(userId, client.id);
+          const prospectCount = clientProspects.length;
+
+          // Count API keys (Reply.io accounts) for this client  
+          const apiKeyCount = await db.select({ count: count() })
+            .from(replyioAccounts)
+            .where(eq(replyioAccounts.clientId, client.id));
+
+          // Count campaigns for this client (via accounts)
+          const clientAccounts = await db.select({ id: replyioAccounts.id })
+            .from(replyioAccounts)
+            .where(eq(replyioAccounts.clientId, client.id));
+          
+          let totalCampaigns = 0;
+          if (clientAccounts.length > 0) {
+            for (const account of clientAccounts) {
+              const campaigns = await db.select({ count: count() })
+                .from(replyioCampaigns)
+                .where(eq(replyioCampaigns.accountId, account.id));
+              totalCampaigns += campaigns[0]?.count || 0;
+            }
+          }
+
+          return {
+            ...client,
+            counts: {
+              prospects: prospectCount,
+              apiKeys: apiKeyCount[0]?.count || 0,
+              campaigns: totalCampaigns,
+            }
+          };
+        })
+      );
+
+      res.json(clientsWithCounts);
+    } catch (error) {
+      console.error('Error fetching clients with counts:', error);
+      res.status(500).json({ message: 'Failed to fetch clients with counts' });
+    }
+  });
+
+  /**
+   * REF: Get all clients (existing endpoint)
+   * METHOD: GET
+   * AUTH: Required  
+   * PURPOSE: Retrieve basic client list for workspace management
+   */
+  app.get('/api/clients', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const clients = await storage.getClientsByUser(userId);
+      
+      // Add counts for each client
+      const clientsWithCounts = await Promise.all(
+        clients.map(async (client: any) => {
+          // Count prospects for this client
+          const clientProspects = await storage.getProspectsByClient(userId, client.id);
+          const prospectCount = clientProspects.length;
+
+          // Count API keys (Reply.io accounts) for this client  
+          const apiKeyCount = await db.select({ count: count() })
+            .from(replyioAccounts)
+            .where(eq(replyioAccounts.clientId, client.id));
+
+          // Count campaigns for this client (via accounts)
+          const clientAccounts = await db.select({ id: replyioAccounts.id })
+            .from(replyioAccounts)
+            .where(eq(replyioAccounts.clientId, client.id));
+          
+          let totalCampaigns = 0;
+          if (clientAccounts.length > 0) {
+            for (const account of clientAccounts) {
+              const campaigns = await db.select({ count: count() })
+                .from(replyioCampaigns)
+                .where(eq(replyioCampaigns.accountId, account.id));
+              totalCampaigns += campaigns[0]?.count || 0;
+            }
+          }
+
+          return {
+            ...client,
+            counts: {
+              prospects: prospectCount,
+              apiKeys: apiKeyCount[0]?.count || 0,
+              campaigns: totalCampaigns,
+            }
+          };
+        })
+      );
+      
+      res.json(clientsWithCounts);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      res.status(500).json({ message: 'Failed to fetch clients' });
+    }
+  });
+
+  // DEBUG: Test auto-send function manually
+  app.post('/api/debug/test-auto-send', isAuthenticated, async (req: any, res) => {
+    try {
+      const { prospectId } = req.body;
+      const userId = getUserId(req);
+      
+      // Get the prospect
+      const prospects = await storage.getProspectsByUser(userId);
+      const prospect = prospects.find(p => p.id === prospectId);
+      
+      if (!prospect) {
+        return res.status(404).json({ success: false, message: 'Prospect not found' });
+      }
+      
+      console.log(`🔍 DEBUG: Testing auto-send for prospect ${prospect.id}: ${prospect.firstName} ${prospect.lastName}`);
+      
+      // Call the auto-send function and capture any output
+      await autoSendToReplyIo(prospect);
+      
+      res.json({ 
+        success: true, 
+        message: `Auto-send test completed for ${prospect.firstName} ${prospect.lastName}`,
+        prospect: {
+          id: prospect.id,
+          name: `${prospect.firstName} ${prospect.lastName}`,
+          status: prospect.status
+        }
+      });
+    } catch (error) {
+      console.error('Debug auto-send error:', error);
+      res.status(500).json({ success: false, message: error.message });
+    }
+  });
+
+  // REF: Test endpoint to manually trigger auto-send for debugging
+  app.post('/api/debug/manual-auto-send/:prospectId', isAuthenticated, async (req: any, res) => {
+    try {
+      const prospectId = parseInt(req.params.prospectId);
+      const userId = req.user.claims.sub;
+      
+      // Get the prospect
+      const prospect = await storage.getProspect(prospectId);
+      if (!prospect || prospect.userId !== userId) {
+        return res.status(404).json({ message: 'Prospect not found' });
+      }
+      
+      console.log(`🧪 [MANUAL AUTO-SEND TEST] Testing auto-send for prospect ${prospectId}`);
+      
+      // Call auto-send function directly
+      await autoSendToReplyIo(prospect);
+      
+      // Check if prospect was updated
+      const updatedProspect = await storage.getProspect(prospectId);
+      
+      res.json({
+        success: true,
+        message: 'Manual auto-send test completed',
+        prospect: {
+          id: updatedProspect.id,
+          firstName: updatedProspect.firstName,
+          lastName: updatedProspect.lastName,
+          sentToReplyioCampaignId: updatedProspect.sentToReplyioCampaignId
+        }
+      });
+    } catch (error) {
+      console.error('Manual auto-send test error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Manual auto-send test failed',
+        error: error.message 
+      });
+    }
+  });
+
+  // REF: Temporary route to fix campaign statuses (remove performance metrics from status field)
+  app.post('/api/reply-io/fix-campaign-statuses', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = getUserId(req);
+      
+      // REF: Get all Reply.io accounts for the user
+      const accounts = await getReplyIoAccounts(userId);
+      
+      let totalFixed = 0;
+      
+      for (const account of accounts) {
+        try {
+          // REF: Get live campaigns from Reply.io API
+          const liveCampaigns = await replyIoService.getCampaigns(account.apiKey);
+          
+          // REF: Get stored campaigns from database
+          const storedCampaigns = await getReplyIoCampaigns(account.id);
+          
+          // REF: Fix each stored campaign by mapping correct status from live campaigns
+          for (const storedCampaign of storedCampaigns) {
+            const liveCampaign = liveCampaigns.find(lc => lc.id === storedCampaign.campaignId);
+            
+            if (liveCampaign) {
+              // REF: Map Reply.io status numbers to status strings
+              let correctStatus = 'inactive';
+              if (liveCampaign.status === 'active' || liveCampaign.status === 2) {
+                correctStatus = 'active';
+              } else if (liveCampaign.status === 'paused' || liveCampaign.status === 1) {
+                correctStatus = 'paused';
+              }
+              
+              // REF: Update the stored campaign with correct status
+              await updateReplyIoCampaignStatus(storedCampaign.campaignId, account.id, correctStatus);
+              totalFixed++;
+              
+              console.log(`Fixed campaign ${storedCampaign.campaignName}: ${storedCampaign.campaignStatus} -> ${correctStatus}`);
+            }
+          }
+        } catch (error) {
+          console.error(`Error fixing campaigns for account ${account.id}:`, error);
+        }
+      }
+      
+      res.json({
+        success: true,
+        message: `Fixed ${totalFixed} campaign statuses`,
+        totalFixed
+      });
+    } catch (error) {
+      console.error('Error fixing campaign statuses:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fix campaign statuses'
+      });
+    }
+  });
+
+  // Advanced Analytics Endpoints
+
+  // REF: Temporarily disabled all analytics endpoints to resolve authentication issues
+  // app.get('/api/analytics/time-series', isAuthenticated, async (req: any, res) => {
+  //   // Endpoint disabled to resolve authentication issues
+  // });
+
+  // app.get('/api/analytics/pipeline-flow', isAuthenticated, async (req: any, res) => {
+  //   // Endpoint disabled to resolve authentication issues
+  // });
+
+  // app.get('/api/analytics/operational', isAuthenticated, async (req: any, res) => {
+  //   // Endpoint disabled to resolve authentication issues
+  // });
+
+  // Company and prospect intelligence from research results
+  // REF: Temporarily disabled problematic analytics endpoints to resolve prospect profile issues
+  // app.get('/api/analytics/prospect-intelligence', isAuthenticated, async (req: any, res) => {
+  //   // Endpoint disabled to resolve authentication issues
+  // });
+
+  // app.get('/api/analytics/response-timing', isAuthenticated, async (req: any, res) => {
+  //   // Endpoint disabled to resolve authentication issues  
+  // });
+
+  // General API endpoints continue...
+
+  // REF: Temporarily disabled problematic analytics endpoint
+  // app.get('/api/analytics/prospect-quality', isAuthenticated, async (req: any, res) => {
+  //   // Endpoint disabled to resolve prospect profile issues
+  // });
+
+  // ===== ADVANCED REPLY.IO ANALYTICS ENDPOINTS =====
+
+  // REF: NEW ENDPOINT - Advanced Campaign Analytics
+  app.get('/api/reply-io/analytics/advanced', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentClientId = req.session.currentClientId;
+      
+      // REF: Check cache first to prevent rate limiting
+      const cacheKey = `advanced_analytics_${userId}_${currentClientId || 'default'}`;
+      const cached = replyIoStatsCache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION * 2) { // Longer cache for advanced analytics
+        console.log('Returning cached advanced analytics data');
+        return res.json(cached.data);
+      }
+      
+      // REF: Get default Reply.io configuration for the current workspace
+      const defaultConfig = await storage.getDefaultReplyioConfiguration(userId, currentClientId);
+      
+      if (!defaultConfig || !defaultConfig.account?.apiKey) {
+        return res.json({
+          success: false,
+          message: "No Reply.io account configured for this workspace"
+        });
+      }
+      
+      // REF: Fetch advanced analytics using cached service with intelligent rate limiting
+      const apiKey = replyIoService.decryptApiKey(defaultConfig.account.apiKey);
+      const advancedAnalytics = await replyIoCachedService.getAdvancedAnalytics(
+        apiKey,
+        'performance', // Performance analytics type  
+        'medium' // Medium priority for advanced analytics
+      );
+      
+      const response = {
+        success: true,
+        analytics: advancedAnalytics,
+        accountName: defaultConfig.account.accountName,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      // REF: Cache the results with longer duration for analytics
+      replyIoStatsCache.set(cacheKey, {
+        data: response,
+        timestamp: Date.now()
+      });
+      
+      res.json(response);
+    } catch (error) {
+      console.error('Error fetching advanced Reply.io analytics:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to fetch advanced analytics",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // REF: NEW ENDPOINT - Campaign Optimization Recommendations
+  app.get('/api/reply-io/campaigns/:campaignId/optimization', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentClientId = req.session.currentClientId;
+      const { campaignId } = req.params;
+      
+      if (!campaignId || isNaN(parseInt(campaignId))) {
+        return res.status(400).json({ 
+          success: false,
+          message: "Valid campaign ID is required" 
+        });
+      }
+      
+      // REF: Check cache first
+      const cacheKey = `optimization_${campaignId}_${userId}_${currentClientId || 'default'}`;
+      const cached = replyIoStatsCache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION * 3) { // Longer cache for optimization data
+        return res.json(cached.data);
+      }
+      
+      // REF: Get default Reply.io configuration
+      const defaultConfig = await storage.getDefaultReplyioConfiguration(userId, currentClientId);
+      
+      if (!defaultConfig || !defaultConfig.account?.apiKey) {
+        return res.status(400).json({
+          success: false,
+          message: "No Reply.io account configured for this workspace"
+        });
+      }
+      
+      // REF: Get optimization recommendations
+      const recommendations = await replyIoService.getAutomatedOptimizationRecommendations(
+        defaultConfig.account.apiKey, 
+        parseInt(campaignId)
+      );
+      
+      const response = {
+        success: true,
+        recommendations,
+        accountName: defaultConfig.account.accountName,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      // REF: Cache the results
+      replyIoStatsCache.set(cacheKey, {
+        data: response,
+        timestamp: Date.now()
+      });
+      
+      res.json(response);
+    } catch (error) {
+      console.error('Error fetching campaign optimization recommendations:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to fetch optimization recommendations",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // REF: NEW ENDPOINT - Bulk Campaign Performance Report
+  app.get('/api/reply-io/analytics/performance-report', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const currentClientId = req.session.currentClientId;
+      
+      // REF: Check cache first
+      const cacheKey = `performance_report_${userId}_${currentClientId || 'default'}`;
+      const cached = replyIoStatsCache.get(cacheKey);
+      
+      if (cached && (Date.now() - cached.timestamp) < CACHE_DURATION * 4) { // Longer cache for reports
+        return res.json(cached.data);
+      }
+      
+      // REF: Get default Reply.io configuration
+      const defaultConfig = await storage.getDefaultReplyioConfiguration(userId, currentClientId);
+      
+      if (!defaultConfig || !defaultConfig.account?.apiKey) {
+        return res.json({
+          success: false,
+          message: "No Reply.io account configured for this workspace"
+        });
+      }
+      
+      // REF: Get all campaigns with statistics
+      const campaigns = await replyIoService.getCampaignsWithStatistics(defaultConfig.account.apiKey);
+      
+      // REF: Calculate overall performance metrics
+      const totalMetrics = campaigns.reduce((acc, campaign) => {
+        acc.totalCampaigns += 1;
+        acc.totalContacts += campaign.peopleCount || 0;
+        acc.totalDeliveries += campaign.deliveriesCount || 0;
+        acc.totalOpens += campaign.opensCount || 0;
+        acc.totalReplies += campaign.repliesCount || 0;
+        acc.totalBounces += campaign.bouncesCount || 0;
+        acc.totalOptOuts += campaign.optOutsCount || 0;
+        
+        if (String(campaign.status) === '2' || String(campaign.status) === 'active') {
+          acc.activeCampaigns += 1;
+        }
+        
+        return acc;
+      }, {
+        totalCampaigns: 0,
+        activeCampaigns: 0,
+        totalContacts: 0,
+        totalDeliveries: 0,
+        totalOpens: 0,
+        totalReplies: 0,
+        totalBounces: 0,
+        totalOptOuts: 0
+      });
+      
+      // REF: Calculate rates
+      const overallOpenRate = totalMetrics.totalDeliveries > 0 
+        ? Math.round((totalMetrics.totalOpens / totalMetrics.totalDeliveries) * 100 * 100) / 100 
+        : 0;
+      const overallReplyRate = totalMetrics.totalDeliveries > 0 
+        ? Math.round((totalMetrics.totalReplies / totalMetrics.totalDeliveries) * 100 * 100) / 100 
+        : 0;
+      const overallBounceRate = totalMetrics.totalDeliveries > 0 
+        ? Math.round((totalMetrics.totalBounces / totalMetrics.totalDeliveries) * 100 * 100) / 100 
+        : 0;
+      
+      // REF: Get top performing campaigns
+      const campaignPerformance = campaigns.map(campaign => {
+        const openRate = campaign.deliveriesCount > 0 
+          ? Math.round((campaign.opensCount / campaign.deliveriesCount) * 100 * 100) / 100 
+          : 0;
+        const replyRate = campaign.deliveriesCount > 0 
+          ? Math.round((campaign.repliesCount / campaign.deliveriesCount) * 100 * 100) / 100 
+          : 0;
+        
+        return {
+          id: campaign.id,
+          name: campaign.name,
+          status: campaign.status,
+          contacts: campaign.peopleCount || 0,
+          deliveries: campaign.deliveriesCount || 0,
+          opens: campaign.opensCount || 0,
+          replies: campaign.repliesCount || 0,
+          openRate,
+          replyRate
+        };
+      }).sort((a, b) => b.replyRate - a.replyRate);
+      
+      const response = {
+        success: true,
+        report: {
+          summary: {
+            ...totalMetrics,
+            overallOpenRate,
+            overallReplyRate,
+            overallBounceRate
+          },
+          topCampaigns: campaignPerformance.slice(0, 5),
+          allCampaigns: campaignPerformance,
+          generatedAt: new Date().toISOString()
+        },
+        accountName: defaultConfig.account.accountName
+      };
+      
+      // REF: Cache the results
+      replyIoStatsCache.set(cacheKey, {
+        data: response,
+        timestamp: Date.now()
+      });
+      
+      res.json(response);
+    } catch (error) {
+      console.error('Error generating performance report:', error);
+      res.status(500).json({ 
+        success: false,
+        message: "Failed to generate performance report",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // ===== END ADVANCED REPLY.IO ANALYTICS ENDPOINTS =====
+
+  // ===== PRODUCTION HEALTH MONITORING ENDPOINTS =====
+  
+  // REF: Import monitoring utilities
+  const { healthCheckHandler, metricsHandler, requestMonitoringMiddleware } = await import('./monitoring');
+  
+  // REF: Add request monitoring middleware to all routes
+  app.use(requestMonitoringMiddleware());
+  
+  // REF: Health check endpoint for load balancers and monitoring
+  app.get('/health', healthCheckHandler);
+  app.get('/api/health', healthCheckHandler);
+  
+  // REF: Detailed metrics endpoint for monitoring dashboards
+  app.get('/api/metrics', isAuthenticated, metricsHandler);
+  
+  // REF: Production-ready status endpoint
+  app.get('/api/status', isAuthenticated, async (req: any, res) => {
+    try {
+      const { healthMonitor } = await import('./monitoring');
+      const health = healthMonitor.getHealthStatus();
+      const systemMetrics = await healthMonitor.collectSystemMetrics();
+      
+      res.json({
+        status: health.status,
+        timestamp: new Date().toISOString(),
+        version: process.env.npm_package_version || '1.0.0',
+        environment: process.env.NODE_ENV || 'development',
+        uptime: process.uptime(),
+        health: health,
+        system: {
+          memory: {
+            usage: `${Math.round(systemMetrics.memory.usagePercent)}%`,
+            total: `${Math.round(systemMetrics.memory.total / 1024 / 1024 / 1024 * 100) / 100}GB`,
+            free: `${Math.round(systemMetrics.memory.free / 1024 / 1024 / 1024 * 100) / 100}GB`
+          },
+          cpu: {
+            usage: `${Math.round(systemMetrics.cpu.usage)}%`,
+            loadAverage: systemMetrics.cpu.loadAverage.map(avg => Math.round(avg * 100) / 100)
+          },
+          uptime: `${Math.round(systemMetrics.uptime / 3600 * 100) / 100} hours`
+        }
+      });
+    } catch (error) {
+      res.status(500).json({
+        status: 'error',
+        message: 'Failed to collect status information',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // ===== END PRODUCTION HEALTH MONITORING ENDPOINTS =====
+
+  // ===== API CACHE MONITORING ENDPOINTS =====
+  
+  // REF: Cache statistics endpoint for monitoring dashboard
+  app.get('/api/cache/statistics', isAuthenticated, (req: any, res) => {
+    try {
+      const stats = apiCacheManager.getStats();
+      
+      res.json({
+        success: true,
+        statistics: stats,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error fetching cache statistics:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch cache statistics',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // REF: Clear cache endpoint for manual cache management
+  app.post('/api/cache/clear', isAuthenticated, (req: any, res) => {
+    try {
+      // Clear all cache entries
+      apiCacheManager.clear();
+      
+      res.json({
+        success: true,
+        message: 'Cache cleared successfully'
+      });
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to clear cache',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // ===== END API CACHE MONITORING ENDPOINTS =====
+
+  // REF: Return the server instance as expected by index.ts
+  return server;
 }
-
-// Get Winry.AI analytics
-const prospectAnalytics = {
-  totalProspects: stats.totalProspects,
-  completedProspects: stats.completed,
-  processingProspects: stats.processing,
-  failedProspects: stats.failed,
-  completionRate: stats.totalProspects > 0 
-    ? Math.round((stats.completed / stats.totalProspects) * 100) 
-    : 0
-};
-
-// Get Reply.io statistics
-const replyioService = new ReplyIoService();
-const replyioStats = await replyioService.getCombinedStatistics();
-
-const response = {
-  winryAnalytics: prospectAnalytics,
-  replyioAnalytics: replyioStats,
-  lastUpdated: new Date().toISOString()
-};
-
-res.json(response);

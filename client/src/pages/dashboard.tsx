@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
@@ -16,18 +16,41 @@ import {
   Sparkles, Plus, Upload, Users, CheckCircle2, Clock, TrendingUp, Search, 
   Loader2, LogOut, Filter, Eye, Trash2, RotateCcw, Target, Brain, Rocket, 
   AlertTriangle, Settings, Send, UserPlus, RefreshCw, Download, 
-  MoreHorizontal, Activity, User
+  MoreHorizontal, Activity, User, CheckCircle, AlertCircle, Building2, Copy
 } from "lucide-react";
-import ProspectForm from "@/components/prospect-form";
-import CsvUpload from "@/components/csv-upload";
-import ProspectProfileInteractive from "@/components/prospect-profile-interactive";
-import ProspectTableInteractive from "@/components/prospect-table-interactive";
-import SettingsMenu from "@/components/settings-menu";
-import ProcessingIndicator from "@/components/processing-indicator";
+
+// REF: Lazy load heavy components to reduce initial bundle size
+const ProspectForm = React.lazy(() => import("@/components/prospect-form"));
+const CsvUpload = React.lazy(() => import("@/components/csv-upload"));
+const ProspectProfileInteractive = React.lazy(() => import("@/components/prospect-profile-interactive"));
+const ProspectTableEnhanced = React.lazy(() => import("@/components/prospect-table-enhanced"));
+const SettingsMenu = React.lazy(() => import("@/components/settings-menu"));
+const CommandCenterDashboard = React.lazy(() => import("@/components/analytics-dashboard").then(module => ({ default: module.CommandCenterDashboard })));
+const CacheMonitoringDashboard = React.lazy(() => import("@/components/cache-monitoring-dashboard"));
+
+// REF: Keep lightweight components as regular imports
 import { ReplyIoSettings } from "@/components/reply-io-settings";
-import { CommandCenterDashboard } from "@/components/analytics-dashboard";
+import ProcessingIndicator from "@/components/processing-indicator";
 import { AnalyticsLoading, BrainLoader } from "@/components/enhanced-loading";
 import { ReplyIoAnalytics } from "@/components/reply-io-analytics";
+import { ReplyIoAdvancedAnalytics } from "@/components/reply-io-advanced-analytics";
+import { ClientSelector } from "@/components/ClientSelector";
+import { ClientManagement } from "@/components/ClientManagement";
+import { UserProfileMenu } from "@/components/UserProfileMenu";
+import { Label } from "@/components/ui/label";
+
+// REF: Loading component for lazy-loaded components
+const LazyLoadingSpinner = () => (
+  <div className="flex items-center justify-center p-8">
+    <div className="flex flex-col items-center space-y-4">
+      <div className="relative">
+        <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+        <Sparkles className="w-4 h-4 text-primary absolute top-2 left-2" />
+      </div>
+      <p className="text-sm text-muted-foreground animate-pulse">Loading component...</p>
+    </div>
+  </div>
+);
 
 // Add Reply.io settings interface after the imports
 interface ReplyIoSettings {
@@ -47,9 +70,9 @@ export default function Dashboard() {
   const [selectedProspectId, setSelectedProspectId] = useState<number | null>(null);
   const [showProspectForm, setShowProspectForm] = useState(false);
   const [showCsvUpload, setShowCsvUpload] = useState(false);
-  const [showReplyIoSettings, setShowReplyIoSettings] = useState(false);
   const [selectedProspects, setSelectedProspects] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState('analytics');
+  const [currentView, setCurrentView] = useState('settings');
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -118,7 +141,7 @@ export default function Dashboard() {
       const interval = setInterval(() => {
         refetchProspects();
         refetchStats();
-      }, 3000); // Refresh every 3 seconds
+      }, 30000); // Refresh every 30 seconds (was 3 seconds - much more reasonable)
       
       return () => clearInterval(interval);
     }
@@ -214,11 +237,38 @@ export default function Dashboard() {
       
       if (failed > 0) {
         console.log('Failed sends:', errors);
-        toast({
-          title: "Partial Success", 
-          description: `${failed} prospects failed to send. Check console for details.`,
-          variant: "destructive",
-        });
+        
+        // Check if all failures are due to prospects already being in Reply.io (409 conflicts)
+        const conflictErrors = errors?.filter((error: any) => 
+          error.error && error.error.includes('409 Conflict')
+        ) || [];
+        
+        const otherErrors = errors?.filter((error: any) => 
+          !error.error || !error.error.includes('409 Conflict')
+        ) || [];
+
+        if (conflictErrors.length > 0 && otherErrors.length === 0) {
+          // All failures are due to prospects already being in Reply.io
+          toast({
+            title: "Already in Campaign",
+            description: `${failed} prospect${failed > 1 ? 's are' : ' is'} already enrolled in the Reply.io campaign. No duplicates were created.`,
+            variant: "default", // Use default variant instead of destructive since this isn't really an error
+          });
+        } else if (conflictErrors.length > 0 && otherErrors.length > 0) {
+          // Mixed failures: some conflicts, some other errors
+          toast({
+            title: "Partial Success",
+            description: `${conflictErrors.length} prospect${conflictErrors.length > 1 ? 's were' : ' was'} already in campaign, ${otherErrors.length} failed for other reasons.`,
+            variant: "destructive",
+          });
+        } else {
+          // All failures are due to other errors
+          toast({
+            title: "Send Failed",
+            description: `${failed} prospect${failed > 1 ? 's' : ''} failed to send to Reply.io. Check console for details.`,
+            variant: "destructive",
+          });
+        }
       }
       
       setSelectedProspects([]);
@@ -294,8 +344,8 @@ export default function Dashboard() {
   };
 
   const handleSelectAll = () => {
-    const visibleProspectIds = filteredProspects.map((p: any) => p.id);
-    setSelectedProspects(visibleProspectIds);
+    const allProspectIds = (Array.isArray(prospects) ? prospects : []).map((p: any) => p.id);
+    setSelectedProspects(allProspectIds);
   };
 
   const handleDeselectAll = () => {
@@ -307,15 +357,6 @@ export default function Dashboard() {
   };
 
   const handleBulkSendToReply = () => {
-    // Check if Reply.io is configured before allowing bulk send
-    const settings = replyIoSettings as ReplyIoSettings;
-    const isNotConfigured = !settings?.hasApiKey || !settings?.replyIoCampaignId || settings?.replyIoCampaignId?.trim() === '';
-    
-    if (isNotConfigured) {
-      setShowReplyIoSettings(true);
-      return;
-    }
-
     // Send selected prospects to Reply.io
     if (selectedProspects.length === 0) {
       toast({
@@ -326,9 +367,11 @@ export default function Dashboard() {
       return;
     }
 
+    // Let the backend handle Reply.io configuration validation
+    // The backend uses getDefaultReplyioConfiguration() which works with the multi-account system
     bulkSendToReplyMutation.mutate({
       prospectIds: selectedProspects,
-      campaignId: settings?.replyIoCampaignId || '',
+      campaignId: '', // Backend will use default campaign from multi-account configuration
     });
   };
 
@@ -382,12 +425,12 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950">
+    <div className="page-background">
       {/* Header */}
       <motion.header
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="border-b border-slate-800/50 bg-slate-950/80 backdrop-blur-sm sticky top-0 z-40"
+        className="header-background backdrop-blur-sm sticky top-0 z-40"
       >
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
@@ -405,8 +448,8 @@ export default function Dashboard() {
                 />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">Winry.AI</h1>
-                <p className="text-sm text-slate-400">True Sales Intelligence by Sales Leopard</p>
+                <h1 className="text-2xl font-bold text-foreground">Winry.AI</h1>
+                <p className="text-sm text-muted-foreground">True Sales Intelligence by Sales Leopard</p>
               </div>
             </motion.div>
 
@@ -416,15 +459,14 @@ export default function Dashboard() {
               transition={{ delay: 0.2 }}
               className="flex items-center gap-4"
             >
-              <div className="text-right">
-                <p className="text-sm text-white font-medium">
-                  {(user as any)?.firstName} {(user as any)?.lastName}
-                </p>
-                <p className="text-xs text-slate-400">{(user as any)?.email}</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-400 to-blue-500 flex items-center justify-center text-white font-semibold">
-                {(user as any)?.firstName?.[0]}{(user as any)?.lastName?.[0]}
-              </div>
+              {/* REF: User profile menu with integrated client workspace selector */}
+              <UserProfileMenu 
+                user={user as any} 
+                onClientChange={(client) => {
+                  // Handle client change if needed
+                  console.log('Client changed to:', client);
+                }}
+              />
             </motion.div>
           </div>
 
@@ -435,9 +477,11 @@ export default function Dashboard() {
             transition={{ delay: 0.3 }}
             className="mt-6"
           >
-            <nav className="flex space-x-1 bg-slate-900/50 p-1 rounded-xl border border-slate-800/50">
+            <nav className="flex space-x-1 card-background-elevated p-1 rounded-xl">
               {[
                 { id: 'analytics', label: 'Pipeline Analytics', icon: TrendingUp },
+                { id: 'reply-analytics', label: 'Reply.io Analytics', icon: Target },
+                { id: 'cache-monitoring', label: 'Cache Monitoring', icon: Activity },
                 { id: 'prospects', label: 'Prospect Management', icon: Users },
                 { id: 'upload', label: 'Upload Prospects', icon: Upload },
                 { id: 'settings', label: 'Settings', icon: Settings }
@@ -448,8 +492,8 @@ export default function Dashboard() {
                   className={`
                     flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200
                     ${activeTab === tab.id
-                      ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-white border border-purple-500/30 shadow-lg'
-                      : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                      ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-foreground border border-purple-500/30 shadow-lg'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
                     }
                   `}
                 >
@@ -473,7 +517,43 @@ export default function Dashboard() {
               exit={{ opacity: 0, y: -20 }}
               transition={{ duration: 0.3 }}
             >
-              <CommandCenterDashboard stats={commandCenterStats} />
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <CommandCenterDashboard stats={commandCenterStats} />
+              </Suspense>
+            </motion.div>
+          )}
+
+          {activeTab === 'reply-analytics' && (
+            <motion.div
+              key="reply-analytics"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="space-y-6">
+                <ReplyIoAdvancedAnalytics />
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'cache-monitoring' && (
+            <motion.div
+              key="cache-monitoring"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="space-y-6">
+                <div>
+                  <h2 className="text-3xl font-bold text-foreground">Cache Monitoring</h2>
+                  <p className="text-muted-foreground mt-1">Monitor API caching performance and rate limiting</p>
+                </div>
+                <Suspense fallback={<LazyLoadingSpinner />}>
+                  <CacheMonitoringDashboard />
+                </Suspense>
+              </div>
             </motion.div>
           )}
 
@@ -486,11 +566,11 @@ export default function Dashboard() {
               transition={{ duration: 0.3 }}
             >
               <div className="space-y-6">
-            <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-3xl font-bold text-white">Prospect Management</h2>
-                    <p className="text-slate-400 mt-1">Manage your prospects and track their progress</p>
-          </div>
+                    <h2 className="text-3xl font-bold text-foreground">Prospect Management</h2>
+                    <p className="text-muted-foreground mt-1">Manage your prospects and track their progress</p>
+                  </div>
 
                   <div className="flex items-center gap-3">
                     {/* Add Prospect and Upload CSV buttons - always visible */}
@@ -505,7 +585,6 @@ export default function Dashboard() {
                     <Button
                       onClick={() => setActiveTab('upload')}
                       variant="outline"
-                      className="border-slate-600 text-slate-300 hover:bg-slate-700"
                     >
                       <Upload className="w-4 h-4 mr-2" />
                       Upload CSV
@@ -513,19 +592,21 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                <ProspectTableInteractive
-                  prospects={filteredProspects || []}
-                  isLoading={prospectsLoading}
-                  onSelectProspect={handleSelectProspect}
-                  onSelectAll={handleSelectAll}
-                  onDeselectAll={handleDeselectAll}
-                  selectedProspects={selectedProspects}
-                  onViewDetails={setSelectedProspectId}
-                  onDelete={(prospectId: number) => deleteProspectMutation.mutate(prospectId)}
-                  onRetry={(prospectId: number) => retryProspectMutation.mutate(prospectId)}
-                  onBulkDelete={handleBulkDelete}
-                  onBulkSendToReply={handleBulkSendToReply}
-                />
+                <Suspense fallback={<LazyLoadingSpinner />}>
+                  <ProspectTableEnhanced
+                    prospects={Array.isArray(prospects) ? prospects : []}
+                    isLoading={prospectsLoading}
+                    onSelectProspect={handleSelectProspect}
+                    onSelectAll={handleSelectAll}
+                    onDeselectAll={handleDeselectAll}
+                    selectedProspects={selectedProspects}
+                    onViewDetails={setSelectedProspectId}
+                    onDelete={(prospectId: number) => deleteProspectMutation.mutate(prospectId)}
+                    onRetry={(prospectId: number) => retryProspectMutation.mutate(prospectId)}
+                    onBulkDelete={handleBulkDelete}
+                    onBulkSendToReply={handleBulkSendToReply}
+                  />
+                </Suspense>
               </div>
             </motion.div>
           )}
@@ -540,17 +621,19 @@ export default function Dashboard() {
             >
               <div className="space-y-6">
                 <div>
-                  <h2 className="text-3xl font-bold text-white">Upload Prospects</h2>
-                  <p className="text-slate-400 mt-1">Upload CSV files to add prospects to your pipeline</p>
+                  <h2 className="text-3xl font-bold text-foreground">Upload Prospects</h2>
+                  <p className="text-muted-foreground mt-1">Upload CSV files to add prospects to your pipeline</p>
                 </div>
-                <CsvUpload 
-                  onSuccess={() => {
-                    refetchProspects();
-                    refetchStats();
-                    setActiveTab('prospects'); // Navigate back to prospects tab
-                  }}
-                  onCancel={() => {}}
-                />
+                <Suspense fallback={<LazyLoadingSpinner />}>
+                  <CsvUpload 
+                    onSuccess={() => {
+                      refetchProspects();
+                      refetchStats();
+                      setActiveTab('prospects'); // Navigate back to prospects tab
+                    }}
+                    onCancel={() => {}}
+                  />
+                </Suspense>
               </div>
             </motion.div>
           )}
@@ -564,35 +647,76 @@ export default function Dashboard() {
               transition={{ duration: 0.3 }}
             >
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-3xl font-bold text-white">Settings</h2>
-                  <p className="text-slate-400 mt-1">Configure your application settings and integrations</p>
+                {/* Compact Header */}
+                <div className="text-center space-y-2">
+                  <h2 className="text-3xl font-bold text-foreground">Settings</h2>
+                  <p className="text-muted-foreground">Configure workspace, integrations, and application preferences</p>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <Card className="bg-slate-900/50 border-slate-800">
-                    <CardHeader>
-                      <CardTitle className="text-white flex items-center gap-2">
-                        <Settings className="w-5 h-5" />
-                        Application Settings
-                      </CardTitle>
+                {/* Compact Status Bar */}
+                <div className="grid grid-cols-3 gap-3 p-4 rounded-lg border border-border/50 bg-gradient-to-r from-background/80 to-background/60">
+                  <div className="flex items-center gap-2 text-center">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Workspaces</p>
+                      <p className="text-xs text-muted-foreground">2 active</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-center">
+                    <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">System</p>
+                      <p className="text-xs text-muted-foreground">Operational</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-center">
+                    <div className="w-2 h-2 rounded-full bg-amber-500"></div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Integrations</p>
+                      <p className="text-xs text-muted-foreground">Setup needed</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Settings Content */}
+                <div className="space-y-6">
+                  
+                  {/* Client Workspace Section */}
+                  <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                          <Building2 className="w-3 h-3 text-white" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-lg">Client Workspaces</CardTitle>
+                          <p className="text-sm text-muted-foreground">Manage isolated client environments</p>
+                        </div>
+                      </div>
                     </CardHeader>
-                    <CardContent>
-                      <SettingsMenu />
+                    <CardContent className="pt-0">
+                      <ClientManagement />
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-slate-900/50 border-slate-800">
-                    <CardHeader>
-                      <CardTitle className="text-white flex items-center gap-2">
-                        <Send className="w-5 h-5" />
-                        Reply.io Integration
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ReplyIoSettings />
+                  {/* Main Settings Menu Component - Now includes Application Configuration and Reply.io Integration */}
+                  <Card className="border-border/50 bg-card/50 backdrop-blur-sm">
+                    <CardContent className="pt-6">
+                      <Suspense fallback={<LazyLoadingSpinner />}>
+                        <SettingsMenu />
+                      </Suspense>
                     </CardContent>
                   </Card>
+
+                </div>
+
+                {/* Compact Footer */}
+                <div className="text-center py-4 border-t border-border/30">
+                  <div className="flex items-center justify-center gap-2 mb-1">
+                    <CheckCircle className="w-4 h-4 text-green-500" />
+                    <p className="text-sm font-medium text-foreground">System Operational</p>
+                  </div>
+                  <p className="text-xs text-muted-foreground">All systems running smoothly • Updated now</p>
                 </div>
               </div>
             </motion.div>
@@ -614,13 +738,15 @@ export default function Dashboard() {
               initial={{ scale: 0.5, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.5, opacity: 0 }}
-              className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-7xl max-h-[95vh] overflow-y-auto"
+              className="card-background rounded-xl w-full max-w-7xl max-h-[95vh] overflow-y-auto"
               onClick={(e) => e.stopPropagation()}
             >
-              <ProspectProfileInteractive 
-                prospectId={selectedProspectId} 
-                onClose={() => setSelectedProspectId(null)}
-              />
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <ProspectProfileInteractive 
+                  prospectId={selectedProspectId} 
+                  onClose={() => setSelectedProspectId(null)}
+                />
+              </Suspense>
             </motion.div>
           </motion.div>
             )}
@@ -639,22 +765,24 @@ export default function Dashboard() {
             initial={{ scale: 0.5, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.5, opacity: 0 }}
-            className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-md overflow-y-auto"
+            className="card-background rounded-xl w-full max-w-md overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="p-6">
               <div className="mb-4">
-                <h2 className="text-2xl font-bold text-white">Add New Prospect</h2>
-                <p className="text-slate-400 mt-1">Start AI-powered research for a new prospect</p>
+                <h2 className="text-2xl font-bold text-foreground">Add New Prospect</h2>
+                <p className="text-muted-foreground mt-1">Start AI-powered research for a new prospect</p>
               </div>
-              <ProspectForm 
-                onSuccess={() => {
-                  setShowProspectForm(false);
-                  refetchProspects();
-                  refetchStats();
-                }}
-                onCancel={() => setShowProspectForm(false)}
-              />
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <ProspectForm 
+                  onSuccess={() => {
+                    setShowProspectForm(false);
+                    refetchProspects();
+                    refetchStats();
+                  }}
+                  onCancel={() => setShowProspectForm(false)}
+                />
+              </Suspense>
             </div>
           </motion.div>
         </motion.div>

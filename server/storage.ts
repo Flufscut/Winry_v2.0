@@ -9,10 +9,10 @@
  * TODO: Add connection pooling for production environment
  */
 
-import { eq, desc, and, count, sql } from "drizzle-orm";
+import { eq, desc, and, count, sql, isNotNull } from "drizzle-orm";
 
 // REF: Import appropriate schema based on environment
-let users: any, prospects: any, csvUploads: any, userSettings: any, replyioAccounts: any, replyioCampaigns: any, db: any;
+let users: any, prospects: any, csvUploads: any, userSettings: any, replyioAccounts: any, replyioCampaigns: any, clients: any, db: any;
 
 // REF: Initialize database connection and schema based on environment
 async function initializeDatabase() {
@@ -25,6 +25,7 @@ async function initializeDatabase() {
     userSettings = localDb.userSettings;
     replyioAccounts = localDb.replyioAccounts;
     replyioCampaigns = localDb.replyioCampaigns;
+    clients = localDb.clients;
     db = localDb.db;
   } else {
     // REF: Use shared PostgreSQL schema for production
@@ -36,6 +37,7 @@ async function initializeDatabase() {
     userSettings = sharedSchema.userSettings;
     replyioAccounts = sharedSchema.replyioAccounts;
     replyioCampaigns = sharedSchema.replyioCampaigns;
+    clients = sharedSchema.clients;
     db = prodDb.db;
   }
 }
@@ -47,14 +49,28 @@ const dbInitPromise = initializeDatabase();
 export interface IStorage {
   // User operations - mandatory for Replit Auth
   getUser(id: string): Promise<any>;
+  getUserByEmail(email: string): Promise<any>;
+  createUser(user: any): Promise<any>;
   upsertUser(user: any): Promise<any>;
+  updateUser(id: string, updates: any): Promise<any>;
+  updateUserPreferences(userId: string, preferences: any): Promise<any>;
+  
+  // Client operations - for multi-tenant support
+  getClientsByUser(userId: string): Promise<any[]>;
+  getClientsWithCounts(userId: string): Promise<any[]>;
+  getClient(id: number): Promise<any>;
+  createClient(client: any): Promise<any>;
+  updateClient(id: number, updates: any): Promise<any>;
+  deleteClient(id: number): Promise<boolean>;
+  getDefaultClient(userId: string): Promise<any>;
   
   // Prospect operations
   createProspect(prospect: any): Promise<any>;
   getProspect(id: number): Promise<any>;
   getProspectsByUser(userId: string): Promise<any[]>;
+  getProspectsByClient(userId: string, clientId: number): Promise<any[]>;
   updateProspectStatus(id: number, status: string, results?: any, errorMessage?: string): Promise<any>;
-  searchProspects(userId: string, query?: string, status?: string): Promise<any[]>;
+  searchProspects(userId: string, query?: string, status?: string, clientId?: number): Promise<any[]>;
   deleteProspect(id: number, userId: string): Promise<boolean>;
   
   // CSV upload operations
@@ -81,7 +97,7 @@ export interface IStorage {
   updateReplyioCampaign(id: number, updates: any): Promise<any>;
   deleteReplyioCampaign(id: number): Promise<boolean>;
   setDefaultReplyioCampaign(accountId: number, campaignId: number): Promise<any>;
-  getDefaultReplyioConfiguration(userId: string): Promise<{ account: any, campaign: any } | null>;
+  getDefaultReplyioConfiguration(userId: string, clientId?: number): Promise<{ account: any, campaign: any } | null>;
   
   // Prospect campaign tracking
   updateProspectCampaign(prospectId: number, campaignId: number): Promise<any>;
@@ -95,13 +111,21 @@ export interface IStorage {
   }>;
   
   // Dashboard stats
-  getUserStats(userId: string): Promise<{
+  getUserStats(userId: string, clientId?: number): Promise<{
     totalProspects: number;
     completed: number;
     processing: number;
     failed: number;
     successRate: number;
   }>;
+
+  // Analytics functions for advanced Pipeline Analytics dashboard
+  getTimeSeriesAnalytics(userId: string, clientId?: number, period?: string): Promise<any>;
+  getPipelineFlowAnalytics(userId: string, clientId?: number): Promise<any>;
+  getOperationalAnalytics(userId: string, clientId?: number): Promise<any>;
+  getProspectIntelligenceAnalytics(userId: string, clientId?: number): Promise<any>;
+  getResponseTimingAnalytics(userId: string, clientId?: number, replyIoStats?: any): Promise<any>;
+  getProspectQualityAnalytics(userId: string, clientId?: number): Promise<any>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -148,6 +172,27 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByEmail(email: string): Promise<any> {
+    await this.ensureInitialized();
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(userData: any): Promise<any> {
+    await this.ensureInitialized();
+    const timestampedData = {
+      ...userData,
+      createdAt: this.getCurrentTimestamp(),
+      updatedAt: this.getCurrentTimestamp(),
+    };
+
+    const [user] = await db
+      .insert(users)
+      .values(timestampedData)
+      .returning();
+    return user;
+  }
+
   async upsertUser(userData: any): Promise<any> {
     await this.ensureInitialized();
     const timestampedData = {
@@ -187,6 +232,161 @@ export class DatabaseStorage implements IStorage {
         .returning();
       return user;
     }
+  }
+
+  async updateUser(id: string, updates: any): Promise<any> {
+    await this.ensureInitialized();
+    const updateData = {
+      ...updates,
+      updatedAt: this.getCurrentTimestamp(),
+    };
+
+    const [user] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, id))
+      .returning();
+    
+    return user;
+  }
+
+  async updateUserPreferences(userId: string, preferences: any): Promise<any> {
+    await this.ensureInitialized();
+    const updateData = {
+      ...preferences,
+      updatedAt: this.getCurrentTimestamp(),
+    };
+
+    const [user] = await db
+      .update(users)
+      .set(updateData)
+      .where(eq(users.id, userId))
+      .returning();
+    
+    return user;
+  }
+
+  // Client operations - for multi-tenant support
+  async getClientsByUser(userId: string): Promise<any[]> {
+    await this.ensureInitialized();
+    return await db
+      .select()
+      .from(clients)
+      .where(eq(clients.userId, userId))
+      .orderBy(desc(clients.createdAt));
+  }
+
+  async getClientsWithCounts(userId: string): Promise<any[]> {
+    await this.ensureInitialized();
+    
+    // Get all clients for the user
+    const userClients = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.userId, userId))
+      .orderBy(desc(clients.createdAt));
+
+    // Get counts for each client
+    const clientsWithCounts = await Promise.all(
+      userClients.map(async (client) => {
+        // Count prospects for this client
+        const [prospectCount] = await db
+          .select({ count: count() })
+          .from(prospects)
+          .where(eq(prospects.clientId, client.id));
+
+        // Count API keys (Reply.io accounts) for this client
+        const [apiKeyCount] = await db
+          .select({ count: count() })
+          .from(replyioAccounts)
+          .where(eq(replyioAccounts.clientId, client.id));
+
+        // Count campaigns for this client (via accounts)
+        const clientAccounts = await db
+          .select({ id: replyioAccounts.id })
+          .from(replyioAccounts)
+          .where(eq(replyioAccounts.clientId, client.id));
+        
+        let campaignCount = 0;
+        if (clientAccounts.length > 0) {
+          const accountIds = clientAccounts.map(acc => acc.id);
+          for (const accountId of accountIds) {
+            const [campaignCountResult] = await db
+              .select({ count: count() })
+              .from(replyioCampaigns)
+              .where(eq(replyioCampaigns.accountId, accountId));
+            campaignCount += campaignCountResult.count;
+          }
+        }
+
+        return {
+          ...client,
+          prospectCount: prospectCount.count || 0,
+          apiKeyCount: apiKeyCount.count || 0,
+          campaignCount: campaignCount || 0,
+        };
+      })
+    );
+
+    return clientsWithCounts;
+  }
+
+  async getClient(id: number): Promise<any> {
+    await this.ensureInitialized();
+    const [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.id, id));
+    return client;
+  }
+
+  async createClient(clientData: any): Promise<any> {
+    await this.ensureInitialized();
+    const timestampedData = {
+      ...clientData,
+      createdAt: this.getCurrentTimestamp(),
+      updatedAt: this.getCurrentTimestamp(),
+    };
+
+    const [client] = await db
+      .insert(clients)
+      .values(timestampedData)
+      .returning();
+    return client;
+  }
+
+  async updateClient(id: number, updates: any): Promise<any> {
+    await this.ensureInitialized();
+    const updateData = {
+      ...updates,
+      updatedAt: this.getCurrentTimestamp(),
+    };
+
+    const [client] = await db
+      .update(clients)
+      .set(updateData)
+      .where(eq(clients.id, id))
+      .returning();
+    return client;
+  }
+
+  async deleteClient(id: number): Promise<boolean> {
+    await this.ensureInitialized();
+    const result = await db
+      .delete(clients)
+      .where(eq(clients.id, id));
+    return result.changes > 0;
+  }
+
+  async getDefaultClient(userId: string): Promise<any> {
+    await this.ensureInitialized();
+    const [client] = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.userId, userId))
+      .orderBy(clients.createdAt)
+      .limit(1);
+    return client;
   }
 
   // Prospect operations
@@ -246,6 +446,22 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  async getProspectsByClient(userId: string, clientId: number): Promise<any[]> {
+    await this.ensureInitialized();
+    const results = await db
+      .select()
+      .from(prospects)
+      .where(and(eq(prospects.userId, userId), eq(prospects.clientId, clientId)))
+      .orderBy(desc(prospects.createdAt));
+
+    // REF: Parse JSON fields for each prospect
+    return results.map(prospect => ({
+      ...prospect,
+      researchResults: this.parseJsonField(prospect.researchResults),
+      webhookPayload: this.parseJsonField(prospect.webhookPayload),
+    }));
+  }
+
   async updateProspectStatus(
     id: number, 
     status: string, 
@@ -282,38 +498,34 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async searchProspects(userId: string, query?: string, status?: string): Promise<any[]> {
+  async searchProspects(userId: string, query?: string, status?: string, clientId?: number): Promise<any[]> {
     await this.ensureInitialized();
-    let whereClause = eq(prospects.userId, userId);
+    let whereClause: any = eq(prospects.userId, userId);
     
     if (query) {
-      if (process.env.NODE_ENV === 'development') {
-        // REF: SQLite uses LIKE instead of ILIKE
-        whereClause = and(
-          whereClause,
-          sql`(
+      const searchClause = process.env.NODE_ENV === 'development' 
+        ? sql`(
             ${prospects.firstName} LIKE ${`%${query}%`} OR 
             ${prospects.lastName} LIKE ${`%${query}%`} OR 
             ${prospects.company} LIKE ${`%${query}%`} OR 
             ${prospects.email} LIKE ${`%${query}%`}
           )`
-        );
-      } else {
-        // REF: PostgreSQL supports ILIKE for case-insensitive search
-        whereClause = and(
-          whereClause,
-          sql`(
+        : sql`(
             ${prospects.firstName} ILIKE ${`%${query}%`} OR 
             ${prospects.lastName} ILIKE ${`%${query}%`} OR 
             ${prospects.company} ILIKE ${`%${query}%`} OR 
             ${prospects.email} ILIKE ${`%${query}%`}
-          )`
-        );
-      }
+          )`;
+      whereClause = and(whereClause, searchClause) || whereClause;
     }
     
     if (status && status !== 'all') {
-      whereClause = and(whereClause, eq(prospects.status, status));
+      whereClause = and(whereClause, eq(prospects.status, status)) || whereClause;
+    }
+
+    // REF: Filter by clientId for multi-tenant workspace isolation
+    if (clientId) {
+      whereClause = and(whereClause, eq(prospects.clientId, clientId)) || whereClause;
     }
 
     const results = await db
@@ -616,22 +828,36 @@ export class DatabaseStorage implements IStorage {
     return defaultCampaign;
   }
 
-  async getDefaultReplyioConfiguration(userId: string): Promise<{ account: any, campaign: any } | null> {
+  async getDefaultReplyioConfiguration(userId: string, clientId?: number): Promise<{ account: any, campaign: any } | null> {
     await this.ensureInitialized();
     
-    // REF: Get the default account for the user
+    // REF: Get the default account for the user, optionally filtered by client
+    const baseCondition = and(
+      eq(replyioAccounts.userId, userId),
+      sql`${replyioAccounts.isDefault} = 1`
+    );
+    
+    const whereCondition = clientId 
+      ? and(baseCondition, eq(replyioAccounts.clientId, clientId))
+      : baseCondition;
+    
     const accountResult = await db
       .select()
       .from(replyioAccounts)
-      .where(sql`${replyioAccounts.userId} = ${userId} AND ${replyioAccounts.isDefault} = 1`)
+      .where(whereCondition)
       .limit(1);
 
     if (accountResult.length === 0) {
       // REF: No default account, fall back to first account
+      let fallbackCondition = eq(replyioAccounts.userId, userId);
+      if (clientId) {
+        fallbackCondition = and(eq(replyioAccounts.userId, userId), eq(replyioAccounts.clientId, clientId));
+      }
+      
       const fallbackAccount = await db
         .select()
         .from(replyioAccounts)
-        .where(eq(replyioAccounts.userId, userId))
+        .where(fallbackCondition)
         .orderBy(desc(replyioAccounts.createdAt))
         .limit(1);
       
@@ -769,7 +995,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Dashboard stats
-  async getUserStats(userId: string): Promise<{
+  async getUserStats(userId: string, clientId?: number): Promise<{
     totalProspects: number;
     completed: number;
     processing: number;
@@ -777,25 +1003,31 @@ export class DatabaseStorage implements IStorage {
     successRate: number;
   }> {
     await this.ensureInitialized();
+    
+    // REF: Base filter by userId, optionally filter by clientId for workspace isolation
+    const baseWhere = clientId 
+      ? and(eq(prospects.userId, userId), eq(prospects.clientId, clientId))
+      : eq(prospects.userId, userId);
+    
     const totalResult = await db
       .select({ count: count() })
       .from(prospects)
-      .where(eq(prospects.userId, userId));
+      .where(baseWhere);
 
     const completedResult = await db
       .select({ count: count() })
       .from(prospects)
-      .where(and(eq(prospects.userId, userId), eq(prospects.status, "completed")));
+      .where(and(baseWhere, eq(prospects.status, "completed")));
 
     const processingResult = await db
       .select({ count: count() })
       .from(prospects)
-      .where(and(eq(prospects.userId, userId), eq(prospects.status, "processing")));
+      .where(and(baseWhere, eq(prospects.status, "processing")));
 
     const failedResult = await db
       .select({ count: count() })
       .from(prospects)
-      .where(and(eq(prospects.userId, userId), eq(prospects.status, "failed")));
+      .where(and(baseWhere, eq(prospects.status, "failed")));
 
     const totalProspects = totalResult[0]?.count || 0;
     const completed = completedResult[0]?.count || 0;
@@ -810,6 +1042,671 @@ export class DatabaseStorage implements IStorage {
       processing,
       failed,
       successRate,
+    };
+  }
+
+  // Analytics functions for advanced Pipeline Analytics dashboard
+  async getTimeSeriesAnalytics(userId: string, clientId?: number, period?: string): Promise<any> {
+    await this.ensureInitialized();
+
+    // REF: Set default period if not provided
+    const analysisPeriod = period || '30d';
+
+    // REF: Calculate date range based on period
+    const endDate = new Date();
+    const startDate = new Date();
+    
+    switch (analysisPeriod) {
+      case '7d':
+        startDate.setDate(endDate.getDate() - 7);
+        break;
+      case '30d':
+        startDate.setDate(endDate.getDate() - 30);
+        break;
+      case '90d':
+        startDate.setDate(endDate.getDate() - 90);
+        break;
+      default:
+        startDate.setDate(endDate.getDate() - 30);
+    }
+
+    // REF: Base filter by userId, optionally filter by clientId for workspace isolation
+    const baseWhere = clientId 
+      ? and(eq(prospects.userId, userId), eq(prospects.clientId, clientId))
+      : eq(prospects.userId, userId);
+
+    // REF: Get daily prospect upload counts (SQLite compatible)
+    const dailyUploads = await db
+      .select({
+        date: sql`date(${prospects.createdAt})`.as('date'),
+        count: count().as('count')
+      })
+      .from(prospects)
+      .where(and(
+        baseWhere,
+        sql`${prospects.createdAt} >= ${startDate.toISOString()}`,
+        sql`${prospects.createdAt} <= ${endDate.toISOString()}`
+      ))
+      .groupBy(sql`date(${prospects.createdAt})`)
+      .orderBy(sql`date(${prospects.createdAt})`);
+
+    // REF: Get daily completion counts (SQLite compatible)
+    const dailyCompletions = await db
+      .select({
+        date: sql`date(${prospects.updatedAt})`.as('date'),
+        count: count().as('count')
+      })
+      .from(prospects)
+      .where(and(
+        baseWhere,
+        eq(prospects.status, 'completed'),
+        sql`${prospects.updatedAt} >= ${startDate.toISOString()}`,
+        sql`${prospects.updatedAt} <= ${endDate.toISOString()}`
+      ))
+      .groupBy(sql`date(${prospects.updatedAt})`)
+      .orderBy(sql`date(${prospects.updatedAt})`);
+
+    // REF: Calculate processing times for completed prospects (SQLite compatible)
+    const processingTimes = await db
+      .select({
+        date: sql`date(${prospects.updatedAt})`.as('date'),
+        avgProcessingTime: sql`avg(julianday(${prospects.updatedAt}) - julianday(${prospects.createdAt})) * 86400`.as('avgProcessingTime')
+      })
+      .from(prospects)
+      .where(and(
+        baseWhere,
+        eq(prospects.status, 'completed'),
+        sql`${prospects.updatedAt} >= ${startDate.toISOString()}`,
+        sql`${prospects.updatedAt} <= ${endDate.toISOString()}`
+      ))
+      .groupBy(sql`date(${prospects.updatedAt})`)
+      .orderBy(sql`date(${prospects.updatedAt})`);
+
+    return {
+      dailyUploads,
+      dailyCompletions,
+      processingTimes,
+      period: analysisPeriod,
+      startDate,
+      endDate
+    };
+  }
+
+  async getPipelineFlowAnalytics(userId: string, clientId?: number): Promise<any> {
+    await this.ensureInitialized();
+    
+    // REF: Base filter by userId, optionally filter by clientId for workspace isolation
+    const baseWhere = clientId 
+      ? and(eq(prospects.userId, userId), eq(prospects.clientId, clientId))
+      : eq(prospects.userId, userId);
+
+    // REF: Count prospects at each stage
+    const totalUploaded = await db
+      .select({ count: count() })
+      .from(prospects)
+      .where(baseWhere);
+
+    const researchCompleted = await db
+      .select({ count: count() })
+      .from(prospects)
+      .where(and(baseWhere, eq(prospects.status, 'completed')));
+
+    const sentToReply = await db
+      .select({ count: count() })
+      .from(prospects)
+      .where(and(baseWhere, sql`${prospects.sentToReplyioCampaignId} IS NOT NULL`));
+
+    const processing = await db
+      .select({ count: count() })
+      .from(prospects)
+      .where(and(baseWhere, eq(prospects.status, 'processing')));
+
+    const failed = await db
+      .select({ count: count() })
+      .from(prospects)
+      .where(and(baseWhere, eq(prospects.status, 'failed')));
+
+    // REF: Build Sankey flow data structure
+    const nodes = [
+      { id: 'uploaded', name: 'Prospects Uploaded', value: totalUploaded[0]?.count || 0 },
+      { id: 'completed', name: 'Research Completed', value: researchCompleted[0]?.count || 0 },
+      { id: 'sent', name: 'Sent to Outreach', value: sentToReply[0]?.count || 0 },
+      { id: 'processing', name: 'Processing', value: processing[0]?.count || 0 },
+      { id: 'failed', name: 'Failed', value: failed[0]?.count || 0 }
+    ];
+
+    const links = [
+      { source: 'uploaded', target: 'completed', value: researchCompleted[0]?.count || 0 },
+      { source: 'uploaded', target: 'processing', value: processing[0]?.count || 0 },
+      { source: 'uploaded', target: 'failed', value: failed[0]?.count || 0 },
+      { source: 'completed', target: 'sent', value: sentToReply[0]?.count || 0 }
+    ];
+
+    return { nodes, links };
+  }
+
+  async getOperationalAnalytics(userId: string, clientId?: number): Promise<any> {
+    await this.ensureInitialized();
+    
+    // REF: Base filter by userId, optionally filter by clientId for workspace isolation
+    const baseWhere = clientId 
+      ? and(eq(prospects.userId, userId), eq(prospects.clientId, clientId))
+      : eq(prospects.userId, userId);
+
+    // REF: Get error pattern analysis (SQLite compatible)
+    const errorPatterns = await db
+      .select({
+        errorType: sql`CASE 
+          WHEN ${prospects.errorMessage} LIKE '%timeout%' THEN 'Timeout'
+          WHEN ${prospects.errorMessage} LIKE '%network%' THEN 'Network'
+          WHEN ${prospects.errorMessage} LIKE '%linkedin%' THEN 'LinkedIn Access'
+          WHEN ${prospects.errorMessage} IS NOT NULL THEN 'Other'
+          ELSE 'No Error'
+        END`.as('errorType'),
+        count: count().as('count')
+      })
+      .from(prospects)
+      .where(baseWhere)
+      .groupBy(sql`CASE 
+        WHEN ${prospects.errorMessage} LIKE '%timeout%' THEN 'Timeout'
+        WHEN ${prospects.errorMessage} LIKE '%network%' THEN 'Network'
+        WHEN ${prospects.errorMessage} LIKE '%linkedin%' THEN 'LinkedIn Access'
+        WHEN ${prospects.errorMessage} IS NOT NULL THEN 'Other'
+        ELSE 'No Error'
+      END`);
+
+    // REF: Get processing queue health (SQLite compatible)
+    const queueHealth = await db
+      .select({
+        status: prospects.status,
+        count: count().as('count'),
+        avgAge: sql`avg((julianday('now') - julianday(${prospects.createdAt})) * 24)`.as('avgAge')
+      })
+      .from(prospects)
+      .where(baseWhere)
+      .groupBy(prospects.status);
+
+    // REF: Get success rate by company size (from research results)
+    const companySuccessRates = await db
+      .select({
+        company: prospects.company,
+        status: prospects.status,
+        hasResearch: sql`CASE WHEN ${prospects.researchResults} IS NOT NULL THEN 1 ELSE 0 END`.as('hasResearch')
+      })
+      .from(prospects)
+      .where(baseWhere);
+
+    return {
+      errorPatterns,
+      queueHealth,
+      companySuccessRates,
+      lastUpdated: new Date()
+    };
+  }
+
+  async getProspectIntelligenceAnalytics(userId: string, clientId?: number): Promise<any> {
+    await this.ensureInitialized();
+    
+    // REF: Base filter by userId, optionally filter by clientId for workspace isolation  
+    const baseWhere = clientId 
+      ? and(eq(prospects.userId, userId), eq(prospects.clientId, clientId))
+      : eq(prospects.userId, userId);
+
+    // REF: Get title/role distribution
+    const titleDistribution = await db
+      .select({
+        title: prospects.title,
+        count: count().as('count')
+      })
+      .from(prospects)
+      .where(baseWhere)
+      .groupBy(prospects.title)
+      .orderBy(desc(count()));
+
+    // REF: Get company distribution
+    const companyDistribution = await db
+      .select({
+        company: prospects.company,
+        count: count().as('count'),
+        successRate: sql`AVG(CASE WHEN ${prospects.status} = 'completed' THEN 100.0 ELSE 0.0 END)`.as('successRate')
+      })
+      .from(prospects)
+      .where(baseWhere)
+      .groupBy(prospects.company)
+      .orderBy(desc(count()));
+
+    // REF: Get prospects with research results for analysis
+    const prospectsWithResearch = await db
+      .select({
+        company: prospects.company,
+        title: prospects.title,
+        researchResults: prospects.researchResults,
+        status: prospects.status
+      })
+      .from(prospects)
+      .where(and(baseWhere, sql`${prospects.researchResults} IS NOT NULL`));
+
+    // REF: Analyze industry patterns from research results
+    const industryPatterns: any[] = [];
+    const researchQuality: any[] = [];
+
+    prospectsWithResearch.forEach((prospect) => {
+      if (prospect.researchResults && typeof prospect.researchResults === 'object') {
+        const research = prospect.researchResults as any;
+        
+        // Extract industry information if available
+        if (research.companyInfo?.industry) {
+          industryPatterns.push({
+            industry: research.companyInfo.industry,
+            company: prospect.company,
+            status: prospect.status
+          });
+        }
+
+        // Analyze research completeness
+        const completeness = [
+          research.companyInfo ? 1 : 0,
+          research.personInfo ? 1 : 0,
+          research.painPoints ? 1 : 0,
+          research.personalizedMessage ? 1 : 0
+        ].reduce((a, b) => a + b, 0) / 4 * 100;
+
+        researchQuality.push({
+          company: prospect.company,
+          completeness,
+          status: prospect.status
+        });
+      }
+    });
+
+    return {
+      titleDistribution,
+      companyDistribution,
+      industryPatterns,
+      researchQuality,
+      totalAnalyzed: prospectsWithResearch.length
+    };
+  }
+
+  async getResponseTimingAnalytics(userId: string, clientId?: number, replyIoStats?: any): Promise<any> {
+    await this.ensureInitialized();
+    
+    // REF: Base filter by userId, optionally filter by clientId for workspace isolation
+    const baseWhere = clientId 
+      ? and(eq(prospects.userId, userId), eq(prospects.clientId, clientId))
+      : eq(prospects.userId, userId);
+
+    // REF: Get prospect creation timing patterns (SQLite compatible)
+    const hourlyPattern = await db
+      .select({
+        hour: sql`strftime('%H', ${prospects.createdAt})`.as('hour'),
+        count: count().as('count'),
+        successRate: sql`avg(CASE WHEN ${prospects.status} = 'completed' THEN 100.0 ELSE 0.0 END)`.as('successRate')
+      })
+      .from(prospects)
+      .where(baseWhere)
+      .groupBy(sql`strftime('%H', ${prospects.createdAt})`)
+      .orderBy(sql`strftime('%H', ${prospects.createdAt})`);
+
+    const dailyPattern = await db
+      .select({
+        dayOfWeek: sql`strftime('%w', ${prospects.createdAt})`.as('dayOfWeek'),
+        count: count().as('count'),
+        successRate: sql`avg(CASE WHEN ${prospects.status} = 'completed' THEN 100.0 ELSE 0.0 END)`.as('successRate')
+      })
+      .from(prospects)
+      .where(baseWhere)
+      .groupBy(sql`strftime('%w', ${prospects.createdAt})`)
+      .orderBy(sql`strftime('%w', ${prospects.createdAt})`);
+
+    // REF: Calculate average processing times by time of day (SQLite compatible)
+    const processingByHour = await db
+      .select({
+        hour: sql`strftime('%H', ${prospects.createdAt})`.as('hour'),
+        avgProcessingTime: sql`avg((julianday(${prospects.updatedAt}) - julianday(${prospects.createdAt})) * 24)`.as('avgProcessingTime')
+      })
+      .from(prospects)
+      .where(and(baseWhere, eq(prospects.status, 'completed')))
+      .groupBy(sql`strftime('%H', ${prospects.createdAt})`)
+      .orderBy(sql`strftime('%H', ${prospects.createdAt})`);
+
+    return {
+      hourlyPattern,
+      dailyPattern,
+      processingByHour,
+      replyIoStats: replyIoStats || null,
+      lastUpdated: new Date()
+    };
+  }
+
+  async getProspectQualityAnalytics(userId: string, clientId?: number): Promise<any> {
+    await this.ensureInitialized();
+    
+    // REF: Base filter by userId, optionally filter by clientId for workspace isolation
+    const baseWhere = clientId 
+      ? and(eq(prospects.userId, userId), eq(prospects.clientId, clientId))
+      : eq(prospects.userId, userId);
+
+    // REF: Get all prospects with research results for analysis
+    const prospectData = await db
+      .select({
+        id: prospects.id,
+        company: prospects.company,
+        title: prospects.title,
+        status: prospects.status,
+        researchResults: prospects.researchResults,
+        sentToReplyioCampaignId: prospects.sentToReplyioCampaignId,
+        createdAt: prospects.createdAt,
+        updatedAt: prospects.updatedAt
+      })
+      .from(prospects)
+      .where(and(baseWhere, isNotNull(prospects.researchResults)));
+
+    // REF: Calculate prospect quality metrics from research data
+    const qualityAnalytics = prospectData.map((prospect: any) => {
+      const research = prospect.researchResults;
+      
+      // REF: Calculate research depth score (0-100)
+      const researchDepthScore = this.calculateResearchDepthScore(research);
+      
+      // REF: Calculate prospect authority score based on title and company
+      const authorityScore = this.calculateAuthorityScore(research);
+      
+      // REF: Calculate industry attractiveness score
+      const industryScore = this.calculateIndustryScore(research);
+      
+      // REF: Calculate personalization quality score
+      const personalizationScore = this.calculatePersonalizationScore(research);
+      
+      // REF: Calculate company size indicator
+      const companySizeScore = this.calculateCompanySizeScore(research);
+      
+      // REF: Overall prospect quality score (weighted average)
+      const overallScore = Math.round(
+        (researchDepthScore * 0.25) + 
+        (authorityScore * 0.30) + 
+        (industryScore * 0.20) + 
+        (personalizationScore * 0.15) + 
+        (companySizeScore * 0.10)
+      );
+
+      return {
+        id: prospect.id,
+        company: prospect.company,
+        title: prospect.title,
+        status: prospect.status,
+        wasSentToReply: !!prospect.sentToReplyioCampaignId,
+        industry: research?.industry || 'Unknown',
+        location: research?.location || 'Unknown',
+        scores: {
+          overall: overallScore,
+          researchDepth: researchDepthScore,
+          authority: authorityScore,
+          industry: industryScore,
+          personalization: personalizationScore,
+          companySize: companySizeScore
+        },
+        painPointsCount: this.extractPainPointsCount(research),
+        businessGoalsSpecificity: this.extractBusinessGoalsSpecificity(research),
+        industryCategory: this.categorizeIndustry(research?.industry)
+      };
+    });
+
+    // REF: Calculate industry performance metrics
+    const industryPerformance = this.calculateIndustryPerformance(qualityAnalytics);
+    
+    // REF: Calculate authority level performance
+    const authorityPerformance = this.calculateAuthorityPerformance(qualityAnalytics);
+    
+    // REF: Calculate research ROI metrics
+    const researchROI = this.calculateResearchROIMetrics(qualityAnalytics);
+
+    return {
+      prospects: qualityAnalytics,
+      industryPerformance,
+      authorityPerformance,
+      researchROI,
+      totalAnalyzed: qualityAnalytics.length,
+      averageQualityScore: Math.round(
+        qualityAnalytics.reduce((sum, p) => sum + p.scores.overall, 0) / qualityAnalytics.length
+      ),
+      lastUpdated: new Date()
+    };
+  }
+
+  // REF: Helper function to calculate research depth score based on content quality
+  private calculateResearchDepthScore(research: any): number {
+    if (!research) return 0;
+    
+    let score = 0;
+    
+    // REF: Industry analysis depth (0-25 points)
+    const industryLength = research.industry?.length || 0;
+    score += Math.min(25, Math.floor(industryLength / 50));
+    
+    // REF: Pain points specificity (0-25 points)
+    const painPointsLength = research.painPoints?.length || 0;
+    score += Math.min(25, Math.floor(painPointsLength / 40));
+    
+    // REF: Business goals detail (0-20 points)
+    const businessGoalsLength = research.businessGoals?.length || 0;
+    score += Math.min(20, Math.floor(businessGoalsLength / 35));
+    
+    // REF: Competitive analysis presence (0-15 points)
+    if (research.competitors && research.competitors.length > 100) score += 15;
+    else if (research.competitors && research.competitors.length > 50) score += 10;
+    else if (research.competitors) score += 5;
+    
+    // REF: Company news and research (0-15 points)
+    if (research.companyNews && research.companyNews !== 'No major company news') score += 8;
+    if (research.locationResearch && research.locationResearch.length > 100) score += 7;
+    
+    return Math.min(100, score);
+  }
+
+  // REF: Helper function to calculate prospect authority score based on title and company
+  private calculateAuthorityScore(research: any): number {
+    if (!research) return 0;
+    
+    const title = research.primaryJobTitle?.toLowerCase() || research.title?.toLowerCase() || '';
+    let score = 0;
+    
+    // REF: Executive level titles (70-100 points)
+    if (title.includes('ceo') || title.includes('president') || title.includes('founder')) score = 100;
+    else if (title.includes('vp') || title.includes('vice president') || title.includes('chief')) score = 90;
+    else if (title.includes('director') || title.includes('head of')) score = 80;
+    else if (title.includes('managing director') || title.includes('principal')) score = 85;
+    
+    // REF: Manager level titles (40-70 points)
+    else if (title.includes('senior manager') || title.includes('manager')) score = 65;
+    else if (title.includes('senior') && (title.includes('analyst') || title.includes('specialist'))) score = 55;
+    else if (title.includes('lead') || title.includes('supervisor')) score = 50;
+    
+    // REF: Individual contributor titles (20-40 points)
+    else if (title.includes('analyst') || title.includes('specialist') || title.includes('coordinator')) score = 35;
+    else score = 25; // Default for other titles
+    
+    // REF: Company size bonus (based on description indicators)
+    const industry = research.industry?.toLowerCase() || '';
+    if (industry.includes('billion') || industry.includes('fortune')) score += 15;
+    else if (industry.includes('million') || industry.includes('large')) score += 10;
+    else if (industry.includes('established') || industry.includes('leading')) score += 5;
+    
+    return Math.min(100, score);
+  }
+
+  // REF: Helper function to calculate industry attractiveness score
+  private calculateIndustryScore(research: any): number {
+    if (!research) return 50; // Default neutral score
+    
+    const industry = research.industry?.toLowerCase() || '';
+    
+    // REF: High-value industries (technology, finance, healthcare)
+    if (industry.includes('technology') || industry.includes('software') || industry.includes('saas')) return 95;
+    if (industry.includes('finance') || industry.includes('banking') || industry.includes('investment')) return 90;
+    if (industry.includes('healthcare') || industry.includes('medical') || industry.includes('pharmaceutical')) return 85;
+    if (industry.includes('real estate') || industry.includes('property') || industry.includes('development')) return 80;
+    
+    // REF: Medium-value industries
+    if (industry.includes('manufacturing') || industry.includes('construction') || industry.includes('engineering')) return 70;
+    if (industry.includes('consulting') || industry.includes('professional services')) return 75;
+    if (industry.includes('education') || industry.includes('university')) return 65;
+    
+    // REF: Nonprofit and government (lower budget but stable)
+    if (industry.includes('nonprofit') || industry.includes('government') || industry.includes('public')) return 55;
+    
+    return 60; // Default for other industries
+  }
+
+  // REF: Helper function to calculate personalization quality score
+  private calculatePersonalizationScore(research: any): number {
+    if (!research) return 0;
+    
+    let score = 0;
+    
+    // REF: Email personalization quality (0-40 points)
+    const emailBody = research.emailBody || research.fullOutput?.['Email Body'] || '';
+    if (emailBody.includes(research.firstname)) score += 10;
+    if (emailBody.includes(research.primaryJobCompany || research.company)) score += 10;
+    if (emailBody.toLowerCase().includes('budget') || emailBody.toLowerCase().includes('cost')) score += 5;
+    if (emailBody.length > 500) score += 10; // Detailed personalization
+    else if (emailBody.length > 200) score += 5;
+    
+    // REF: Pain point alignment (0-30 points)
+    const painPoints = research.painPoints?.toLowerCase() || '';
+    if (painPoints.includes('specific') && painPoints.length > 200) score += 30;
+    else if (painPoints.includes('challenge') && painPoints.length > 100) score += 20;
+    else if (painPoints.length > 50) score += 10;
+    
+    // REF: Business goals specificity (0-30 points)
+    const businessGoals = research.businessGoals?.toLowerCase() || '';
+    if (businessGoals.includes('months') || businessGoals.includes('timeline')) score += 15;
+    if (businessGoals.includes('specific') || businessGoals.includes('metric')) score += 15;
+    
+    return Math.min(100, score);
+  }
+
+  // REF: Helper function to calculate company size score
+  private calculateCompanySizeScore(research: any): number {
+    if (!research) return 50;
+    
+    const industry = research.industry?.toLowerCase() || '';
+    const companyInfo = research.overallCompanySummary?.toLowerCase() || '';
+    
+    let score = 50; // Default medium size
+    
+    // REF: Look for size indicators
+    if (industry.includes('fortune 500') || companyInfo.includes('billion')) score = 100;
+    else if (industry.includes('large') || companyInfo.includes('million')) score = 85;
+    else if (companyInfo.includes('established') || companyInfo.includes('leading')) score = 75;
+    else if (industry.includes('startup') || companyInfo.includes('small')) score = 40;
+    else if (industry.includes('nonprofit')) score = 45;
+    
+    // REF: Employee count indicators
+    if (companyInfo.includes('3,000') || companyInfo.includes('thousand')) score += 20;
+    else if (companyInfo.includes('hundreds')) score += 10;
+    
+    return Math.min(100, score);
+  }
+
+  // REF: Helper functions for extracting specific insights
+  private extractPainPointsCount(research: any): number {
+    const painPoints = research?.painPoints || '';
+    return (painPoints.match(/including|challenge|issue|problem/gi) || []).length;
+  }
+
+  private extractBusinessGoalsSpecificity(research: any): number {
+    const goals = research?.businessGoals || '';
+    const specificTerms = goals.match(/\d+|months|quarter|year|metric|target|goal/gi) || [];
+    return specificTerms.length;
+  }
+
+  private categorizeIndustry(industry: string): string {
+    if (!industry) return 'Other';
+    const lower = industry.toLowerCase();
+    
+    if (lower.includes('technology') || lower.includes('software')) return 'Technology';
+    if (lower.includes('finance') || lower.includes('banking')) return 'Finance';
+    if (lower.includes('healthcare') || lower.includes('medical')) return 'Healthcare';
+    if (lower.includes('real estate') || lower.includes('property')) return 'Real Estate';
+    if (lower.includes('manufacturing') || lower.includes('construction')) return 'Manufacturing';
+    if (lower.includes('nonprofit') || lower.includes('housing')) return 'Nonprofit';
+    if (lower.includes('education') || lower.includes('university')) return 'Education';
+    if (lower.includes('consulting') || lower.includes('professional')) return 'Consulting';
+    
+    return 'Other';
+  }
+
+  private calculateIndustryPerformance(prospects: any[]): any[] {
+    const industryMap = new Map();
+    
+    prospects.forEach(prospect => {
+      const industry = prospect.industryCategory;
+      if (!industryMap.has(industry)) {
+        industryMap.set(industry, {
+          industry,
+          totalProspects: 0,
+          sentToReply: 0,
+          averageQualityScore: 0,
+          totalQualityScore: 0
+        });
+      }
+      
+      const data = industryMap.get(industry);
+      data.totalProspects++;
+      if (prospect.wasSentToReply) data.sentToReply++;
+      data.totalQualityScore += prospect.scores.overall;
+    });
+    
+    return Array.from(industryMap.values()).map(data => ({
+      ...data,
+      averageQualityScore: Math.round(data.totalQualityScore / data.totalProspects),
+      sendRate: Math.round((data.sentToReply / data.totalProspects) * 100)
+    })).sort((a, b) => b.averageQualityScore - a.averageQualityScore);
+  }
+
+  private calculateAuthorityPerformance(prospects: any[]): any[] {
+    const authorityBuckets = [
+      { min: 90, max: 100, label: 'Executive' },
+      { min: 70, max: 89, label: 'Senior Manager' },
+      { min: 50, max: 69, label: 'Manager' },
+      { min: 0, max: 49, label: 'Individual Contributor' }
+    ];
+    
+    return authorityBuckets.map(bucket => {
+      const prospectsInBucket = prospects.filter(p => 
+        p.scores.authority >= bucket.min && p.scores.authority <= bucket.max
+      );
+      
+      const sentCount = prospectsInBucket.filter(p => p.wasSentToReply).length;
+      
+      return {
+        authorityLevel: bucket.label,
+        totalProspects: prospectsInBucket.length,
+        sentToReply: sentCount,
+        sendRate: prospectsInBucket.length > 0 ? Math.round((sentCount / prospectsInBucket.length) * 100) : 0,
+        averageQualityScore: prospectsInBucket.length > 0 ? 
+          Math.round(prospectsInBucket.reduce((sum, p) => sum + p.scores.overall, 0) / prospectsInBucket.length) : 0
+      };
+    }).filter(data => data.totalProspects > 0);
+  }
+
+  private calculateResearchROIMetrics(prospects: any[]): any {
+    const totalProspects = prospects.length;
+    const sentProspects = prospects.filter(p => p.wasSentToReply).length;
+    const highQualityProspects = prospects.filter(p => p.scores.overall >= 80).length;
+    const averageResearchDepth = Math.round(
+      prospects.reduce((sum, p) => sum + p.scores.researchDepth, 0) / totalProspects
+    );
+    
+    return {
+      totalProspects,
+      sentProspects,
+      sendRate: Math.round((sentProspects / totalProspects) * 100),
+      highQualityProspects,
+      highQualityRate: Math.round((highQualityProspects / totalProspects) * 100),
+      averageResearchDepth,
+      researchEfficiencyScore: Math.round((sentProspects / totalProspects) * averageResearchDepth)
     };
   }
 }

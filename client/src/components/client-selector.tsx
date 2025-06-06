@@ -108,7 +108,7 @@ export function ClientProvider({ children }: { children: React.ReactNode }) {
   // Set current client from context when data loads
   useEffect(() => {
     if (allClients.length > 0 && userContext?.activeClientId) {
-      const client = allClients.find(c => c.id === userContext.activeClientId);
+      const client = allClients.find((c: Client) => c.id === userContext.activeClientId);
       if (client) setCurrentClientState(client);
     } else if (allClients.length > 0 && !currentClient) {
       // Default to first client if no context
@@ -244,7 +244,7 @@ function ApiKeySelector() {
       <Select
         value={currentApiKey?.id.toString() || ""}
         onValueChange={(value) => {
-          const apiKey = apiKeys.find(k => k.id === parseInt(value));
+          const apiKey = apiKeys.find((k: ApiKey) => k.id === parseInt(value));
           if (apiKey) setCurrentApiKey(apiKey);
         }}
       >
@@ -258,7 +258,7 @@ function ApiKeySelector() {
           )}
         </SelectTrigger>
         <SelectContent className="bg-slate-800 border-slate-600">
-          {apiKeys.map((apiKey) => (
+          {apiKeys.map((apiKey: ApiKey) => (
             <SelectItem key={apiKey.id} value={apiKey.id.toString()}>
               <div>
                 <div className="font-medium">{apiKey.name}</div>
@@ -301,7 +301,7 @@ function CampaignSelector() {
       <Select
         value={currentCampaign?.id.toString() || ""}
         onValueChange={(value) => {
-          const campaign = campaigns.find(c => c.id === parseInt(value));
+          const campaign = campaigns.find((c: Campaign) => c.id === parseInt(value));
           if (campaign) setCurrentCampaign(campaign);
         }}
       >
@@ -318,7 +318,7 @@ function CampaignSelector() {
           )}
         </SelectTrigger>
         <SelectContent className="bg-slate-800 border-slate-600">
-          {campaigns.map((campaign) => (
+          {campaigns.map((campaign: Campaign) => (
             <SelectItem key={campaign.id} value={campaign.id.toString()}>
               <div className="flex items-center space-x-2">
                 <span>{campaign.campaignName}</span>

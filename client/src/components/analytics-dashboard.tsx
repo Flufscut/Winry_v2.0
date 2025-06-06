@@ -40,6 +40,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { EnhancedAnalytics } from "./enhanced-analytics";
 
 interface CommandCenterDashboardProps {
   stats: any;
@@ -188,8 +189,12 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
       overallReplyRate: 0
     };
 
-    // REF: ALWAYS use real data - no mock data or demo mode
-    const hasRealReplyData = replyIoData?.success === true;
+    // REF: Updated logic - Reply.io is configured if we have accounts OR valid API settings
+    // Don't rely solely on statistics API success since it can fail due to rate limits
+    const hasConfiguredAccounts = replyIoAccounts?.accounts && replyIoAccounts.accounts.length > 0;
+    const hasLegacyApiKey = replyIoSettings?.hasApiKey === true;
+    const hasRealReplyData = hasConfiguredAccounts || hasLegacyApiKey || (replyIoData?.success === true);
+    
     const selectedCampaign = replyIoData?.statistics?.selectedCampaign;
     const selectedAccount = replyIoData?.statistics?.selectedAccount;
     
@@ -231,7 +236,7 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
       selectedAccount,
       dataLevel: replyIoData?.statistics?.dataLevel || 'campaign-specific'
     };
-  }, [stats, replyIoData, prospects]);
+  }, [stats, replyIoData, prospects, replyIoAccounts, replyIoSettings]);
 
   // Pipeline stage details for modal popup - ONLY REAL DATA
   const pipelineStageDetails = {
@@ -409,26 +414,26 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
   ];
 
   return (
-    <div className="space-y-8">
-      {/* Header with Pipeline Status */}
+    <div className="space-y-6 md:space-y-8">
+      {/* Header with Pipeline Status - Mobile Optimized */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center justify-between"
+        className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0"
       >
-        <div>
-          <h2 className="text-3xl font-bold text-white mb-2">Sales Intelligence Pipeline</h2>
-          <p className="text-muted-foreground">Complete prospect journey from upload to response</p>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-2">Sales Intelligence Pipeline</h2>
+          <p className="text-sm md:text-base text-muted-foreground">Complete prospect journey from upload to response</p>
           {pipelineMetrics.selectedAccount && (
-            <div className="mt-2 flex items-center gap-4 text-sm">
+            <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-sm">
               <div className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20">
+                <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-xs">
                   Account: {pipelineMetrics.selectedAccount.name}
                 </Badge>
               </div>
               {pipelineMetrics.selectedCampaign && (
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+                  <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20 text-xs">
                     Campaign: {pipelineMetrics.selectedCampaign.name}
                   </Badge>
                 </div>
@@ -441,43 +446,44 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20">
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <Badge variant="outline" className="bg-green-500/10 text-green-400 border-green-500/20 text-xs sm:text-sm">
             <Activity className="w-3 h-3 mr-1" />
             {pipelineMetrics.overallConversionRate}% End-to-End
           </Badge>
-          <Button onClick={handleRefresh} variant="outline" size="sm">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
+          <Button onClick={handleRefresh} variant="outline" size="sm" className="text-xs sm:text-sm">
+            <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Refresh</span>
           </Button>
         </div>
       </motion.div>
 
-      {/* Hero Pipeline Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      {/* Hero Pipeline Metrics - Mobile Responsive Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 md:gap-6">
         {/* Stage 1: Prospects Uploaded */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1 }}
+          className="sm:col-span-1"
         >
           <Card 
             className="command-card hero-metric-card relative overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-200"
             onClick={() => setSelectedPipelineStage('prospects-uploaded')}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 to-transparent" />
-            <CardContent className="p-6 relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-purple-500/20">
-                  <Users className="w-6 h-6 text-purple-400" />
+            <CardContent className="p-4 md:p-6 relative">
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <div className="p-2 md:p-3 rounded-xl bg-purple-500/20">
+                  <Users className="w-5 h-5 md:w-6 md:h-6 text-purple-400" />
                 </div>
-                <ArrowRight className="w-5 h-5 text-muted-foreground" />
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
               </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground min-h-[2.5rem] flex items-center">Prospects Uploaded</p>
-                <p className="text-3xl font-bold text-white">{pipelineMetrics.totalUploaded}</p>
+              <div className="space-y-1 md:space-y-2">
+                <p className="text-xs md:text-sm text-muted-foreground min-h-[2rem] md:min-h-[2.5rem] flex items-center">Prospects Uploaded</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{pipelineMetrics.totalUploaded}</p>
                 <p className="text-xs text-muted-foreground">Starting pipeline</p>
-                <p className="text-xs text-transparent">.</p>
+                <p className="text-xs text-transparent hidden md:block">.</p>
               </div>
             </CardContent>
           </Card>
@@ -488,24 +494,25 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.2 }}
+          className="sm:col-span-1"
         >
           <Card 
             className="command-card hero-metric-card relative overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-200"
             onClick={() => setSelectedPipelineStage('research-completed')}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 to-transparent" />
-            <CardContent className="p-6 relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-blue-500/20">
-                  <Brain className="w-6 h-6 text-blue-400" />
+            <CardContent className="p-4 md:p-6 relative">
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <div className="p-2 md:p-3 rounded-xl bg-blue-500/20">
+                  <Brain className="w-5 h-5 md:w-6 md:h-6 text-blue-400" />
                 </div>
-                <ArrowRight className="w-5 h-5 text-muted-foreground" />
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
               </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground min-h-[2.5rem] flex items-center">Research Completed</p>
-                <p className="text-3xl font-bold text-white">{pipelineMetrics.researchCompleted}</p>
+              <div className="space-y-1 md:space-y-2">
+                <p className="text-xs md:text-sm text-muted-foreground min-h-[2rem] md:min-h-[2.5rem] flex items-center">Research Completed</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{pipelineMetrics.researchCompleted}</p>
                 <p className="text-xs text-blue-400">{pipelineMetrics.researchCompletionRate}% completion rate</p>
-                <p className="text-xs text-transparent">.</p>
+                <p className="text-xs text-transparent hidden md:block">.</p>
               </div>
             </CardContent>
           </Card>
@@ -516,24 +523,25 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3 }}
+          className="sm:col-span-2 lg:col-span-1"
         >
           <Card 
             className="command-card hero-metric-card relative overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-200"
             onClick={() => setSelectedPipelineStage('sent-to-outreach')}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-green-500/10 to-transparent" />
-            <CardContent className="p-6 relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-green-500/20">
-                  <Send className="w-6 h-6 text-green-400" />
+            <CardContent className="p-4 md:p-6 relative">
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <div className="p-2 md:p-3 rounded-xl bg-green-500/20">
+                  <Send className="w-5 h-5 md:w-6 md:h-6 text-green-400" />
                 </div>
-                <ArrowRight className="w-5 h-5 text-muted-foreground" />
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
               </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground min-h-[2.5rem] flex items-center">Sent to Outreach</p>
-                <p className="text-3xl font-bold text-white">{pipelineMetrics.sentToOutreach}</p>
+              <div className="space-y-1 md:space-y-2">
+                <p className="text-xs md:text-sm text-muted-foreground min-h-[2rem] md:min-h-[2.5rem] flex items-center">Sent to Outreach</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{pipelineMetrics.sentToOutreach}</p>
                 <p className="text-xs text-green-400">{pipelineMetrics.openRate}% open rate</p>
-                <p className="text-xs text-transparent">.</p>
+                <p className="text-xs text-transparent hidden md:block">.</p>
               </div>
             </CardContent>
           </Card>
@@ -544,24 +552,25 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.4 }}
+          className="sm:col-span-1"
         >
           <Card 
             className="command-card hero-metric-card relative overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-200"
             onClick={() => setSelectedPipelineStage('emails-opened')}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/10 to-transparent" />
-            <CardContent className="p-6 relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-yellow-500/20">
-                  <Eye className="w-6 h-6 text-yellow-400" />
+            <CardContent className="p-4 md:p-6 relative">
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <div className="p-2 md:p-3 rounded-xl bg-yellow-500/20">
+                  <Eye className="w-5 h-5 md:w-6 md:h-6 text-yellow-400" />
                 </div>
-                <ArrowRight className="w-5 h-5 text-muted-foreground" />
+                <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-muted-foreground" />
               </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground min-h-[2.5rem] flex items-center">Emails Opened</p>
-                <p className="text-3xl font-bold text-white">{pipelineMetrics.emailsOpened}</p>
+              <div className="space-y-1 md:space-y-2">
+                <p className="text-xs md:text-sm text-muted-foreground min-h-[2rem] md:min-h-[2.5rem] flex items-center">Emails Opened</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{pipelineMetrics.emailsOpened}</p>
                 <p className="text-xs text-yellow-400">{pipelineMetrics.openRate}% open rate</p>
-                <p className="text-xs text-transparent">.</p>
+                <p className="text-xs text-transparent hidden md:block">.</p>
               </div>
             </CardContent>
           </Card>
@@ -572,70 +581,40 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.5 }}
+          className="sm:col-span-1"
         >
           <Card 
             className="command-card hero-metric-card relative overflow-hidden cursor-pointer hover:scale-105 transition-transform duration-200"
             onClick={() => setSelectedPipelineStage('responses-received')}
           >
             <div className="absolute inset-0 bg-gradient-to-br from-red-500/10 to-transparent" />
-            <CardContent className="p-6 relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className="p-3 rounded-xl bg-red-500/20">
-                  <Reply className="w-6 h-6 text-red-400" />
+            <CardContent className="p-4 md:p-6 relative">
+              <div className="flex items-center justify-between mb-3 md:mb-4">
+                <div className="p-2 md:p-3 rounded-xl bg-red-500/20">
+                  <Reply className="w-5 h-5 md:w-6 md:h-6 text-red-400" />
                 </div>
-                <CheckCircle className="w-5 h-5 text-green-500" />
+                <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-500" />
               </div>
-              <div className="space-y-2">
-                <p className="text-sm text-muted-foreground min-h-[2.5rem] flex items-center">Responses Received</p>
-                <p className="text-3xl font-bold text-white">{pipelineMetrics.emailsReplied}</p>
+              <div className="space-y-1 md:space-y-2">
+                <p className="text-xs md:text-sm text-muted-foreground min-h-[2rem] md:min-h-[2.5rem] flex items-center">Responses Received</p>
+                <p className="text-2xl md:text-3xl font-bold text-foreground">{pipelineMetrics.emailsReplied}</p>
                 <p className="text-xs text-red-400">{pipelineMetrics.replyRate}% reply rate</p>
-                <p className="text-xs text-transparent">.</p>
+                <p className="text-xs text-transparent hidden md:block">.</p>
               </div>
             </CardContent>
           </Card>
         </motion.div>
       </div>
 
-      {/* Pipeline Visualization & Analytics */}
+      {/* Enhanced Pipeline Analytics */}
       <div className="grid grid-cols-1 gap-6">
-        {/* Pipeline Funnel Chart - FULL WIDTH */}
-        <Card className="command-card">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center gap-2">
-              <Target className="w-5 h-5" />
-              Pipeline Conversion Funnel
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={pipelineFunnelData} layout="horizontal">
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis stroke="#9CA3AF" fontSize={12} />
-                <YAxis dataKey="stage" stroke="#9CA3AF" fontSize={12} width={120} />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--surface-elevated))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '8px',
-                    color: 'white'
-                  }}
-                  formatter={(value, name) => [value, `${name}: ${pipelineFunnelData.find(d => d.value === value)?.percentage || 0}%`]}
-                />
-                <Bar 
-                  dataKey="value" 
-                  fill={PIPELINE_COLORS.prospects}
-                  radius={[0, 4, 4, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+        <EnhancedAnalytics className="command-card" />
       </div>
 
       {/* Performance Insights */}
       <Card className="command-card">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
+          <CardTitle className="text-foreground flex items-center gap-2">
             <Award className="w-5 h-5" />
             Pipeline Performance Insights
           </CardTitle>
@@ -646,12 +625,12 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Brain className="w-4 h-4 text-blue-400" />
-                <h4 className="font-semibold text-white">Research Efficiency</h4>
+                <h4 className="font-semibold text-foreground">Research Efficiency</h4>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Completion Rate</span>
-                  <span className="text-white">{pipelineMetrics.researchCompletionRate}%</span>
+                  <span className="text-foreground">{pipelineMetrics.researchCompletionRate}%</span>
                 </div>
                 <div className="w-full bg-hsl(var(--surface-elevated)) rounded-full h-2">
                   <div 
@@ -669,12 +648,12 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Send className="w-4 h-4 text-green-400" />
-                <h4 className="font-semibold text-white">Outreach Performance</h4>
+                <h4 className="font-semibold text-foreground">Outreach Performance</h4>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Open Rate</span>
-                  <span className="text-white">{pipelineMetrics.openRate}%</span>
+                  <span className="text-foreground">{pipelineMetrics.openRate}%</span>
                 </div>
                 <div className="w-full bg-hsl(var(--surface-elevated)) rounded-full h-2">
                   <div 
@@ -692,12 +671,12 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <Target className="w-4 h-4 text-purple-400" />
-                <h4 className="font-semibold text-white">End-to-End Conversion</h4>
+                <h4 className="font-semibold text-foreground">End-to-End Conversion</h4>
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Upload to Response</span>
-                  <span className="text-white">{pipelineMetrics.overallConversionRate}%</span>
+                  <span className="text-foreground">{pipelineMetrics.overallConversionRate}%</span>
                 </div>
                 <div className="w-full bg-hsl(var(--surface-elevated)) rounded-full h-2">
                   <div 
@@ -721,7 +700,7 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
             <div className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-yellow-400 animate-pulse" />
               <div>
-                <h4 className="font-semibold text-white">Pipeline Activity</h4>
+                <h4 className="font-semibold text-foreground">Pipeline Activity</h4>
                 <p className="text-sm text-muted-foreground">
                   {stats?.processing > 0 && `${stats.processing} prospects currently being researched`}
                   {replyLoading && ' • Updating outreach statistics'}
@@ -734,37 +713,47 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
 
       {/* Data Source Status */}
       <Card className="command-card border-blue-500/20">
-        <CardContent className="p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h4 className="font-semibold text-white mb-2">Data Configuration</h4>
-              <div className="space-y-2 text-sm">
+        <CardContent className="p-4 md:p-6">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <h4 className="font-semibold text-foreground mb-3 text-base md:text-lg">Data Configuration</h4>
+              <div className="space-y-2 md:space-y-3 text-xs md:text-sm">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
                   <span className="text-muted-foreground">Winry.AI Database: <span className="text-green-400">Connected</span></span>
                 </div>
                 <div className="flex items-center gap-2">
                   {pipelineMetrics.hasRealReplyData ? (
                     <>
-                      <CheckCircle className="w-4 h-4 text-green-400" />
+                      <CheckCircle className="w-4 h-4 text-green-400 flex-shrink-0" />
                       <span className="text-muted-foreground">Reply.io Integration: <span className="text-green-400">Connected</span></span>
                     </>
                   ) : (
                     <>
-                      <AlertTriangle className="w-4 h-4 text-yellow-400" />
-                      <span className="text-muted-foreground">Reply.io Integration: <span className="text-yellow-400">Not Configured</span></span>
+                      {/* REF: Check if we have accounts configured but API is failing (rate limits) */}
+                      {(replyIoAccounts?.accounts && replyIoAccounts.accounts.length > 0) || replyIoSettings?.hasApiKey ? (
+                        <>
+                          <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                          <span className="text-muted-foreground">Reply.io Integration: <span className="text-yellow-400">API Rate Limited</span></span>
+                        </>
+                      ) : (
+                        <>
+                          <AlertTriangle className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                          <span className="text-muted-foreground">Reply.io Integration: <span className="text-yellow-400">Not Configured</span></span>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
                 {pipelineMetrics.selectedAccount && (
                   <div className="flex items-center gap-2 ml-6">
-                    <Target className="w-4 h-4 text-blue-400" />
+                    <Target className="w-4 h-4 text-blue-400 flex-shrink-0" />
                     <span className="text-muted-foreground text-xs">Account: {pipelineMetrics.selectedAccount.name}</span>
                   </div>
                 )}
                 {pipelineMetrics.selectedCampaign && (
                   <div className="flex items-center gap-2 ml-6">
-                    <Send className="w-4 h-4 text-green-400" />
+                    <Send className="w-4 h-4 text-green-400 flex-shrink-0" />
                     <span className="text-muted-foreground text-xs">Default Campaign: {pipelineMetrics.selectedCampaign.name}</span>
                   </div>
                 )}
@@ -778,8 +767,8 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold text-white">
+            <div className="text-center lg:text-right flex-shrink-0">
+              <div className="text-xl md:text-2xl font-bold text-foreground">
                 {pipelineMetrics.hasRealReplyData ? '✓' : '⚠️'}
               </div>
               <div className="text-xs text-muted-foreground">
@@ -792,57 +781,61 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
 
       {/* Pipeline Stage Details Modal */}
       <Dialog open={selectedPipelineStage !== null} onOpenChange={() => setSelectedPipelineStage(null)}>
-        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto bg-card">
+        <DialogContent className="max-w-6xl md:max-h-[90vh] max-h-[95vh] overflow-y-auto bg-card mx-4 md:mx-auto">
           {selectedPipelineStage && selectedPipelineStage in pipelineStageDetails && (
             <>
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-3 text-2xl">
+              <DialogHeader className="sticky top-0 bg-card z-10 pb-4 border-b border-border/50">
+                <DialogTitle className="flex items-center gap-2 md:gap-3 text-lg md:text-2xl">
                   {React.createElement(pipelineStageDetails[selectedPipelineStage as keyof typeof pipelineStageDetails].icon, {
-                    className: `w-8 h-8 ${pipelineStageDetails[selectedPipelineStage as keyof typeof pipelineStageDetails].iconColor}`
+                    className: `w-6 h-6 md:w-8 md:h-8 ${pipelineStageDetails[selectedPipelineStage as keyof typeof pipelineStageDetails].iconColor}`
                   })}
-                  {pipelineStageDetails[selectedPipelineStage as keyof typeof pipelineStageDetails].title} - Advanced Analytics
+                  <span className="truncate">
+                    {pipelineStageDetails[selectedPipelineStage as keyof typeof pipelineStageDetails].title} - 
+                    <span className="hidden sm:inline"> Advanced Analytics</span>
+                    <span className="sm:hidden"> Analytics</span>
+                  </span>
                 </DialogTitle>
               </DialogHeader>
 
-              <div className="space-y-6">
+              <div className="space-y-4 md:space-y-6 pt-4">
                 {/* Modal Content Based on Stage - ONLY REAL DATA */}
                 {selectedPipelineStage === 'prospects-uploaded' && (
-                  <div className="space-y-6">
-                    {/* Core Metrics */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Total Uploaded</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.total}</p>
+                  <div className="space-y-4 md:space-y-6">
+                    {/* Core Metrics - Mobile Responsive Grid */}
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Total Uploaded</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.total}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Completed</p>
-                        <p className="text-2xl font-bold text-green-400">{pipelineStageDetails[selectedPipelineStage].metrics.completed}</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Completed</p>
+                        <p className="text-lg md:text-2xl font-bold text-green-400">{pipelineStageDetails[selectedPipelineStage].metrics.completed}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Processing</p>
-                        <p className="text-2xl font-bold text-blue-400">{pipelineStageDetails[selectedPipelineStage].metrics.processing}</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Processing</p>
+                        <p className="text-lg md:text-2xl font-bold text-blue-400">{pipelineStageDetails[selectedPipelineStage].metrics.processing}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Failed</p>
-                        <p className="text-2xl font-bold text-red-400">{pipelineStageDetails[selectedPipelineStage].metrics.failed}</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Failed</p>
+                        <p className="text-lg md:text-2xl font-bold text-red-400">{pipelineStageDetails[selectedPipelineStage].metrics.failed}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Completion Rate</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.completionRate}%</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border col-span-2 lg:col-span-1">
+                        <p className="text-xs md:text-sm text-muted-foreground">Completion Rate</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.completionRate}%</p>
                       </div>
                     </div>
 
                     {/* Simple Progress Visualization */}
                     <Card>
-                      <CardHeader>
-                        <CardTitle>Processing Status</CardTitle>
+                      <CardHeader className="pb-3 md:pb-4">
+                        <CardTitle className="text-base md:text-lg">Processing Status</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
+                      <CardContent className="pt-0">
+                        <div className="space-y-3 md:space-y-4">
                           <div>
                             <div className="flex justify-between mb-2">
-                              <span className="text-sm">Completed</span>
-                              <span className="text-sm font-medium">{pipelineStageDetails[selectedPipelineStage].metrics.completed}/{pipelineStageDetails[selectedPipelineStage].metrics.total}</span>
+                              <span className="text-xs md:text-sm">Completed</span>
+                              <span className="text-xs md:text-sm font-medium">{pipelineStageDetails[selectedPipelineStage].metrics.completed}/{pipelineStageDetails[selectedPipelineStage].metrics.total}</span>
                             </div>
                             <Progress value={pipelineStageDetails[selectedPipelineStage].metrics.completionRate} className="h-2" />
                           </div>
@@ -853,58 +846,58 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
                 )}
 
                 {selectedPipelineStage === 'research-completed' && (
-                  <div className="space-y-6">
-                    {/* Core Metrics */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Completed</p>
-                        <p className="text-2xl font-bold text-green-400">{pipelineStageDetails[selectedPipelineStage].metrics.completed}</p>
+                  <div className="space-y-4 md:space-y-6">
+                    {/* Core Metrics - Mobile Responsive */}
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Completed</p>
+                        <p className="text-lg md:text-2xl font-bold text-green-400">{pipelineStageDetails[selectedPipelineStage].metrics.completed}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Total Prospects</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.total}</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Total Prospects</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.total}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Completion Rate</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.completionRate}%</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Completion Rate</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.completionRate}%</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Processing</p>
-                        <p className="text-2xl font-bold text-blue-400">{pipelineStageDetails[selectedPipelineStage].metrics.processing}</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Processing</p>
+                        <p className="text-lg md:text-2xl font-bold text-blue-400">{pipelineStageDetails[selectedPipelineStage].metrics.processing}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Failed</p>
-                        <p className="text-2xl font-bold text-red-400">{pipelineStageDetails[selectedPipelineStage].metrics.failed}</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Failed</p>
+                        <p className="text-lg md:text-2xl font-bold text-red-400">{pipelineStageDetails[selectedPipelineStage].metrics.failed}</p>
                       </div>
                     </div>
 
                     {/* Research Status Breakdown */}
                     <Card>
-                      <CardHeader>
-                        <CardTitle>Research Pipeline Status</CardTitle>
+                      <CardHeader className="pb-3 md:pb-4">
+                        <CardTitle className="text-base md:text-lg">Research Pipeline Status</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
+                      <CardContent className="pt-0">
+                        <div className="space-y-3 md:space-y-4">
                           <div className="flex items-center justify-between p-3 bg-green-500/10 rounded-lg">
                             <span className="flex items-center gap-2">
-                              <CheckCircle className="w-5 h-5 text-green-400" />
-                              Research Completed
+                              <CheckCircle className="w-4 h-4 md:w-5 md:h-5 text-green-400" />
+                              <span className="text-xs md:text-sm">Research Completed</span>
                             </span>
-                            <span className="font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.completed}</span>
+                            <span className="font-bold text-sm md:text-base">{pipelineStageDetails[selectedPipelineStage].metrics.completed}</span>
                           </div>
                           <div className="flex items-center justify-between p-3 bg-blue-500/10 rounded-lg">
                             <span className="flex items-center gap-2">
-                              <Clock className="w-5 h-5 text-blue-400" />
-                              Currently Processing
+                              <Clock className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
+                              <span className="text-xs md:text-sm">Currently Processing</span>
                             </span>
-                            <span className="font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.processing}</span>
+                            <span className="font-bold text-sm md:text-base">{pipelineStageDetails[selectedPipelineStage].metrics.processing}</span>
                           </div>
                           <div className="flex items-center justify-between p-3 bg-red-500/10 rounded-lg">
                             <span className="flex items-center gap-2">
-                              <AlertTriangle className="w-5 h-5 text-red-400" />
-                              Failed Processing
+                              <AlertTriangle className="w-4 h-4 md:w-5 md:h-5 text-red-400" />
+                              <span className="text-xs md:text-sm">Failed Processing</span>
                             </span>
-                            <span className="font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.failed}</span>
+                            <span className="font-bold text-sm md:text-base">{pipelineStageDetails[selectedPipelineStage].metrics.failed}</span>
                           </div>
                         </div>
                       </CardContent>
@@ -913,21 +906,21 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
                 )}
 
                 {selectedPipelineStage === 'sent-to-outreach' && (
-                  <div className="space-y-6">
-                    {/* Core Metrics */}
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Sent to Reply.io</p>
-                        <p className="text-2xl font-bold text-green-400">{pipelineStageDetails[selectedPipelineStage].metrics.sent}</p>
+                  <div className="space-y-4 md:space-y-6">
+                    {/* Core Metrics - Mobile Responsive */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Sent to Reply.io</p>
+                        <p className="text-lg md:text-2xl font-bold text-green-400">{pipelineStageDetails[selectedPipelineStage].metrics.sent}</p>
                         <p className="text-xs text-muted-foreground">Winry.AI prospects only</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">From Research</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.fromResearch}</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">From Research</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.fromResearch}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Send Rate</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.sendRate}%</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Send Rate</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.sendRate}%</p>
                       </div>
                     </div>
 
@@ -958,56 +951,56 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
                 )}
 
                 {selectedPipelineStage === 'emails-opened' && (
-                  <div className="space-y-6">
-                    {/* Core Metrics */}
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Opened</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.opened}</p>
+                  <div className="space-y-4 md:space-y-6">
+                    {/* Core Metrics - Mobile Responsive */}
+                    <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Opened</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.opened}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Sent</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.sent}</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Sent</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.sent}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Open Rate</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.openRate}%</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Open Rate</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.openRate}%</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Click Rate</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.clickRate}%</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Click Rate</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.clickRate}%</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Click-to-Open</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.clickToOpenRate}%</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border col-span-2 lg:col-span-1">
+                        <p className="text-xs md:text-sm text-muted-foreground">Click-to-Open</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.clickToOpenRate}%</p>
                       </div>
                     </div>
 
                     {/* Engagement Funnel */}
                     <Card>
-                      <CardHeader>
-                        <CardTitle>Email Engagement Funnel</CardTitle>
+                      <CardHeader className="pb-3 md:pb-4">
+                        <CardTitle className="text-base md:text-lg">Email Engagement Funnel</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
+                      <CardContent className="pt-0">
+                        <div className="space-y-3 md:space-y-4">
                           <div>
                             <div className="flex justify-between mb-2">
-                              <span className="text-sm">Emails Sent</span>
-                              <span className="text-sm font-medium">{pipelineStageDetails[selectedPipelineStage].metrics.sent}</span>
+                              <span className="text-xs md:text-sm">Emails Sent</span>
+                              <span className="text-xs md:text-sm font-medium">{pipelineStageDetails[selectedPipelineStage].metrics.sent}</span>
                             </div>
                             <Progress value={100} className="h-2" />
                           </div>
                           <div>
                             <div className="flex justify-between mb-2">
-                              <span className="text-sm">Emails Opened</span>
-                              <span className="text-sm font-medium">{pipelineStageDetails[selectedPipelineStage].metrics.opened}</span>
+                              <span className="text-xs md:text-sm">Emails Opened</span>
+                              <span className="text-xs md:text-sm font-medium">{pipelineStageDetails[selectedPipelineStage].metrics.opened}</span>
                             </div>
                             <Progress value={pipelineStageDetails[selectedPipelineStage].metrics.sent > 0 ? (pipelineStageDetails[selectedPipelineStage].metrics.opened / pipelineStageDetails[selectedPipelineStage].metrics.sent) * 100 : 0} className="h-2" />
                           </div>
                           <div>
                             <div className="flex justify-between mb-2">
-                              <span className="text-sm">Links Clicked</span>
-                              <span className="text-sm font-medium">{pipelineStageDetails[selectedPipelineStage].metrics.clicked}</span>
+                              <span className="text-xs md:text-sm">Links Clicked</span>
+                              <span className="text-xs md:text-sm font-medium">{pipelineStageDetails[selectedPipelineStage].metrics.clicked}</span>
                             </div>
                             <Progress value={pipelineStageDetails[selectedPipelineStage].metrics.sent > 0 ? (pipelineStageDetails[selectedPipelineStage].metrics.clicked / pipelineStageDetails[selectedPipelineStage].metrics.sent) * 100 : 0} className="h-2" />
                           </div>
@@ -1018,37 +1011,37 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
                 )}
 
                 {selectedPipelineStage === 'responses-received' && (
-                  <div className="space-y-6">
-                    {/* Core Metrics */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Responses</p>
-                        <p className="text-2xl font-bold text-red-400">{pipelineStageDetails[selectedPipelineStage].metrics.responses}</p>
+                  <div className="space-y-4 md:space-y-6">
+                    {/* Core Metrics - Mobile Responsive */}
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Responses</p>
+                        <p className="text-lg md:text-2xl font-bold text-red-400">{pipelineStageDetails[selectedPipelineStage].metrics.responses}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Emails Sent</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.sent}</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Emails Sent</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.sent}</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Reply Rate</p>
-                        <p className="text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.replyRate}%</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border">
+                        <p className="text-xs md:text-sm text-muted-foreground">Reply Rate</p>
+                        <p className="text-lg md:text-2xl font-bold">{pipelineStageDetails[selectedPipelineStage].metrics.replyRate}%</p>
                       </div>
-                      <div className="bg-card p-4 rounded-lg border">
-                        <p className="text-sm text-muted-foreground">Overall Conversion</p>
-                        <p className="text-2xl font-bold text-green-400">{pipelineStageDetails[selectedPipelineStage].metrics.overallConversion}%</p>
+                      <div className="bg-card p-3 md:p-4 rounded-lg border col-span-2 lg:col-span-1">
+                        <p className="text-xs md:text-sm text-muted-foreground">Overall Conversion</p>
+                        <p className="text-lg md:text-2xl font-bold text-green-400">{pipelineStageDetails[selectedPipelineStage].metrics.overallConversion}%</p>
                       </div>
                     </div>
 
                     {/* Conversion Summary */}
                     <Card>
-                      <CardHeader>
-                        <CardTitle>End-to-End Conversion</CardTitle>
+                      <CardHeader className="pb-3 md:pb-4">
+                        <CardTitle className="text-base md:text-lg">End-to-End Conversion</CardTitle>
                       </CardHeader>
-                      <CardContent>
-                        <div className="space-y-4">
-                          <div className="text-center p-6 bg-gradient-to-r from-purple-500/10 to-red-500/10 rounded-lg">
-                            <p className="text-3xl font-bold mb-2">{pipelineStageDetails[selectedPipelineStage].metrics.overallConversion}%</p>
-                            <p className="text-sm text-muted-foreground">
+                      <CardContent className="pt-0">
+                        <div className="space-y-3 md:space-y-4">
+                          <div className="text-center p-4 md:p-6 bg-gradient-to-r from-purple-500/10 to-red-500/10 rounded-lg">
+                            <p className="text-2xl md:text-3xl font-bold mb-2">{pipelineStageDetails[selectedPipelineStage].metrics.overallConversion}%</p>
+                            <p className="text-xs md:text-sm text-muted-foreground">
                               {pipelineStageDetails[selectedPipelineStage].metrics.responses} responses from {pipelineMetrics.totalUploaded} prospects
                             </p>
                           </div>
@@ -1058,21 +1051,21 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
                   </div>
                 )}
 
-                {/* Insights and Recommendations - Same for all stages */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                {/* Insights and Recommendations - Mobile Responsive */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mt-4 md:mt-6">
                   <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Lightbulb className="w-5 h-5 text-yellow-400" />
+                    <CardHeader className="pb-3 md:pb-4">
+                      <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                        <Lightbulb className="w-4 h-4 md:w-5 md:h-5 text-yellow-400" />
                         Key Insights
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-2">
+                    <CardContent className="pt-0">
+                      <ul className="space-y-2 md:space-y-3">
                         {pipelineStageDetails[selectedPipelineStage as keyof typeof pipelineStageDetails].insights.map((insight, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <CheckCircle className="w-4 h-4 text-green-400 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm">{insight}</span>
+                            <CheckCircle className="w-3 h-3 md:w-4 md:h-4 text-green-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-xs md:text-sm">{insight}</span>
                           </li>
                         ))}
                       </ul>
@@ -1080,18 +1073,18 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
                   </Card>
 
                   <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2">
-                        <Target className="w-5 h-5 text-blue-400" />
+                    <CardHeader className="pb-3 md:pb-4">
+                      <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                        <Target className="w-4 h-4 md:w-5 md:h-5 text-blue-400" />
                         Recommendations
                       </CardTitle>
                     </CardHeader>
-                    <CardContent>
-                      <ul className="space-y-2">
+                    <CardContent className="pt-0">
+                      <ul className="space-y-2 md:space-y-3">
                         {pipelineStageDetails[selectedPipelineStage as keyof typeof pipelineStageDetails].recommendations.map((rec, idx) => (
                           <li key={idx} className="flex items-start gap-2">
-                            <ArrowRight className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm">{rec}</span>
+                            <ArrowRight className="w-3 h-3 md:w-4 md:h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-xs md:text-sm">{rec}</span>
                           </li>
                         ))}
                       </ul>
@@ -1099,23 +1092,24 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
                   </Card>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex justify-between items-center pt-4 border-t">
-                  <div className="flex items-center gap-2">
+                {/* Action Buttons - Mobile Responsive */}
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-0 pt-4 border-t">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
                     <Badge variant="outline" className={pipelineStageDetails[selectedPipelineStage as keyof typeof pipelineStageDetails].iconBg}>
                       {pipelineStageDetails[selectedPipelineStage as keyof typeof pipelineStageDetails].title}
                     </Badge>
-                    <span className="text-sm text-muted-foreground">
+                    <span className="text-xs sm:text-sm text-muted-foreground">
                       Last updated: {new Date().toLocaleTimeString()}
                     </span>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setSelectedPipelineStage(null)}>
+                    <Button variant="outline" onClick={() => setSelectedPipelineStage(null)} className="flex-1 sm:flex-none text-xs sm:text-sm">
                       Close
                     </Button>
-                    <Button onClick={handleRefresh}>
-                      <RefreshCw className="w-4 h-4 mr-2" />
-                      Refresh Data
+                    <Button onClick={handleRefresh} className="flex-1 sm:flex-none text-xs sm:text-sm">
+                      <RefreshCw className="w-4 h-4 mr-1 sm:mr-2" />
+                      <span className="hidden sm:inline">Refresh Data</span>
+                      <span className="sm:hidden">Refresh</span>
                     </Button>
                   </div>
                 </div>

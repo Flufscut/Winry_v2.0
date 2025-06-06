@@ -1,36 +1,41 @@
-node_modules
-dist
-.DS_Store
-server/public
-vite.config.ts.*
-*.tar.gz
+# Dependencies
+node_modules/
+*.npm
+*.pnpm-lock.json
 
-# Temporary and development files
-attached_assets/
+# Build outputs
+dist/
+build/
 
-# Database files
-*.db
-local.db
-
-# Log files
-*.log
-server.log
-server_debug.log
-
-# Environment and sensitive files
+# Environment variables and secrets
 .env
 .env.local
 .env.production
-cookies.txt
+.env.staging
+*.env
 
-# Test files
-test-*.csv
-test-*.jpg
-sally-photo-test.jpg
-test-photo.jpg
+# Database files
+*.db
+*.db.backup
+*.sqlite
+*.sqlite3
+local.db*
 
-# User uploads and samples
-sample-prospects.csv
+# Logs
+*.log
+npm-debug.log*
+server_debug.log
+auto_send_debug.log
+webhook_debug.log
+
+# Runtime data
+*.pid
+*.seed
+
+# Temporary files
+.DS_Store
+*.tmp
+*.temp
 
 # IDE files
 .vscode/
@@ -38,10 +43,33 @@ sample-prospects.csv
 *.swp
 *.swo
 
-# OS generated files
-Thumbs.db
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
+# Test coverage
+coverage/
+
+# Cache directories
+.cache/
+.parcel-cache/
+
+# Replit specific
+.replit
+replit.nix
+
+# Server public (generated)
+server/public/
+
+# Cookies and session data
+*cookies*.txt
+auth_cookies.txt
+
+# Debug files
+debug.log
+
+# CSV test files (keep template files, exclude test data)
+test-*.csv
+quick-test.csv
+
+# Tar files
+*.tar.gz
+
+# Build config variations
+vite.config.ts.*

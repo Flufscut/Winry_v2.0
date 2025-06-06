@@ -33,7 +33,7 @@
   --intelligence-warning: 38 92% 50%;
   --intelligence-danger: 0 84% 60%;
   
-  /* Surface Colors */
+  /* Surface Colors - Dark Theme */
   --surface-base: 240 10% 3.9%;
   --surface-elevated: 240 9% 8%;
   --surface-elevated-2: 240 8% 12%;
@@ -70,6 +70,16 @@
   --border: 240 5.9% 90%;
   --input: 240 5.9% 90%;
   --ring: 263 70% 50%;
+
+  /* Surface Colors - Light Theme */
+  --surface-base: 0 0% 100%;
+  --surface-elevated: 240 4.8% 98%;
+  --surface-elevated-2: 240 4.8% 95.9%;
+  --surface-elevated-3: 240 4.8% 92%;
+  
+  /* Light theme gradients */
+  --gradient-surface: linear-gradient(135deg, hsl(var(--surface-elevated)) 0%, hsl(var(--surface-elevated-2)) 100%);
+  --gradient-hero: linear-gradient(135deg, hsl(var(--intelligence-primary)/0.05) 0%, hsl(var(--intelligence-accent)/0.05) 100%);
 }
 
 /* Base Styles */
@@ -487,4 +497,93 @@ h6 { @apply text-lg md:text-xl; }
 ::selection {
   background: hsl(var(--intelligence-primary)/0.3);
   color: hsl(var(--foreground));
+}
+
+/* Preferences-based styles */
+
+/* Compact Mode Styles */
+.compact-mode {
+  --compact-spacing: 0.75rem;
+  --compact-card-padding: 1rem;
+  --compact-text-scale: 0.9;
+}
+
+.compact-mode .command-card {
+  padding: var(--compact-card-padding);
+  margin-bottom: var(--compact-spacing);
+}
+
+.compact-mode .intelligence-panel,
+.compact-mode .data-landscape,
+.compact-mode .action-center {
+  padding: 1.5rem;
+}
+
+.compact-mode .hero-section {
+  padding: 2rem;
+}
+
+.compact-mode .metric-card-curved {
+  padding: 1.5rem;
+}
+
+.compact-mode h1 { @apply text-4xl md:text-5xl; }
+.compact-mode h2 { @apply text-3xl md:text-4xl; }
+.compact-mode h3 { @apply text-2xl md:text-3xl; }
+.compact-mode h4 { @apply text-xl md:text-2xl; }
+.compact-mode h5 { @apply text-lg md:text-xl; }
+.compact-mode h6 { @apply text-base md:text-lg; }
+
+.compact-mode .command-center-grid {
+  gap: 1.5rem;
+  padding: 1.5rem;
+}
+
+/* No Animations Class */
+.no-animations * {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Enhanced theme switching */
+html.light {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+}
+
+/* System theme detection fallback */
+@media (prefers-color-scheme: dark) {
+  html:not(.light):not(.dark) {
+    color-scheme: dark;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  html:not(.light):not(.dark) {
+    color-scheme: light;
+  }
+}
+
+/* Theme-aware page backgrounds */
+.page-background {
+  background: hsl(var(--surface-base));
+  min-height: 100vh;
+}
+
+.header-background {
+  background: hsl(var(--surface-base));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.card-background {
+  background: hsl(var(--surface-elevated));
+  border: 1px solid hsl(var(--border));
+}
+
+.card-background-elevated {
+  background: hsl(var(--surface-elevated-2));
+  border: 1px solid hsl(var(--border));
 }

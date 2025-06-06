@@ -35,6 +35,20 @@ export const users = sqliteTable('users', {
   firstName: text('first_name'),
   lastName: text('last_name'),
   profileImageUrl: text('profile_image_url'),
+  passwordHash: text('password_hash'), // Hashed password for username/password auth
+  oauthProvider: text('oauth_provider'), // 'google', 'outlook', etc.
+  oauthId: text('oauth_id'), // OAuth provider user ID
+  preferences: text('preferences'), // JSON as text in SQLite
+  createdAt: text('created_at').default("datetime('now')"),
+  updatedAt: text('updated_at').default("datetime('now')"),
+});
+
+export const clients = sqliteTable('clients', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  userId: text('user_id').notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  isActive: integer('is_active').default(1),
   createdAt: text('created_at').default("datetime('now')"),
   updatedAt: text('updated_at').default("datetime('now')"),
 });
@@ -42,6 +56,7 @@ export const users = sqliteTable('users', {
 export const prospects = sqliteTable('prospects', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').notNull(),
+  clientId: integer('client_id').notNull(),
   firstName: text('first_name').notNull(),
   lastName: text('last_name').notNull(),
   company: text('company').notNull(),
@@ -60,6 +75,7 @@ export const prospects = sqliteTable('prospects', {
 export const csvUploads = sqliteTable('csv_uploads', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').notNull(),
+  clientId: integer('client_id').notNull(),
   fileName: text('file_name').notNull(),
   totalRows: integer('total_rows').notNull(),
   processedRows: integer('processed_rows').notNull().default(0),
@@ -71,7 +87,8 @@ export const csvUploads = sqliteTable('csv_uploads', {
 // User settings table for storing Reply.io configuration and other preferences
 export const userSettings = sqliteTable('user_settings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
-  userId: text('user_id').notNull().unique(),
+  userId: text('user_id').notNull(),
+  clientId: integer('client_id').notNull(),
   replyIoApiKey: text('reply_io_api_key'), // Encrypted Reply.io API key
   replyIoCampaignId: text('reply_io_campaign_id'), // Default campaign ID
   replyIoAutoSend: integer('reply_io_auto_send', { mode: 'boolean' }).default(true), // Auto-send to Reply.io when research completes
@@ -96,13 +113,29 @@ sqlite.exec(`
     first_name TEXT,
     last_name TEXT,
     profile_image_url TEXT,
+    password_hash TEXT,
+    oauth_provider TEXT,
+    oauth_id TEXT,
+    preferences TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS clients (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    description TEXT,
+    is_active INTEGER DEFAULT 1,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now')),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS prospects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
+    client_id INTEGER NOT NULL,
     first_name TEXT NOT NULL,
     last_name TEXT NOT NULL,
     company TEXT NOT NULL,
@@ -116,24 +149,28 @@ sqlite.exec(`
     sent_to_replyio_campaign_id INTEGER,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS csv_uploads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
+    client_id INTEGER NOT NULL,
     file_name TEXT NOT NULL,
     total_rows INTEGER NOT NULL,
     processed_rows INTEGER NOT NULL DEFAULT 0,
     status TEXT NOT NULL DEFAULT 'processing',
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS user_settings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id TEXT NOT NULL UNIQUE,
+    user_id TEXT NOT NULL,
+    client_id INTEGER NOT NULL,
     reply_io_api_key TEXT,
     reply_io_campaign_id TEXT,
     reply_io_auto_send INTEGER DEFAULT 1,
@@ -142,18 +179,22 @@ sqlite.exec(`
     batch_size INTEGER DEFAULT 10,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE,
+    UNIQUE(user_id, client_id)
   );
 
   CREATE TABLE IF NOT EXISTS replyio_accounts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT NOT NULL,
+    client_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     api_key TEXT NOT NULL,
     is_default INTEGER DEFAULT 0,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
-    FOREIGN KEY (user_id) REFERENCES users(id)
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
   );
 
   CREATE TABLE IF NOT EXISTS replyio_campaigns (
@@ -170,7 +211,13 @@ sqlite.exec(`
   );
 
   CREATE INDEX IF NOT EXISTS IDX_session_expire ON sessions(expire);
+  CREATE INDEX IF NOT EXISTS IDX_clients_user_id ON clients(user_id);
+  CREATE INDEX IF NOT EXISTS IDX_prospects_client_id ON prospects(client_id);
+  CREATE INDEX IF NOT EXISTS IDX_prospects_user_client ON prospects(user_id, client_id);
+  CREATE INDEX IF NOT EXISTS IDX_csv_uploads_client_id ON csv_uploads(client_id);
+  CREATE INDEX IF NOT EXISTS IDX_user_settings_client_id ON user_settings(client_id);
   CREATE INDEX IF NOT EXISTS IDX_replyio_accounts_user_id ON replyio_accounts(user_id);
+  CREATE INDEX IF NOT EXISTS IDX_replyio_accounts_client_id ON replyio_accounts(client_id);
   CREATE INDEX IF NOT EXISTS IDX_replyio_campaigns_account_id ON replyio_campaigns(account_id);
 `);
 
@@ -190,22 +237,123 @@ try {
   console.log('Index for sentToReplyioCampaignId already exists or column not found');
 }
 
-// REF: Add migration for existing databases to add the auto_send column
+// REF: Check if we need to migrate existing database or if this is a fresh install
 try {
-  sqlite.exec(`ALTER TABLE user_settings ADD COLUMN reply_io_auto_send INTEGER DEFAULT 1;`);
-  console.log('Added reply_io_auto_send column to existing user_settings table');
+  // Test if users table exists and has data
+  const userCount = sqlite.prepare(`SELECT COUNT(*) as count FROM users`).get() as { count: number };
+  const needsMigration = userCount.count > 0;
+  
+  if (needsMigration) {
+    console.log('=== MIGRATING EXISTING DATABASE ===');
+    
+    // REF: Add migration for existing databases to add the auto_send column
+    try {
+      sqlite.exec(`ALTER TABLE user_settings ADD COLUMN reply_io_auto_send INTEGER DEFAULT 1;`);
+      console.log('✓ Added reply_io_auto_send column to existing user_settings table');
+    } catch (error) {
+      console.log('reply_io_auto_send column already exists or migration not needed');
+    }
+
+    // REF: Migration for multi-tenant client support - create default clients for existing users
+    try {
+      // First, get all users
+      const existingUsers = sqlite.prepare(`SELECT id FROM users`).all() as { id: string }[];
+      
+      for (const user of existingUsers) {
+        // Check if user already has a default client
+        const existingClient = sqlite.prepare(`SELECT id FROM clients WHERE user_id = ? AND name = 'Default'`).get(user.id) as { id: number } | undefined;
+        
+        if (!existingClient) {
+          // Create default client for existing user
+          const insertClient = sqlite.prepare(`INSERT INTO clients (user_id, name, description, is_active) VALUES (?, ?, ?, ?)`);
+          const result = insertClient.run(user.id, 'Default', 'Default client workspace', 1);
+          console.log(`✓ Created default client for user ${user.id} with ID ${result.lastInsertRowid}`);
+        }
+      }
+      
+      console.log('✓ Ensured all users have default clients');
+    } catch (error) {
+      console.log('Default client creation skipped or already completed');
+    }
+
+    // REF: Add client_id columns to existing tables via ALTER TABLE
+    try {
+      sqlite.exec(`ALTER TABLE prospects ADD COLUMN client_id INTEGER;`);
+      console.log('✓ Added client_id column to prospects table');
+    } catch (error) {
+      console.log('client_id column already exists in prospects table');
+    }
+
+    try {
+      sqlite.exec(`ALTER TABLE csv_uploads ADD COLUMN client_id INTEGER;`);
+      console.log('✓ Added client_id column to csv_uploads table');
+    } catch (error) {
+      console.log('client_id column already exists in csv_uploads table');
+    }
+
+    try {
+      sqlite.exec(`ALTER TABLE user_settings ADD COLUMN client_id INTEGER;`);
+      console.log('✓ Added client_id column to user_settings table');
+    } catch (error) {
+      console.log('client_id column already exists in user_settings table');
+    }
+
+    try {
+      sqlite.exec(`ALTER TABLE replyio_accounts ADD COLUMN client_id INTEGER;`);
+      console.log('✓ Added client_id column to replyio_accounts table');
+    } catch (error) {
+      console.log('client_id column already exists in replyio_accounts table');
+    }
+
+    // REF: Update existing records to use the default client
+    try {
+      // Get all users and their default clients
+      const usersWithClients = sqlite.prepare(`
+        SELECT u.id as user_id, c.id as client_id 
+        FROM users u 
+        LEFT JOIN clients c ON u.id = c.user_id AND c.name = 'Default'
+      `).all() as { user_id: string; client_id: number }[];
+      
+      for (const { user_id, client_id } of usersWithClients) {
+        if (client_id) {
+          // Update prospects
+          const prospectsUpdated = sqlite.prepare(`UPDATE prospects SET client_id = ? WHERE user_id = ? AND client_id IS NULL`).run(client_id, user_id);
+          
+          // Update csv_uploads  
+          const csvUpdated = sqlite.prepare(`UPDATE csv_uploads SET client_id = ? WHERE user_id = ? AND client_id IS NULL`).run(client_id, user_id);
+          
+          // Update user_settings
+          const settingsUpdated = sqlite.prepare(`UPDATE user_settings SET client_id = ? WHERE user_id = ? AND client_id IS NULL`).run(client_id, user_id);
+          
+          // Update replyio_accounts
+          const accountsUpdated = sqlite.prepare(`UPDATE replyio_accounts SET client_id = ? WHERE user_id = ? AND client_id IS NULL`).run(client_id, user_id);
+          
+          console.log(`✓ Updated records for user ${user_id} to use client ${client_id}`);
+        }
+      }
+      
+      console.log('✓ Updated existing records to use default clients');
+    } catch (error) {
+      console.log('Record migration skipped or already completed');
+    }
+    
+  } else {
+    console.log('=== FRESH DATABASE DETECTED ===');
+    console.log('✓ No migration needed - fresh installation');
+  }
+  
 } catch (error) {
-  // REF: Column already exists or other error - this is fine for existing installations
-  console.log('reply_io_auto_send column already exists or migration not needed');
+  console.log('Migration check failed - treating as fresh installation');
 }
 
 // Reply.io Accounts table for storing multiple API keys per user
 export const replyioAccounts = sqliteTable('replyio_accounts', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   userId: text('user_id').notNull(),
+  clientId: integer('client_id').notNull(),
   name: text('name').notNull(), // User-friendly name (e.g., "Main Account", "Sales Team")
   apiKey: text('api_key').notNull(), // Encrypted Reply.io API key
-  isDefault: integer('is_default', { mode: 'boolean' }).default(false), // Only one default per user
+  isDefault: integer('is_default', { mode: 'boolean' }).default(false), // Only one default per user per client
   createdAt: text('created_at').default("datetime('now')"),
   updatedAt: text('updated_at').default("datetime('now')"),
 });
@@ -226,6 +374,7 @@ export const replyioCampaigns = sqliteTable('replyio_campaigns', {
 const localSchema = {
   sessions,
   users,
+  clients,
   prospects,
   csvUploads,
   userSettings,
@@ -242,6 +391,16 @@ export const insertUserSchema = createInsertSchema(users).pick({
   profileImageUrl: true,
 });
 
+export const insertClientSchema = createInsertSchema(clients).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).extend({
+  name: z.string().min(1, "Client name is required").max(100),
+  description: z.string().optional(),
+  isActive: z.number().int().min(0).max(1).optional().default(1), // SQLite compatibility - use 1 for true, 0 for false
+});
+
 export const insertProspectSchema = createInsertSchema(prospects).omit({
   id: true,
   createdAt: true,
@@ -253,6 +412,7 @@ export const insertProspectSchema = createInsertSchema(prospects).omit({
   title: z.string().min(1, "Title is required"),
   email: z.string().email("Valid email is required"),
   linkedinUrl: z.string().url().optional().or(z.literal("")),
+  clientId: z.number().min(1, "Client ID is required"),
 });
 
 export const insertCsvUploadSchema = createInsertSchema(csvUploads).omit({
@@ -268,7 +428,7 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
 }).extend({
   replyIoApiKey: z.string().optional(),
   replyIoCampaignId: z.string().optional(),
-  replyIoAutoSend: z.boolean().optional(),
+  replyIoAutoSend: z.number().int().min(0).max(1).optional(), // SQLite compatibility
   webhookUrl: z.string().url().optional().or(z.literal("")),
   webhookTimeout: z.number().min(30).max(1800).optional(),
   batchSize: z.number().min(1).max(100).optional(),
@@ -282,7 +442,7 @@ export const insertReplyioAccountSchema = createInsertSchema(replyioAccounts).om
 }).extend({
   name: z.string().min(1).max(100),
   apiKey: z.string().min(1),
-  isDefault: z.boolean().optional(),
+  isDefault: z.number().int().min(0).max(1).optional().default(0), // SQLite compatibility
 });
 
 export const updateReplyioAccountSchema = insertReplyioAccountSchema.partial().extend({
@@ -299,7 +459,7 @@ export const insertReplyioCampaignSchema = createInsertSchema(replyioCampaigns).
   campaignId: z.number(),
   campaignName: z.string().min(1).max(200),
   campaignStatus: z.string().optional(),
-  isDefault: z.boolean().optional(),
+  isDefault: z.number().int().min(0).max(1).optional().default(0), // SQLite compatibility
 });
 
 export const updateReplyioCampaignSchema = insertReplyioCampaignSchema.partial().extend({
@@ -309,6 +469,8 @@ export const updateReplyioCampaignSchema = insertReplyioCampaignSchema.partial()
 // Export types - using local schema
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type InsertClient = z.infer<typeof insertClientSchema>;
+export type Client = typeof clients.$inferSelect;
 export type InsertProspect = z.infer<typeof insertProspectSchema>;
 export type Prospect = typeof prospects.$inferSelect;
 export type InsertCsvUpload = z.infer<typeof insertCsvUploadSchema>;

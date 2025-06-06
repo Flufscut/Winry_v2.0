@@ -1,199 +1,219 @@
-# Winry.AI - Sales Intelligence Platform
+# Winry.AI - True Sales Intelligence Platform
 
-A comprehensive AI-powered sales intelligence platform that automates prospect research, generates personalized outreach, and manages the complete sales pipeline from lead upload to response tracking.
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/winry-ai)
 
-## 🎯 Features
+> **AI-powered prospect research and outreach automation platform built for modern sales teams**
 
-### Core Functionality
-- **Prospect Management**: Upload prospects via CSV, manage contact information, and track status
-- **AI Research Engine**: Automated prospect research using n8n workflow integration
-- **Personalized Outreach**: AI-generated personalized emails and messaging
-- **Reply.io Integration**: Automated sending to Reply.io campaigns with comprehensive analytics
-- **Pipeline Analytics**: Complete funnel visualization from upload to response
+## 🚀 Quick Deploy
 
-### Technical Capabilities
-- **Full-Stack TypeScript**: React frontend with Express backend
-- **Database**: SQLite for local development, PostgreSQL for production
-- **Authentication**: Local development bypass, production-ready auth system
-- **Real-time Updates**: Live prospect status tracking and analytics
-- **Responsive Design**: Modern UI with shadcn/ui components and dark mode
+**One-Click Deployment:**
+1. Click the Railway button above
+2. Set environment variables (see below)
+3. Deploy automatically
 
-## 🚀 Quick Start
+**Manual Setup:**
+1. Clone this repository
+2. Set up PostgreSQL database (Neon recommended)
+3. Configure environment variables
+4. Deploy to your preferred platform
+
+## ✨ Features
+
+### 🧠 AI-Powered Research
+- **Intelligent Prospect Analysis** - Deep research on prospects using advanced AI
+- **Company Intelligence** - Comprehensive company analysis and competitive insights
+- **Pain Point Identification** - Automated discovery of business challenges and opportunities
+- **Personalization Engine** - Context-aware messaging and outreach customization
+
+### 📊 Advanced Analytics
+- **Pipeline Analytics** - Real-time conversion tracking and performance metrics
+- **Reply.io Integration** - Campaign performance insights and optimization recommendations
+- **Business Intelligence** - Sophisticated prospect quality scoring and ROI analysis
+- **Cache Monitoring** - API performance tracking and rate limit management
+
+### 🏢 Enterprise Features
+- **Multi-Tenant Workspaces** - Complete client workspace isolation and management
+- **Bulk Operations** - Efficient prospect management and bulk outreach capabilities
+- **CSV Import/Export** - Seamless data import with intelligent column mapping
+- **Production Monitoring** - Health checks, system metrics, and alerting
+
+### 🔗 Integrations
+- **Reply.io** - Automated prospect enrollment and campaign management
+- **n8n Workflows** - Extensible AI research automation
+- **PostgreSQL** - Enterprise-grade data storage and management
+
+## 🛠️ Local Development
 
 ### Prerequisites
 - Node.js 18+ 
-- npm or yarn
-- Git
+- PostgreSQL database (or use SQLite for local development)
+- n8n instance for AI research workflows
 
-### Installation
+### Setup
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/winry-ai.git
+cd winry-ai
 
-1. **Clone the repository**
-   ```bash
-   git clone https://github.com/Flufscut/winry.git
-   cd winry
-   ```
+# Install dependencies
+npm install
 
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
+# Set up environment variables (see below)
+cp .env.example .env
 
-3. **Set up environment**
-   ```bash
-   # Local development uses SQLite by default
-   # No additional setup required for basic functionality
-   ```
-
-4. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-5. **Access the application**
-   - Frontend: `http://localhost:5173`
-   - Backend API: `http://localhost:5001`
-
-## 📁 Project Structure
-
+# Start development server
+npm run dev
 ```
-winry/
-├── client/                 # React frontend
-│   ├── src/
-│   │   ├── components/    # UI components
-│   │   ├── pages/         # Page components
-│   │   ├── hooks/         # Custom React hooks
-│   │   └── lib/           # Utilities
-├── server/                # Express backend
-│   ├── routes.ts          # API endpoints
-│   ├── storage.ts         # Database operations
-│   ├── auth-local.ts      # Authentication (local dev)
-│   └── replyio-service.ts # Reply.io integration
-├── shared/                # Shared types and schemas
-│   └── schema.ts          # Database schema
-├── STATUS.md              # Development status
-├── MASTER_PROMPT.md       # Development guidelines
-└── Winry_AI_PRD.md       # Product requirements
-```
-
-## 🔧 Configuration
 
 ### Environment Variables
 ```bash
-# Database (auto-configured for local development)
-DATABASE_URL=./local.db
+# Database Configuration
+DATABASE_URL=postgresql://username:password@hostname:5432/database_name?sslmode=require
 
-# n8n Webhook (for AI research)
-N8N_WEBHOOK_URL=your_n8n_webhook_url
+# Security Configuration
+SESSION_SECRET=your-secure-session-secret-minimum-32-characters
+ENCRYPTION_KEY=your-32-character-encryption-key-here
+JWT_SECRET=your-jwt-signing-secret-for-tokens
 
-# Reply.io Integration (optional)
-REPLYIO_API_KEY=your_api_key
+# External Services
+N8N_WEBHOOK_URL=https://your-n8n-instance.app.n8n.cloud/webhook/your-webhook-id
+
+# Optional Configuration
+NODE_ENV=development
+PORT=5001
+CORS_ORIGINS=http://localhost:3000,http://localhost:5001
 ```
 
-### Development vs Production
-- **Local Development**: Uses SQLite database with authentication bypass
-- **Production**: PostgreSQL database with full authentication system
+## 📦 Production Deployment
 
-## 📊 Usage
+### Railway (Recommended)
+1. Fork this repository
+2. Connect to Railway
+3. Add PostgreSQL service
+4. Set environment variables
+5. Deploy automatically
 
-### 1. Upload Prospects
-- Navigate to "Upload Prospects" tab
-- Upload CSV file with prospect information
-- Map columns to required fields
-- Review and confirm upload
+### Other Platforms
+- **Vercel**: Frontend deployment with API routes
+- **DigitalOcean**: App Platform with managed PostgreSQL
+- **AWS**: ECS with RDS PostgreSQL
+- **Self-hosted**: VPS with Docker support
 
-### 2. AI Research
-- Prospects are automatically queued for AI research
-- Research includes company information, pain points, and personalization data
-- Results appear in the prospect table when complete
+### Required Environment Variables for Production
+- `DATABASE_URL` - PostgreSQL connection string
+- `SESSION_SECRET` - 32-character secret for session encryption
+- `ENCRYPTION_KEY` - 32-character key for data encryption
+- `JWT_SECRET` - JWT signing secret
+- `N8N_WEBHOOK_URL` - n8n webhook endpoint for AI research
+- `NODE_ENV=production`
 
-### 3. Outreach Management
-- Configure Reply.io integration in Settings
-- Set up default account and campaign
-- Prospects are automatically sent to Reply.io after research completion
-- Monitor campaign performance in Analytics dashboard
+## 🔄 Development Workflow
 
-### 4. Pipeline Analytics
-- View complete pipeline funnel visualization
-- Track conversion rates at each stage
-- Monitor Reply.io campaign performance
-- Access detailed stage breakdowns
+### Branch Strategy
+- `main` - Production-ready code
+- `development` - Integration branch for features
+- `feature/*` - Individual feature branches
 
-## 🔗 Integrations
-
-### n8n Workflow
-- AI research automation
-- Data enrichment and validation
-- Webhook-based communication
-
-### Reply.io
-- Multi-account support
-- Campaign management
-- Performance analytics
-- Automated prospect enrollment
-
-## 🛠️ Development
-
-### Available Scripts
+### Workflow
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run start        # Start production server
-npm run check        # TypeScript type checking
-npm run db:push      # Push database schema changes
+# Create feature branch
+git checkout -b feature/new-feature-name
+
+# Make changes and test locally
+npm run dev
+npm run test
+
+# Commit changes
+git add .
+git commit -m "Add: description of new feature"
+
+# Push and create pull request
+git push -u origin feature/new-feature-name
 ```
 
-### Tech Stack
-- **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, shadcn/ui
-- **Backend**: Express.js, TypeScript, Drizzle ORM
-- **Database**: SQLite (dev) / PostgreSQL (prod)
-- **State Management**: TanStack Query
-- **UI Components**: Radix UI, Lucide Icons, Framer Motion
+### Automated Deployment
+- **Production**: Deploys from `main` branch
+- **Staging**: Deploys from `development` branch
+- **Preview**: Deploys from feature branches
 
-## 📈 Current Status
+## 📊 Project Status
 
-### ✅ Completed Features
-- Prospect CRUD operations
-- CSV upload with column mapping
-- AI research integration
-- Reply.io auto-send functionality
-- Comprehensive analytics dashboard
-- Authentication system (local dev)
-- Responsive UI with dark mode
+**Current Version**: v1.0.0  
+**Project Progress**: 82% Complete  
+**Core Features**: ✅ Production Ready  
+**Advanced Analytics**: ✅ Implemented  
+**Multi-Tenant System**: ✅ Fully Functional  
 
-### 🔄 In Progress
-- Enhanced prospect management features
-- Advanced analytics and reporting
-- Production deployment preparation
+### Recent Achievements
+- ✅ **Production Health Monitoring** - Enterprise-grade monitoring and alerting
+- ✅ **Advanced Reply.io Analytics** - Campaign performance insights and optimization
+- ✅ **Frontend Performance** - 94% bundle size reduction with code splitting
+- ✅ **Multi-Tenant Workspaces** - Complete client isolation and management
+- ✅ **Comprehensive Testing** - 21/21 tests passing with full coverage
 
-### 🎯 Upcoming
-- Multi-user support
-- Advanced personalization engine
-- Additional CRM integrations
-- Mobile applications
+## 🧪 Testing
 
-## 📖 Documentation
+```bash
+# Run all tests
+npm run test
 
-- **[STATUS.md](STATUS.md)**: Detailed project status and roadmap
-- **[MASTER_PROMPT.md](MASTER_PROMPT.md)**: Development guidelines and workflow
-- **[Winry_AI_PRD.md](Winry_AI_PRD.md)**: Complete product requirements document
-- **[PROJECT_STRUCTURE_ANALYSIS.md](PROJECT_STRUCTURE_ANALYSIS.md)**: Technical architecture overview
+# Run tests with UI
+npm run test:ui
+
+# Run tests with coverage
+npm run test:coverage
+
+# Watch mode for development
+npm run test:watch
+```
+
+## 📚 Documentation
+
+- [Product Requirements](Winry_AI_PRD.md) - Complete product vision and specifications
+- [Development Status](STATUS.md) - Current progress and roadmap
+- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Detailed deployment instructions
+- [Testing Results](TESTING_RESULTS.md) - Comprehensive testing documentation
+
+## 🔧 Technical Stack
+
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for build tooling
+- **Tailwind CSS** with shadcn/ui components
+- **Framer Motion** for animations
+- **React Query** for state management
+
+### Backend
+- **Node.js** with Express and TypeScript
+- **Drizzle ORM** with PostgreSQL
+- **Zod** for validation
+- **Express Session** for authentication
+
+### Infrastructure
+- **PostgreSQL** for production database
+- **SQLite** for local development
+- **n8n** for AI research workflows
+- **Railway** for deployment and hosting
 
 ## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see [LICENSE](LICENSE) file for details
 
 ## 🆘 Support
 
-For support, please check the documentation files or open an issue in the repository.
+- **Documentation**: Check the `/docs` folder for detailed guides
+- **Issues**: Report bugs via GitHub Issues
+- **Discussions**: Use GitHub Discussions for questions
 
 ---
 
-Built with ❤️ for sales professionals who want to leverage AI for better prospect engagement. 
+**Built with ❤️ by Sales Leopard**  
+*Empowering sales teams with true AI intelligence* 

@@ -1,10 +1,23 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser()); // REF: Cookie parser for logout state tracking
+
+// Disable caching on all API routes for real-time data
+app.use('/api/*', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
+    'Last-Modified': new Date().toUTCString()
+  });
+  next();
+});
 
 app.use((req, res, next) => {
   const start = Date.now();

@@ -16,23 +16,18 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { 
   Loader2, 
   CheckCircle, 
-  AlertCircle, 
-  Settings, 
-  Key, 
   Send, 
   Plus, 
   Edit, 
@@ -775,450 +770,290 @@ export function ReplyIoSettings() {
 
   if (settings.isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Reply.io Integration
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin" />
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <div className="flex items-center justify-center py-8">
+          <Loader2 className="w-6 h-6 animate-spin" />
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Settings className="w-5 h-5" />
-          Reply.io Integration
-          {(settings.hasApiKey || settings.accounts.length > 0) && (
-            <Badge variant="secondary" className="ml-2">
-              <CheckCircle className="w-3 h-3 mr-1" />
-              Configured
-            </Badge>
-          )}
-        </CardTitle>
-        <CardDescription>
-          Configure your Reply.io API credentials and manage multiple accounts and campaigns.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {settings.isLoading ? (
+    <div className="space-y-6">
+      {/* Account Management Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-medium">Reply.io Accounts</h3>
+            <p className="text-sm text-muted-foreground">Manage multiple Reply.io accounts and campaigns</p>
+          </div>
+          <Dialog open={showAddAccountDialog} onOpenChange={setShowAddAccountDialog}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <Plus className="w-4 h-4" />
+                Add Account
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Reply.io Account</DialogTitle>
+                <DialogDescription>
+                  Add a new Reply.io account with its API key. The API key will be validated before saving.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="accountName">Account Name</Label>
+                  <Input
+                    id="accountName"
+                    placeholder="e.g., Main Account, Sales Team"
+                    value={newAccount.name}
+                    onChange={(e) => setNewAccount(prev => ({ ...prev, name: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="accountApiKey">API Key</Label>
+                  <Input
+                    id="accountApiKey"
+                    type="password"
+                    placeholder="Enter Reply.io API key"
+                    value={newAccount.apiKey}
+                    onChange={(e) => setNewAccount(prev => ({ ...prev, apiKey: e.target.value }))}
+                  />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowAddAccountDialog(false)}
+                    disabled={isAddingAccount}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={addAccount}
+                    disabled={isAddingAccount || !newAccount.name.trim() || !newAccount.apiKey.trim()}
+                  >
+                    {isAddingAccount ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : null}
+                    Add Account
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {settings.isLoadingAccounts ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 animate-spin" />
           </div>
+        ) : settings.accounts.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
+            <p className="text-lg font-medium mb-2">No Reply.io accounts configured</p>
+            <p className="text-sm">Add your first Reply.io account to get started with multi-account management.</p>
+          </div>
         ) : (
-          <Tabs defaultValue="accounts" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="accounts" className="flex items-center gap-2">
-                <Building2 className="w-4 h-4" />
-                Accounts & Campaigns
-              </TabsTrigger>
-              <TabsTrigger value="legacy" className="flex items-center gap-2">
-                <Key className="w-4 h-4" />
-                Legacy Configuration
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Multi-Account Management Tab */}
-            <TabsContent value="accounts" className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium">Reply.io Accounts</h3>
-                  <Dialog open={showAddAccountDialog} onOpenChange={setShowAddAccountDialog}>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" className="flex items-center gap-2">
-                        <Plus className="w-4 h-4" />
-                        Add Account
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Add Reply.io Account</DialogTitle>
-                        <DialogDescription>
-                          Add a new Reply.io account with its API key. The API key will be validated before saving.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="accountName">Account Name</Label>
-                          <Input
-                            id="accountName"
-                            placeholder="e.g., Main Account, Sales Team"
-                            value={newAccount.name}
-                            onChange={(e) => setNewAccount(prev => ({ ...prev, name: e.target.value }))}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="accountApiKey">API Key</Label>
-                          <Input
-                            id="accountApiKey"
-                            type="password"
-                            placeholder="Enter Reply.io API key"
-                            value={newAccount.apiKey}
-                            onChange={(e) => setNewAccount(prev => ({ ...prev, apiKey: e.target.value }))}
-                          />
-                        </div>
-                        <div className="flex justify-end gap-2">
-                          <Button 
-                            variant="outline" 
-                            onClick={() => setShowAddAccountDialog(false)}
-                            disabled={isAddingAccount}
-                          >
-                            Cancel
-                          </Button>
-                          <Button 
-                            onClick={addAccount}
-                            disabled={isAddingAccount || !newAccount.name.trim() || !newAccount.apiKey.trim()}
-                          >
-                            {isAddingAccount ? (
-                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                            ) : null}
-                            Add Account
-                          </Button>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Account Name</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {settings.accounts.map((account) => (
+                <React.Fragment key={account.id}>
+                  <TableRow 
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => toggleAccountExpansion(account)}
+                  >
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        {account.name}
+                        <div className="ml-auto">
+                          {expandedAccountId === account.id ? (
+                            <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                          )}
                         </div>
                       </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-
-                {settings.isLoadingAccounts ? (
-                  <div className="flex items-center justify-center py-8">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  </div>
-                ) : settings.accounts.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium mb-2">No Reply.io accounts configured</p>
-                    <p className="text-sm">Add your first Reply.io account to get started with multi-account management.</p>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Account Name</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Created</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {settings.accounts.map((account) => (
-                        <React.Fragment key={account.id}>
-                          <TableRow 
-                            className="cursor-pointer hover:bg-muted/50 transition-colors"
-                            onClick={() => toggleAccountExpansion(account)}
-                          >
-                            <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
-                                {account.name}
-                                <div className="ml-auto">
-                                  {expandedAccountId === account.id ? (
-                                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                                  ) : (
-                                    <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <button
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDefaultAccount(account.id);
+                        }}
+                        className="transition-colors duration-200"
+                        title={account.isDefault ? "Remove as default account" : "Set as default account"}
+                      >
+                        {account.isDefault ? (
+                          <Badge variant="default" className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground">
+                            <Star className="w-3 h-3 mr-1" />
+                            Default
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-xs hover:bg-muted cursor-pointer">
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Active
+                          </Badge>
+                        )}
+                      </button>
+                    </TableCell>
+                    <TableCell>
+                      {new Date(account.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteAccount(account.id, account.name);
+                          }}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  
+                  {/* Expanded Campaigns Row */}
+                  {expandedAccountId === account.id && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="p-0">
+                        <div className="p-4 bg-muted/20 border-t">
+                          <div className="space-y-4">
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-md font-medium">
+                                Campaigns for {account.name}
+                              </h4>
+                              <Button
+                                variant="outline"
+                                size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  setDefaultAccount(account.id);
+                                  fetchCampaignsWithAutoSync(account.id);
                                 }}
-                                className="transition-colors duration-200"
-                                title={account.isDefault ? "Remove as default account" : "Set as default account"}
+                                disabled={settings.isLoadingCampaigns}
                               >
-                                {account.isDefault ? (
-                                  <Badge variant="default" className="text-xs bg-primary hover:bg-primary/90 text-primary-foreground">
-                                    <Star className="w-3 h-3 mr-1" />
-                                    Default
-                                  </Badge>
+                                {settings.isLoadingCampaigns ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
-                                  <Badge variant="outline" className="text-xs hover:bg-muted cursor-pointer">
-                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                    Active
-                                  </Badge>
+                                  <RefreshCw className="w-4 h-4" />
                                 )}
-                              </button>
-                            </TableCell>
-                            <TableCell>
-                              {new Date(account.createdAt).toLocaleDateString()}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex items-center gap-2 justify-end">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    deleteAccount(account.id, account.name);
-                                  }}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
+                                Refresh
+                              </Button>
+                            </div>
+
+                            {settings.isLoadingCampaigns ? (
+                              <div className="flex items-center justify-center py-4">
+                                <Loader2 className="w-5 h-5 animate-spin" />
                               </div>
-                            </TableCell>
-                          </TableRow>
-                          
-                          {/* Expanded Campaigns Row */}
-                          {expandedAccountId === account.id && (
-                            <TableRow>
-                              <TableCell colSpan={4} className="p-0">
-                                <div className="p-4 bg-muted/20 border-t">
-                                  <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                      <h4 className="text-md font-medium">
-                                        Campaigns for {account.name}
-                                      </h4>
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          fetchCampaignsWithAutoSync(account.id);
-                                        }}
-                                        disabled={settings.isLoadingCampaigns}
-                                      >
-                                        {settings.isLoadingCampaigns ? (
-                                          <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                          <RefreshCw className="w-4 h-4" />
-                                        )}
-                                        Refresh
-                                      </Button>
+                            ) : settings.campaigns.length === 0 ? (
+                              <div className="text-center py-6 text-muted-foreground">
+                                <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                <p className="text-sm">No campaigns found for this account</p>
+                              </div>
+                            ) : (
+                              <div className="grid gap-3 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                                {settings.campaigns.map((campaign) => (
+                                  <Card 
+                                    key={campaign.id} 
+                                    className={`transition-all duration-200 hover:shadow-md ${
+                                      campaign.isDefault 
+                                        ? 'bg-primary text-primary-foreground ring-2 ring-primary' 
+                                        : 'hover:bg-muted/50'
+                                    }`}
+                                  >
+                                    <div className="p-3 space-y-2">
+                                      {/* Campaign Name */}
+                                      <h5 className={`font-medium text-sm leading-tight ${
+                                        campaign.isDefault ? 'text-primary-foreground' : 'text-foreground'
+                                      }`}>
+                                        {campaign.name}
+                                      </h5>
+                                      
+                                      {/* Status Badge */}
+                                      <div className="flex items-center gap-2">
+                                        <Badge 
+                                          variant={campaign.isDefault ? "secondary" : "outline"} 
+                                          className={`text-xs ${
+                                            campaign.isDefault 
+                                              ? 'bg-primary-foreground text-primary' 
+                                              : campaign.status === 'Active' 
+                                                ? 'border-green-500 text-green-700' 
+                                                : 'border-muted-foreground'
+                                          }`}
+                                        >
+                                          {campaign.status}
+                                        </Badge>
+                                      </div>
+                                      
+                                      {/* Campaign ID - now below status badges */}
+                                      <p className={`text-xs ${campaign.isDefault ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                        Campaign ID: {campaign.id}
+                                      </p>
+                                      
+                                      {/* Action Button */}
+                                      {campaign.isDefault ? (
+                                        <Button 
+                                          variant="secondary" 
+                                          size="sm" 
+                                          className="w-full mt-2 bg-primary-foreground text-primary hover:bg-primary-foreground/90" 
+                                          disabled
+                                        >
+                                          Selected
+                                        </Button>
+                                      ) : (
+                                        <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setDefaultCampaign(campaign.id)}>
+                                          Set as Default
+                                        </Button>
+                                      )}
                                     </div>
-
-                                    {settings.isLoadingCampaigns ? (
-                                      <div className="flex items-center justify-center py-8">
-                                        <Loader2 className="w-6 h-6 animate-spin" />
-                                      </div>
-                                    ) : settings.campaigns.length === 0 ? (
-                                      <div className="text-center py-8 text-muted-foreground">
-                                        <Target className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                                        <p className="text-lg font-medium mb-2">No campaigns found</p>
-                                        <p className="text-sm">This account doesn't have any active campaigns in Reply.io.</p>
-                                      </div>
-                                    ) : (
-                                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {settings.campaigns.map((campaign) => (
-                                          <Card 
-                                            key={campaign.id} 
-                                            className={`p-4 ${campaign.isDefault ? 'bg-primary text-primary-foreground border-primary' : ''}`}
-                                          >
-                                            <div className="space-y-2">
-                                              {/* Campaign Name */}
-                                              <h5 className="font-medium text-sm">{campaign.name}</h5>
-                                              
-                                              {/* Status Badge - only show status, no default badge */}
-                                              <div className="flex items-center gap-2">
-                                                <Badge 
-                                                  variant={campaign.status === 'active' ? 'default' : 'secondary'} 
-                                                  className={`text-xs ${campaign.isDefault ? 'bg-primary-foreground text-primary border-primary-foreground' : ''}`}
-                                                >
-                                                  {campaign.status}
-                                                </Badge>
-                                              </div>
-                                              
-                                              {/* Campaign ID - now below status badges */}
-                                              <p className={`text-xs ${campaign.isDefault ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                                Campaign ID: {campaign.id}
-                                              </p>
-                                              
-                                              {/* Action Button */}
-                                              {campaign.isDefault ? (
-                                                <Button 
-                                                  variant="secondary" 
-                                                  size="sm" 
-                                                  className="w-full mt-2 bg-primary-foreground text-primary hover:bg-primary-foreground/90" 
-                                                  disabled
-                                                >
-                                                  Selected
-                                                </Button>
-                                              ) : (
-                                                <Button variant="outline" size="sm" className="w-full mt-2" onClick={() => setDefaultCampaign(campaign.id)}>
-                                                  Set as Default
-                                                </Button>
-                                              )}
-                                            </div>
-                                          </Card>
-                                        ))}
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-
-                {/* Auto-send Setting */}
-                <div className="border-t pt-6">
-                  <div className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <Send className="w-4 h-4" />
-                        <Label htmlFor="autoSend" className="text-sm font-medium">
-                          Auto-send to Reply.io
-                        </Label>
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        Automatically send prospects to the default Reply.io campaign when research is completed
-                      </p>
-                    </div>
-                    <Switch
-                      id="autoSend"
-                      checked={settings.replyIoAutoSend || false}
-                      onCheckedChange={(checked) => setSettings(prev => ({ ...prev, replyIoAutoSend: checked }))}
-                    />
-                  </div>
-                </div>
-              </div>
-            </TabsContent>
-
-            {/* Legacy Configuration Tab */}
-            <TabsContent value="legacy" className="space-y-6">
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  This is the legacy single API key configuration. For better organization, consider using the new multi-account system.
-                </AlertDescription>
-              </Alert>
-
-              {/* Original API Key Configuration */}
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="apiKey" className="flex items-center gap-2">
-              <Key className="w-4 h-4" />
-              Reply.io API Key
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                id="apiKey"
-                type="password"
-                placeholder={settings.hasApiKey ? "API key is configured" : "Enter your Reply.io API key"}
-                value={settings.replyIoApiKey}
-                onChange={(e) => setSettings(prev => ({ 
-                  ...prev, 
-                  replyIoApiKey: e.target.value,
-                        testResult: undefined
-                }))}
-                className="flex-1"
-              />
-              <Button
-                onClick={() => testConnection(settings.replyIoApiKey || '')}
-                disabled={settings.isTesting || !settings.replyIoApiKey?.trim()}
-                variant="outline"
-                size="sm"
-              >
-                {settings.isTesting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  'Test'
-                )}
-              </Button>
-            </div>
-            
-            {settings.testResult && (
-              <Alert variant={settings.testResult.success ? "default" : "destructive"}>
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  {settings.testResult.message}
-                  {settings.testResult.success && settings.testResult.campaignsFound !== undefined && (
-                    ` (${settings.testResult.campaignsFound} campaigns found)`
+                                  </Card>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
                   )}
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="campaignId">Campaign ID</Label>
-            <Input
-              id="campaignId"
-              type="text"
-              placeholder="Enter Reply.io campaign ID"
-              value={settings.replyIoCampaignId}
-              onChange={(e) => setSettings(prev => ({ ...prev, replyIoCampaignId: e.target.value }))}
-            />
-            <p className="text-sm text-muted-foreground">
-              The ID of the Reply.io campaign where prospects will be added.
-            </p>
-        </div>
-
-        {/* Advanced Settings */}
-        <div className="space-y-4">
-          <h4 className="text-sm font-medium">Advanced Settings</h4>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="webhookTimeout">Webhook Timeout (seconds)</Label>
-              <Input
-                id="webhookTimeout"
-                type="number"
-                min="30"
-                max="1800"
-                value={settings.webhookTimeout}
-                onChange={(e) => setSettings(prev => ({ ...prev, webhookTimeout: parseInt(e.target.value) }))}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="batchSize">Batch Size</Label>
-              <Input
-                id="batchSize"
-                type="number"
-                min="1"
-                max="100"
-                value={settings.batchSize}
-                onChange={(e) => setSettings(prev => ({ ...prev, batchSize: parseInt(e.target.value) }))}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="webhookUrl">Webhook URL (optional)</Label>
-            <Input
-              id="webhookUrl"
-              type="url"
-              placeholder="https://your-n8n-webhook-url.com"
-              value={settings.webhookUrl}
-              onChange={(e) => setSettings(prev => ({ ...prev, webhookUrl: e.target.value }))}
-            />
-          </div>
-        </div>
-
-        {/* Save Button */}
-        <div className="flex justify-end">
-          <Button
-            onClick={saveSettings}
-            disabled={settings.isSaving || !settings.replyIoApiKey?.trim() || !settings.replyIoCampaignId?.trim()}
-            className="flex items-center gap-2"
-          >
-            {settings.isSaving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-            {settings.isSaving ? 'Saving...' : 'Save Settings'}
-          </Button>
-        </div>
-              </div>
-            </TabsContent>
-          </Tabs>
+                </React.Fragment>
+              ))}
+            </TableBody>
+          </Table>
         )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Auto-send Setting */}
+      <div className="border-t pt-6">
+        <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <Send className="w-4 h-4" />
+              <Label htmlFor="autoSend" className="text-sm font-medium">
+                Auto-send to Reply.io
+              </Label>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Automatically send prospects to the default Reply.io campaign when research is completed
+            </p>
+          </div>
+          <Switch
+            id="autoSend"
+            checked={settings.replyIoAutoSend || false}
+            onCheckedChange={(checked) => setSettings(prev => ({ ...prev, replyIoAutoSend: checked }))}
+          />
+        </div>
+      </div>
+    </div>
   );
 } 
