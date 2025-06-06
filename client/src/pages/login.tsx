@@ -103,15 +103,20 @@ export default function LoginPage() {
   const handleDevLogin = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/login');
-      if (response.ok) {
-        setLocation('/dashboard');
-      }
+      setError(''); // Clear any previous errors
+      
+      // REF: Simply redirect to the login endpoint - let the browser handle the redirect naturally
+      window.location.href = '/api/login';
     } catch (err) {
-      setError('Development login failed');
-    } finally {
+      console.error('Development login error:', err);
+      setError('Development login failed - please try again');
       setIsLoading(false);
     }
+  };
+
+  // REF: Handle signup redirect
+  const handleSignupRedirect = () => {
+    setLocation('/signup');
   };
 
   return (

@@ -20,21 +20,69 @@ function Router() {
 
   return (
     <Switch>
-      {/* REF: Authentication routes - always accessible */}
+      {/* REF: Public routes - always accessible */}
       <Route path="/login" component={LoginPage} />
       <Route path="/signup" component={SignupPage} />
       
       {/* REF: Protected routes - require authentication */}
-      {isLoading || !isAuthenticated ? (
-        <Route path="/" component={Landing} />
-      ) : (
-        <ClientProvider>
-          <Route path="/" component={Dashboard} />
-          <Route path="/dashboard" component={Dashboard} />
-          <Route path="/profile-settings" component={ProfileSettings} />
-          <Route path="/preferences" component={Preferences} />
-        </ClientProvider>
-      )}
+      <Route path="/dashboard">
+        {isLoading ? (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">Loading...</div>
+          </div>
+        ) : isAuthenticated ? (
+          <ClientProvider>
+            <Dashboard />
+          </ClientProvider>
+        ) : (
+          <LoginPage />
+        )}
+      </Route>
+      
+      <Route path="/profile-settings">
+        {isLoading ? (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">Loading...</div>
+          </div>
+        ) : isAuthenticated ? (
+          <ClientProvider>
+            <ProfileSettings />
+          </ClientProvider>
+        ) : (
+          <LoginPage />
+        )}
+      </Route>
+      
+      <Route path="/preferences">
+        {isLoading ? (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">Loading...</div>
+          </div>
+        ) : isAuthenticated ? (
+          <ClientProvider>
+            <Preferences />
+          </ClientProvider>
+        ) : (
+          <LoginPage />
+        )}
+      </Route>
+      
+      {/* REF: Root route - show dashboard if authenticated, landing page if not */}
+      <Route path="/">
+        {isLoading ? (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">Loading...</div>
+          </div>
+        ) : isAuthenticated ? (
+          <ClientProvider>
+            <Dashboard />
+          </ClientProvider>
+        ) : (
+          <Landing />
+        )}
+      </Route>
+      
+      {/* REF: 404 fallback */}
       <Route component={NotFound} />
     </Switch>
   );

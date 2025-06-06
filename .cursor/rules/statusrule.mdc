@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Ensure you are following [MASTER_PROMPT.md](mdc:MASTER_PROMPT.md) and updating the [STATUS.md](mdc:STATUS.md) file after each step.

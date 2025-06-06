@@ -3,9 +3,26 @@ import { useQuery } from "@tanstack/react-query";
 export function useAuth() {
   const { data: user, isLoading, error } = useQuery({
     queryKey: ["/api/auth/user"],
+    queryFn: async () => {
+      const response = await fetch("/api/auth/user", {
+        credentials: "include",
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      return response.json();
+    },
     retry: (failureCount, error: any) => {
       // REF: Don't retry on 401 errors (logged out state)
-      if (error?.status === 401) {
+      if (error?.message?.includes('401')) {
         return false;
       }
       return failureCount < 2;
@@ -14,7 +31,7 @@ export function useAuth() {
   });
 
   // REF: Check if user is explicitly logged out (401 response)
-  const isLoggedOut = error?.status === 401;
+  const isLoggedOut = error?.message?.includes('401');
 
   return {
     user,

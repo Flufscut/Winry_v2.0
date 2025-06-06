@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
@@ -65,6 +66,7 @@ app.use((req, res, next) => {
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔌 Port: ${port}`);
   console.log(`🗄️  Database URL: ${process.env.DATABASE_URL ? 'CONFIGURED' : 'NOT SET'}`);
+  console.log(`🔑 Google OAuth: ${process.env.GOOGLE_CLIENT_ID ? 'CONFIGURED' : 'NOT SET'}`);
   
   const server = await registerRoutes(app);
   console.log('=== ROUTES REGISTERED ===');

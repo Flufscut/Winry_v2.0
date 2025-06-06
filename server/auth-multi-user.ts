@@ -395,9 +395,14 @@ export async function setupAuth(app: Express) {
 
 // REF: Authentication middleware for protecting routes
 export const isAuthenticated: RequestHandler = (req, res, next) => {
-  if (req.isAuthenticated()) {
+  // REF: Check both Passport authentication and session-based authentication
+  const sessionUser = (req.session as any)?.user;
+  const passportUser = req.isAuthenticated() ? req.user as any : null;
+  
+  const user = passportUser || sessionUser;
+  
+  if (user) {
     // REF: Convert user to expected format for existing code compatibility
-    const user = req.user as any;
     (req as any).user = {
       claims: {
         sub: user.id,

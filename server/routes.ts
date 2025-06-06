@@ -2,8 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./auth-local";
-import { setupMultiUserAuth } from "./auth-multi-user";
+import { setupAuth, isAuthenticated } from "./auth-multi-user";
 import { replyIoService } from "./replyio-service";
 import { replyIoCachedService } from "./reply-io-cached-service";
 import { apiCacheManager } from "./api-cache";
@@ -75,8 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const server = createServer(app);
 
   // Auth middleware
-  await setupAuth(app); // REF: Old single-user auth system - temporarily for frontend debugging
-  // setupMultiUserAuth(app); // REF: New multi-user auth system
+  await setupAuth(app); // REF: Multi-user auth system with OAuth support
 
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
@@ -91,6 +89,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
+  // REF: Development Login Route - Creates session for local development bypass
+  app.get('/api/login', async (req: any, res) => {
+    try {
+      console.log('🔑 Processing development login request...');
+      
+      // REF: Only allow in development environment
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ 
+          success: false, 
+          message: 'Development login not available in production' 
+        });
+      }
+
+      // REF: Create or get development user
+      let user = await storage.getUserByEmail('dev@local.com');
+      
+      if (!user) {
+        // REF: Create development user if doesn't exist
+        const userId = 'local-dev-user';
+        user = await storage.createUser({
+          id: userId,
+          email: 'dev@local.com',
+          firstName: 'Development',
+          lastName: 'User',
+          passwordHash: null, // No password for dev user
+          oauthProvider: 'development',
+          oauthId: 'dev-local',
+          profileImageUrl: 'https://ui-avatars.com/api/?name=Development+User&background=7C3AED&color=ffffff',
+          preferences: JSON.stringify({}),
+        });
+
+        // REF: Create default client for development user
+        await storage.createClient({
+          userId: user.id,
+          name: 'Default',
+          description: 'Development workspace',
+          isActive: true,
+        });
+      }
+
+      // REF: Create session in format expected by isAuthenticated middleware
+      (req.session as any).user = {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImageUrl: user.profileImageUrl,
+      };
+
+      console.log('✅ Development login successful');
+      
+      // REF: Redirect to dashboard after successful login
+      res.redirect('/dashboard');
+
+    } catch (error) {
+      console.error('❌ Development login error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Development login failed',
+      });
+    }
+  });
+
+  // REF: Logout Route - Destroys session and redirects to login
+  app.get('/api/logout', async (req: any, res) => {
+    try {
+      console.log('🔑 Processing logout request...');
+
+      // REF: Clear session data
+      req.session.destroy((err: any) => {
+        if (err) {
+          console.error('❌ Session destruction error:', err);
+          return res.status(500).json({
+            success: false,
+            message: 'Logout failed',
+          });
+        }
+        
+        // REF: Clear session cookie
+        res.clearCookie('connect.sid');
+        
+        console.log('✅ Logout successful');
+        
+        // REF: Redirect to login page after successful logout
+        res.redirect('/login');
+      });
+
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Logout failed',
+      });
     }
   });
 

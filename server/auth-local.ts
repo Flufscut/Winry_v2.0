@@ -7,11 +7,14 @@ export function getSession() {
   return session({
     secret: 'local-dev-secret-key',
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true,
+    name: 'connect.sid',
     cookie: {
       httpOnly: true,
       secure: false, // Set to false for local HTTP
       maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+      sameSite: 'lax', // REF: Allow same-site requests for development
+      path: '/', // REF: Explicit path
     },
   });
 }
@@ -94,16 +97,25 @@ export async function setupAuth(app: Express) {
 
   // REF: Enhanced auth routes for development with proper logout support
   app.get("/api/login", (req, res) => {
-    // REF: Manual login for development - clear logout cookie and create session
+    // REF: Manual login for development - clear logout cookies and create session
     res.clearCookie('dev-logged-out', { 
       httpOnly: true,
-      path: '/',
-      domain: 'localhost'
+      path: '/'
     });
-    res.clearCookie('dev-logged-out'); // Also clear without domain
     (req.session as any).user = mockUser;
-    console.log('✓ Manual login for local development - logout cookie cleared');
-    res.redirect('/');
+    console.log('✓ Manual login for local development - session created');
+    console.log('🔍 SESSION DEBUG: Session ID:', req.sessionID);
+    console.log('🔍 SESSION DEBUG: Session user set to:', (req.session as any).user);
+    
+    // REF: Force session save before redirect to ensure cookie is set
+    req.session.save((err) => {
+      if (err) {
+        console.error('❌ Session save error:', err);
+        return res.status(500).json({ error: 'Session save failed' });
+      }
+      console.log('✓ Session saved successfully');
+      res.redirect('/');
+    });
   });
 
   app.get("/api/logout", (req, res) => {
@@ -116,7 +128,8 @@ export async function setupAuth(app: Express) {
       // REF: Set logout flag in a separate cookie that persists beyond session
       res.cookie('dev-logged-out', 'true', { 
         httpOnly: true, 
-        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        path: '/'
       });
       console.log('✓ Session destroyed and logout flag set');
       res.redirect('/');
@@ -135,6 +148,8 @@ export async function setupAuth(app: Express) {
 // REF: Enhanced auth middleware for development with logout state respect
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   console.log('🔍 AUTH MIDDLEWARE: Checking authentication for', req.path);
+  console.log('🔍 AUTH MIDDLEWARE: Session ID:', req.sessionID);
+  console.log('🔍 AUTH MIDDLEWARE: Session object:', JSON.stringify(req.session, null, 2));
   
   // REF: Check if user explicitly logged out (handle missing cookies object)
   if (req.cookies && req.cookies['dev-logged-out']) {
@@ -144,7 +159,7 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   
   // REF: Check for existing session user
   const sessionUser = (req.session as any).user;
-  console.log('🔍 AUTH MIDDLEWARE: Session user =', sessionUser);
+  console.log('🔍 AUTH MIDDLEWARE: Session user =', sessionUser ? 'FOUND' : 'NOT FOUND');
   
   if (sessionUser) {
     // REF: User has active session
@@ -156,30 +171,30 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
         last_name: sessionUser.lastName,
       }
     };
-    console.log('🔍 AUTH MIDDLEWARE: Set req.user =', (req as any).user);
+    console.log('🔍 AUTH MIDDLEWARE: Session authenticated');
     return next();
   }
   
-  // REF: No session and not logged out - auto-login for development convenience
-  // But only for non-API requests to avoid interfering with auth checks
-  const isApiRequest = req.path.startsWith('/api/');
+  // REF: For development, be more permissive with authentication
+  // REF: Auto-login for both API and page requests if not explicitly logged out
+  console.log('🔍 AUTH MIDDLEWARE: No session found, auto-logging in for development');
+  (req.session as any).user = mockUser;
+  (req as any).user = {
+    claims: {
+      sub: mockUser.id,
+      email: mockUser.email,
+      first_name: mockUser.firstName,
+      last_name: mockUser.lastName,
+    }
+  };
   
-  if (!isApiRequest) {
-    // REF: Auto-login for page requests only
-    (req.session as any).user = mockUser;
-    (req as any).user = {
-      claims: {
-        sub: mockUser.id,
-        email: mockUser.email,
-        first_name: mockUser.firstName,
-        last_name: mockUser.lastName,
-      }
-    };
-    console.log('🔍 AUTH MIDDLEWARE: Auto-logged in for page request');
+  // REF: Force save the session
+  req.session.save((err) => {
+    if (err) {
+      console.error('❌ Auto-login session save error:', err);
+      return res.status(500).json({ message: "Session save failed" });
+    }
+    console.log('✓ Auto-login session saved successfully');
     return next();
-  } else {
-    // REF: API requests require explicit authentication
-    console.log('🔍 AUTH MIDDLEWARE: API request requires explicit auth');
-    return res.status(401).json({ message: "Authentication required" });
-  }
+  });
 }; 

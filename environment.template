@@ -9,6 +9,14 @@
 DATABASE_URL=postgresql://username:password@hostname:5432/database_name?sslmode=require
 
 # ========================================
+# AUTHENTICATION CONFIGURATION
+# ========================================
+# Google OAuth credentials (get from Google Cloud Console)
+GOOGLE_CLIENT_ID=your_google_client_id_here
+GOOGLE_CLIENT_SECRET=your_google_client_secret_here
+GOOGLE_CALLBACK_URL=https://your-domain.com/auth/google/callback
+
+# ========================================
 # SECURITY CONFIGURATION
 # ========================================
 # 32-character secrets - use the generated ones below or generate new ones
