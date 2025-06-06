@@ -31,6 +31,9 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  passwordHash: varchar("password_hash"), // For manual signup/login
+  oauthProvider: varchar("oauth_provider"), // google, etc.
+  oauthId: varchar("oauth_id"), // OAuth provider user ID
   preferences: jsonb("preferences"), // User preferences stored as JSON
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -176,6 +179,9 @@ export const insertUserSchema = createInsertSchema(users).pick({
   firstName: true,
   lastName: true,
   profileImageUrl: true,
+  passwordHash: true,
+  oauthProvider: true,
+  oauthId: true,
 });
 
 export const insertClientSchema = createInsertSchema(clients).omit({
