@@ -14,17 +14,19 @@
  * - getDatabaseType(): Returns current database type for logging
  */
 
-// REF: Environment detection for database selection
-const isDevelopment = process.env.NODE_ENV === 'development';
+// REF: Environment detection for database selection with enhanced logging
+const nodeEnv = process.env.NODE_ENV || 'development';
+const isDevelopment = nodeEnv === 'development';
 const hasPostgresUrl = !!process.env.DATABASE_URL;
 
-// REF: Determine which database configuration to use
-const usePostgreSQL = !isDevelopment && hasPostgresUrl;
+// REF: Force PostgreSQL in production when DATABASE_URL is available
+const usePostgreSQL = hasPostgresUrl && (nodeEnv === 'production' || nodeEnv === 'staging');
 
 console.log(`🗄️  Database Environment Detection:`);
-console.log(`   NODE_ENV: ${process.env.NODE_ENV}`);
+console.log(`   NODE_ENV: ${nodeEnv}`);
 console.log(`   DATABASE_URL present: ${hasPostgresUrl}`);
-console.log(`   Using: ${usePostgreSQL ? 'PostgreSQL (Production)' : 'SQLite (Development)'}`);
+console.log(`   isDevelopment: ${isDevelopment}`);
+console.log(`   Using Database: ${usePostgreSQL ? 'PostgreSQL (Production)' : 'SQLite (Development)'}`);
 
 // REF: Database configuration state
 let db: any;
@@ -54,14 +56,16 @@ async function loadDatabaseConfiguration(): Promise<void> {
 
   try {
     if (usePostgreSQL) {
+      console.log('🔄 Loading PostgreSQL production database configuration...');
       // REF: Import production PostgreSQL configuration
       const productionDb = await import('./db-production.js');
       db = productionDb.db;
       validateDatabaseConnection = productionDb.validateDatabaseConnection;
       runMigrations = productionDb.runMigrations;
       getDatabaseHealth = productionDb.getDatabaseHealth;
-      console.log('📦 Loaded PostgreSQL production database configuration');
+      console.log('📦 ✅ Loaded PostgreSQL production database configuration');
     } else {
+      console.log('🔄 Loading SQLite development database configuration...');
       // REF: Import development SQLite configuration
       const localDb = await import('./db-local.js');
       db = localDb.db;
@@ -88,7 +92,7 @@ async function loadDatabaseConfiguration(): Promise<void> {
           error: connectionTest ? undefined : 'SQLite connection failed'
         };
       };
-      console.log('📦 Loaded SQLite development database configuration');
+      console.log('📦 ✅ Loaded SQLite development database configuration');
     }
     
     isInitialized = true;
@@ -116,6 +120,7 @@ async function loadDatabaseConfiguration(): Promise<void> {
 export async function initializeDatabase(): Promise<void> {
   try {
     console.log('🚀 Initializing database...');
+    console.log(`🔍 Database selection: ${usePostgreSQL ? 'PostgreSQL' : 'SQLite'}`);
     
     // REF: Load database configuration first
     await loadDatabaseConfiguration();
@@ -128,7 +133,9 @@ export async function initializeDatabase(): Promise<void> {
     
     // REF: Run migrations for production PostgreSQL
     if (usePostgreSQL) {
+      console.log('🔄 Running PostgreSQL migrations...');
       await runMigrations();
+      console.log('✅ PostgreSQL migrations completed');
     }
     
     console.log('✅ Database initialization completed successfully');

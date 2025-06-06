@@ -57,6 +57,15 @@ app.use((req, res, next) => {
 
 (async () => {
   console.log('=== STARTING SERVER SETUP ===');
+  
+  // REF: Environment detection for proper deployment
+  const isProduction = process.env.NODE_ENV === 'production';
+  const port = process.env.PORT || 5001;
+  
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🔌 Port: ${port}`);
+  console.log(`🗄️  Database URL: ${process.env.DATABASE_URL ? 'CONFIGURED' : 'NOT SET'}`);
+  
   const server = await registerRoutes(app);
   console.log('=== ROUTES REGISTERED ===');
 
@@ -77,16 +86,16 @@ app.use((req, res, next) => {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = process.env.PORT || 5001; // Use PORT env var or default to 5001 for local dev
+  // REF: Production-ready server binding
+  // Railway requires binding to 0.0.0.0 for external access
+  const host = isProduction ? "0.0.0.0" : "localhost";
+  
   server.listen({
-    port,
-    host: "localhost", // Use localhost for local development instead of 0.0.0.0
-    // reusePort: true, // Comment out for local development
+    port: parseInt(port as string),
+    host: host,
   }, () => {
     log(`serving on port ${port}`);
-    console.log(`🚀 Server running at http://localhost:${port}`);
+    console.log(`🚀 Server running at http://${host}:${port}`);
+    console.log(`📡 Environment: ${isProduction ? 'PRODUCTION' : 'DEVELOPMENT'}`);
   });
 })();
