@@ -139,7 +139,7 @@ function setupPassportStrategies() {
             userId: user.id,
             name: 'Default',
             description: 'Default workspace',
-            isActive: true,
+            isActive: 1, // REF: SQLite compatibility - use 1 instead of true
           });
         }
 
@@ -339,6 +339,13 @@ export async function setupAuth(app: Express) {
 
   // GET /auth/google - Google OAuth login
   app.get('/auth/google', (req, res, next) => {
+    console.log('🔑 Google OAuth login initiated');
+    console.log('OAuth Config:', {
+      hasClientId: !!AUTH_CONFIG.google.clientId,
+      hasClientSecret: !!AUTH_CONFIG.google.clientSecret,
+      callbackURL: AUTH_CONFIG.google.callbackURL
+    });
+    
     // REF: Check if Google OAuth is configured
     if (!AUTH_CONFIG.google.clientId || !AUTH_CONFIG.google.clientSecret) {
       return res.status(500).json({
@@ -351,8 +358,13 @@ export async function setupAuth(app: Express) {
 
   // GET /auth/google/callback - Google OAuth callback
   app.get('/auth/google/callback', (req, res, next) => {
+    console.log('🔄 Google OAuth callback received');
+    console.log('Callback URL accessed:', req.url);
+    console.log('Query params:', req.query);
+    
     // REF: Check if Google OAuth is configured
     if (!AUTH_CONFIG.google.clientId || !AUTH_CONFIG.google.clientSecret) {
+      console.log('❌ OAuth not configured, redirecting to login');
       return res.redirect('/login?error=oauth_not_configured');
     }
     
@@ -386,10 +398,9 @@ export async function setupAuth(app: Express) {
           };
         }
         
-        // REF: Successful authentication, redirect to dashboard with delay for session
-        setTimeout(() => {
-          res.redirect('/dashboard');
-        }, 100);
+        // REF: Successful authentication, redirect to dashboard immediately
+        console.log('✅ OAuth callback success, redirecting to dashboard');
+        return res.redirect('/dashboard');
       } catch (error) {
         console.error('OAuth callback processing error:', error);
         res.redirect('/login?error=oauth_processing_failed');
