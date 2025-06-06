@@ -62,7 +62,7 @@ interface ReplyIoSettings {
 }
 
 export default function Dashboard() {
-  const { user, isLoading: authLoading } = useAuth();
+  const { user, isLoading: authLoading, isLoggedOut } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,10 +73,12 @@ export default function Dashboard() {
   const [selectedProspects, setSelectedProspects] = useState<number[]>([]);
   const [activeTab, setActiveTab] = useState('analytics');
   const [currentView, setCurrentView] = useState('settings');
+  const [redirected, setRedirected] = useState(false);
 
   // Redirect to login if not authenticated
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && (isLoggedOut || !user) && !redirected) {
+      setRedirected(true);
       toast({
         title: "Unauthorized",
         description: "Please log in to continue...",
@@ -85,10 +87,10 @@ export default function Dashboard() {
       setTimeout(() => {
         // REF: Redirect to proper login page (not development endpoint)
         window.location.href = "/login";
-      }, 500);
+      }, 1000); // Increased delay to prevent rapid redirects
       return;
     }
-  }, [user, authLoading, toast]);
+  }, [user, authLoading, isLoggedOut, toast, redirected]);
 
   // REF: Fetch Reply.io accounts to get selected campaign
   const { data: replyIoAccounts } = useQuery({

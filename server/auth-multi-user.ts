@@ -356,13 +356,44 @@ export async function setupAuth(app: Express) {
       return res.redirect('/login?error=oauth_not_configured');
     }
     
-    passport.authenticate('google', { failureRedirect: '/login?error=oauth_failed' })(req, res, (err) => {
+    passport.authenticate('google', { failureRedirect: '/login?error=oauth_failed' })(req, res, async (err) => {
       if (err) {
         console.error('Google OAuth callback error:', err);
         return res.redirect('/login?error=oauth_failed');
       }
-      // REF: Successful authentication, redirect to dashboard
-      res.redirect('/dashboard');
+      
+      try {
+        const user = req.user as any;
+        if (user) {
+          // REF: Create default client for new OAuth users
+          const existingClients = await storage.getClientsByUser(user.id);
+          if (existingClients.length === 0) {
+            await storage.createClient({
+              userId: user.id,
+              name: 'Default',
+              description: 'Default workspace',
+              isActive: 1, // REF: SQLite compatibility - use 1 instead of true
+            });
+          }
+          
+          // REF: Set session for proper authentication context
+          (req.session as any).user = {
+            id: user.id,
+            email: user.email,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            profileImageUrl: user.profileImageUrl,
+          };
+        }
+        
+        // REF: Successful authentication, redirect to dashboard with delay for session
+        setTimeout(() => {
+          res.redirect('/dashboard');
+        }, 100);
+      } catch (error) {
+        console.error('OAuth callback processing error:', error);
+        res.redirect('/login?error=oauth_processing_failed');
+      }
     });
   });
 
@@ -437,6 +468,16 @@ export const isAuthenticated: RequestHandler = (req, res, next) => {
     };
     return next();
   }
+  
+  // REF: Add detailed authentication debugging for production
+  console.log('🔒 Authentication failed:', {
+    hasSession: !!req.session,
+    sessionUser: !!sessionUser,
+    isAuthenticated: req.isAuthenticated(),
+    passportUser: !!passportUser,
+    sessionId: req.sessionID,
+    cookies: req.headers.cookie ? 'present' : 'missing'
+  });
   
   res.status(401).json({ 
     success: false, 

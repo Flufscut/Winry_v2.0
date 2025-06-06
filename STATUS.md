@@ -552,6 +552,7 @@ git push origin main
 **Issues Resolved**:
 - **Authentication Redirect Loop**: ✅ **FIXED** - Resolved infinite loading screen by changing `/api/login` redirects to `/login`
 - **Google OAuth Error**: ✅ **FIXED** - Added proper error handling for unconfigured OAuth with meaningful error messages  
+- **Manual Signup SQLite Compatibility**: ✅ **FIXED** - Resolved "SQLite3 can only bind numbers, strings, bigints, buffers, and null" error by converting boolean `isActive: true` to `isActive: 1`
 - **Default Client Creation**: ✅ **FIXED** - New users now automatically get default workspace to prevent empty dashboard
 - **Production Callback URL**: ✅ **FIXED** - Railway-compatible OAuth callback URL configuration
 - **Environment Variable Handling**: ✅ **IMPROVED** - Better error messages when OAuth credentials not configured
