@@ -171,14 +171,14 @@ function setupPassportStrategies() {
             oauthId: profile.id,
           };
           
-          user = await users.insert(newUser).returning({ ...newUser, passwordHash: null });
+          [user] = await db.insert(users).values(newUser).returning();
           
           // REF: Create default client for new user
-          await clients.insert({
+          await db.insert(clients).values({
             userId: user.id,
             name: 'Default',
             description: 'Default workspace',
-            isActive: 1, // REF: SQLite compatibility - use 1 instead of true
+            isActive: true, // REF: Use boolean for PostgreSQL compatibility
           }).returning({ id: clients.id });
         }
 
@@ -257,7 +257,7 @@ export async function setupAuth(app: Express) {
 
       // REF: Create new user
       const userId = randomUUID();
-      const newUser = await users.insert({
+      const [newUser] = await db.insert(users).values({
         id: userId,
         email,
         firstName,
@@ -267,14 +267,14 @@ export async function setupAuth(app: Express) {
         oauthId: null,
         profileImageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + " " + lastName)}&background=7C3AED&color=ffffff`,
         preferences: JSON.stringify({}),
-      }).returning({ ...users.fields });
+      }).returning();
 
       // REF: Create default client for new user
-      await clients.insert({
+      await db.insert(clients).values({
         userId: newUser.id,
         name: 'Default',
         description: 'Default workspace',
-        isActive: 1, // REF: SQLite compatibility - use 1 instead of true
+        isActive: true, // REF: Use boolean for PostgreSQL compatibility
       }).returning({ id: clients.id });
 
       // REF: Create session
