@@ -1,0 +1,14 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "on_failure"
+startCommand = "npm start"
+
+[environments.production]
+# Production environment will be configured when service is created
+
+[environments.staging]
+# Staging environment will be configured when service is created 

@@ -1,0 +1,59 @@
+# Winry.AI Environment Variables Template
+# Copy this file and set up your environment variables for deployment
+
+# ========================================
+# DATABASE CONFIGURATION
+# ========================================
+# PostgreSQL connection string for production
+# Get this from Neon, Supabase, or Railway PostgreSQL service
+DATABASE_URL=postgresql://username:password@hostname:5432/database_name?sslmode=require
+
+# ========================================
+# SECURITY CONFIGURATION
+# ========================================
+# 32-character secrets - use the generated ones below or generate new ones
+SESSION_SECRET=1cbfbc5b38d93c48f5ca245ca0ed832fdf33b8c09b706fdf365de1f4b9f222cf
+ENCRYPTION_KEY=51085a8aeec6cc830017b1bdc02c4c2c1b0a9932e9965ffd2fa5712a86f90cde
+JWT_SECRET=1976f936a9d1cc2bdcb5c985cfa44b1b224611b4630b3a25020dab049e42c539
+
+# ========================================
+# EXTERNAL SERVICES
+# ========================================
+# n8n webhook URL for AI research automation
+# Replace with your actual n8n instance webhook URL
+N8N_WEBHOOK_URL=https://your-n8n-instance.app.n8n.cloud/webhook/your-webhook-id
+
+# ========================================
+# APPLICATION CONFIGURATION
+# ========================================
+NODE_ENV=production
+PORT=5001
+
+# CORS origins - add your domain(s)
+CORS_ORIGINS=https://your-domain.com,https://app.your-domain.com
+
+# ========================================
+# OPTIONAL CONFIGURATION
+# ========================================
+# Rate limiting
+RATE_LIMIT_MAX=100
+
+# Session configuration
+SESSION_MAX_AGE=86400000
+
+# Logging
+LOG_LEVEL=info
+
+# Monitoring
+ENABLE_METRICS=true
+ENABLE_ERROR_TRACKING=true
+
+# Webhook timeout
+WEBHOOK_TIMEOUT=300000
+
+# Database connection
+DB_POOL_SIZE=10
+DB_CONNECTION_TIMEOUT=30000
+
+# Reply.io API
+REPLY_IO_BASE_URL=https://api.reply.io 
