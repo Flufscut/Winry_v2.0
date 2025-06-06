@@ -503,6 +503,51 @@
 
 ---
 
+## 🚀 RAILWAY PRODUCTION DEPLOYMENT
+
+### 🌐 Live Application URLs
+- **Production App**: https://winry-ai-production.up.railway.app/
+- **GitHub Repository**: https://github.com/Flufscut/Winry_by_SL.git
+- **Railway Project**: Winry.AI Production Environment
+
+### 🔄 Deployment Process
+**Railway Auto-Deployment Setup**: ✅ **CONFIGURED AND ACTIVE**
+- **Trigger**: Any push to `main` branch on GitHub automatically triggers Railway deployment
+- **Build Process**: Railway automatically detects Node.js app, runs `npm install` and `npm run build`
+- **Environment**: Railway handles production environment variables and PostgreSQL database
+- **Status**: Live deployment updates within 2-3 minutes of GitHub push
+
+### 📋 Deployment Commands
+```bash
+# Deploy to Railway (automatic on git push)
+git add -A
+git commit -m "Your deployment message"
+git push origin main
+
+# Railway will automatically:
+# 1. Detect the push to main branch
+# 2. Pull latest code from GitHub
+# 3. Run npm install and build process
+# 4. Deploy to production environment
+# 5. Update live application URL
+```
+
+### 🔧 Railway Configuration
+- **Database**: PostgreSQL (managed by Railway)
+- **Environment Variables**: Configured in Railway dashboard
+- **Build Command**: `npm run build`
+- **Start Command**: `npm start`
+- **Domain**: Custom Railway domain with HTTPS
+- **Auto-Scaling**: Enabled for production traffic
+
+### 📊 Deployment Status Monitoring
+- **Railway Dashboard**: Monitor deployment logs and application health
+- **Application Health**: Production health monitoring endpoints active
+- **Database**: Managed PostgreSQL with automatic backups
+- **SSL/HTTPS**: Automatically configured by Railway
+
+---
+
 ## 🚀 Development Roadmap
 
 ### 📍 PHASE 1: Foundation & Core Features (Current)
