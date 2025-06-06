@@ -4,8 +4,8 @@ import { apiRequest } from "@/lib/queryClient";
 // Circuit breaker variables to prevent infinite auth loops
 let authFailureCount = 0;
 let lastFailureTime = 0;
-const MAX_AUTH_FAILURES = 3;
-const FAILURE_RESET_TIME = 30000; // 30 seconds
+const MAX_AUTH_FAILURES = 2; // Reduced from 3 to 2
+const FAILURE_RESET_TIME = 60000; // Increased to 60 seconds
 
 export interface User {
   id: string;
@@ -16,10 +16,18 @@ export interface User {
 }
 
 export function useAuth() {
+  // Check circuit breaker before even creating the query
+  const now = Date.now();
+  if (now - lastFailureTime > FAILURE_RESET_TIME) {
+    authFailureCount = 0;
+  }
+  
+  const isCircuitBreakerActive = authFailureCount >= MAX_AUTH_FAILURES;
+  
   const { data: user, isLoading, error, isSuccess } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     queryFn: async () => {
-      // Circuit breaker check - prevent auth loops that crash Railway
+      // Double-check circuit breaker in query function
       const now = Date.now();
       
       // Reset failure count if enough time has passed
@@ -58,6 +66,7 @@ export function useAuth() {
         throw error;
       }
     },
+    enabled: !isCircuitBreakerActive, // CRITICAL: Don't run query if circuit breaker is active
     retry: false, // CRITICAL: Disable all retries to prevent loops
     refetchOnMount: false,
     refetchOnWindowFocus: false,
@@ -66,12 +75,12 @@ export function useAuth() {
     gcTime: 10 * 60 * 1000, // 10 minutes
   });
 
-  const isLoggedOut = error && !isLoading;
+  const isLoggedOut = (error && !isLoading) || isCircuitBreakerActive;
   
   return {
     user: user || null,
-    isLoading,
+    isLoading: isLoading && !isCircuitBreakerActive,
     isLoggedOut,
-    error
+    error: isCircuitBreakerActive ? new Error('Authentication temporarily disabled') : error
   };
 }

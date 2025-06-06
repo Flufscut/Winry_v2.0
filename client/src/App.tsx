@@ -15,8 +15,10 @@ import Preferences from "@/pages/preferences";
 import NotFound from "@/pages/not-found";
 
 function Router() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isLoading, isLoggedOut } = useAuth();
   const { isLoading: preferencesLoading } = usePreferences();
+  
+  const isAuthenticated = !!user && !isLoggedOut;
 
   return (
     <Switch>
