@@ -51,12 +51,15 @@ export function getSession() {
   return session({
     secret: AUTH_CONFIG.sessionSecret,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // REF: Force session creation for better authentication tracking
+    rolling: true, // REF: Reset session expiry on each request
+    name: 'winry.sid', // REF: Custom session name
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production', // HTTPS only in production
       maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
-      sameSite: 'lax'
+      sameSite: 'lax',
+      path: '/', // REF: Ensure cookie is available across all paths
     },
   });
 }
@@ -433,15 +436,64 @@ export async function setupAuth(app: Express) {
   });
 
   // GET /api/auth/user - Get current user
-  app.get('/api/auth/user', isAuthenticated, (req, res) => {
-    const user = (req as any).user;
-    res.json({
-      id: user.claims.sub,
-      email: user.claims.email,
-      firstName: user.claims.first_name,
-      lastName: user.claims.last_name,
-      profileImageUrl: user.claims.profile_image_url
-    });
+  app.get('/api/auth/user', (req, res) => {
+    try {
+      const sessionUser = (req.session as any)?.user;
+      const passportUser = req.user as any;
+      
+      // REF: Debug session state for production troubleshooting
+      console.log('🔒 Authentication check:', {
+        hasSession: !!req.session,
+        sessionUser: !!sessionUser,
+        isAuthenticated: req.isAuthenticated(),
+        passportUser: !!passportUser,
+        sessionId: (req.session as any)?.id,
+        cookies: req.headers.cookie ? 'present' : 'missing'
+      });
+
+      // REF: Check session-based authentication first (for login/signup)
+      if (sessionUser) {
+        return res.json({
+          id: sessionUser.id,
+          email: sessionUser.email,
+          firstName: sessionUser.firstName,
+          lastName: sessionUser.lastName,
+          profileImageUrl: sessionUser.profileImageUrl
+        });
+      }
+
+      // REF: Check passport-based authentication (for OAuth)
+      if (req.isAuthenticated() && passportUser) {
+        return res.json({
+          id: passportUser.id,
+          email: passportUser.email,
+          firstName: passportUser.firstName,
+          lastName: passportUser.lastName,
+          profileImageUrl: passportUser.profileImageUrl
+        });
+      }
+
+      // REF: Authentication failed
+      console.log('🔒 Authentication failed:', {
+        hasSession: !!req.session,
+        sessionUser: !!sessionUser,
+        isAuthenticated: req.isAuthenticated(),
+        passportUser: !!passportUser,
+        sessionId: (req.session as any)?.id,
+        cookies: req.headers.cookie ? 'present' : 'missing'
+      });
+      
+      res.status(401).json({
+        success: false,
+        message: "Authentication required"
+      });
+    } catch (error) {
+      console.error('❌ Auth check error:', error);
+      res.status(500).json({
+        success: false,
+        message: "Internal server error"
+      });
+    }
   });
 
   // GET /api/auth/status - Check authentication status
