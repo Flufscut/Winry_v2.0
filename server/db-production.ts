@@ -1,10 +1,10 @@
 /**
  * FILE: db-production.ts
  * PURPOSE: PostgreSQL database configuration for production deployment
- * DEPENDENCIES: drizzle-orm/neon-http, @neondatabase/serverless
+ * DEPENDENCIES: drizzle-orm/postgres-js, postgres
  * LAST_UPDATED: December 15, 2024
  * 
- * REF: Production database setup with PostgreSQL via Neon or other cloud provider
+ * REF: Production database setup with PostgreSQL via Railway or other cloud provider
  * REF: Handles connection pooling, SSL, and production-specific optimizations
  * TODO: Add connection monitoring and health checks
  * 
@@ -14,9 +14,9 @@
  * - runMigrations(): Executes pending database migrations
  */
 
-import { drizzle } from 'drizzle-orm/neon-http';
-import { neon } from '@neondatabase/serverless';
-import { migrate } from 'drizzle-orm/neon-http/migrator';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import * as schema from '../shared/schema.js';
 
 // REF: Environment validation for production database
@@ -24,8 +24,20 @@ if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL environment variable is required for production');
 }
 
-// REF: Configure Neon connection with production settings
-const sql = neon(process.env.DATABASE_URL);
+console.log('🔗 Connecting to PostgreSQL database...');
+console.log(`📍 Database URL: ${process.env.DATABASE_URL.replace(/:[^:@]*@/, ':***@')}`);
+
+// REF: Configure PostgreSQL connection with Railway-compatible settings
+const connectionString = process.env.DATABASE_URL;
+
+// REF: Create PostgreSQL connection with proper configuration for Railway
+const sql = postgres(connectionString, {
+  ssl: process.env.NODE_ENV === 'production' ? 'require' : false,
+  max: 10, // Connection pool size
+  idle_timeout: 20,
+  connect_timeout: 10,
+  prepare: false, // Disable prepared statements for Railway compatibility
+});
 
 // REF: Initialize Drizzle with PostgreSQL schema and connection
 export const db = drizzle(sql, { schema });
@@ -46,13 +58,13 @@ export const db = drizzle(sql, { schema });
  */
 export async function validateDatabaseConnection(): Promise<boolean> {
   try {
-    console.log('🔍 Validating production database connection...');
+    console.log('🔍 Validating production PostgreSQL connection...');
     
     // REF: Simple query to test connectivity
     const result = await sql`SELECT 1 as test`;
     
     if (result.length > 0 && result[0].test === 1) {
-      console.log('✅ Production database connection validated successfully');
+      console.log('✅ Production PostgreSQL connection validated successfully');
       return true;
     } else {
       console.error('❌ Database connection test failed - unexpected response');
@@ -81,14 +93,15 @@ export async function validateDatabaseConnection(): Promise<boolean> {
  */
 export async function runMigrations(): Promise<void> {
   try {
-    console.log('🚀 Starting production database migrations...');
+    console.log('🚀 Starting production PostgreSQL migrations...');
     
     // REF: Run migrations from the migrations directory
     await migrate(db, { migrationsFolder: './migrations' });
     
-    console.log('✅ Production database migrations completed successfully');
+    console.log('✅ Production PostgreSQL migrations completed successfully');
   } catch (error) {
-    console.error('❌ Database migration failed:', error);
+    console.error('❌ PostgreSQL migration failed:', error);
+    console.error('Migration error details:', error);
     throw new Error(`Migration failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -111,6 +124,7 @@ export async function getDatabaseHealth(): Promise<{
   status: 'healthy' | 'unhealthy';
   connectionStatus: boolean;
   tablesStatus: boolean;
+  databaseType: string;
   error?: string;
 }> {
   try {
@@ -122,6 +136,7 @@ export async function getDatabaseHealth(): Promise<{
         status: 'unhealthy',
         connectionStatus: false,
         tablesStatus: false,
+        databaseType: 'PostgreSQL (Production)',
         error: 'Database connection failed'
       };
     }
@@ -142,6 +157,7 @@ export async function getDatabaseHealth(): Promise<{
       status: tablesExist ? 'healthy' : 'unhealthy',
       connectionStatus: true,
       tablesStatus: tablesExist,
+      databaseType: 'PostgreSQL (Production)',
       error: tablesExist ? undefined : 'Required tables missing'
     };
     
@@ -150,6 +166,7 @@ export async function getDatabaseHealth(): Promise<{
       status: 'unhealthy',
       connectionStatus: false,
       tablesStatus: false,
+      databaseType: 'PostgreSQL (Production)',
       error: error instanceof Error ? error.message : 'Unknown error'
     };
   }
@@ -158,4 +175,4 @@ export async function getDatabaseHealth(): Promise<{
 // REF: Export schema types for production use
 export * from '../shared/schema.js';
 
-console.log('📦 Production database configuration loaded'); 
+console.log('📦 Production PostgreSQL database configuration loaded'); 
