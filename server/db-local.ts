@@ -2,10 +2,11 @@
  * FILE: db-local.ts
  * PURPOSE: SQLite database configuration for local development
  * DEPENDENCIES: drizzle-orm/better-sqlite3, better-sqlite3
- * LAST_UPDATED: Current date
+ * LAST_UPDATED: December 15, 2024
  * 
  * REF: Local development database setup with SQLite compatibility
  * REF: Handles schema differences between PostgreSQL (production) and SQLite (local)
+ * REF: CRITICAL - Only loads in development environment to prevent production conflicts
  * TODO: Add proper migration system for schema changes
  */
 
@@ -19,7 +20,12 @@ import {
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Create or connect to SQLite database
+// REF: CRITICAL - Prevent SQLite loading in production environment
+if (process.env.NODE_ENV === 'production') {
+  throw new Error('FATAL: db-local.ts should never be imported in production environment');
+}
+
+// Create or connect to SQLite database (development only)
 const sqlite = new Database('local.db');
 
 // SQLite-compatible schema definitions
