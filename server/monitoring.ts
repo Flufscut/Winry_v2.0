@@ -294,17 +294,18 @@ export async function checkDatabaseHealth(): Promise<HealthCheck> {
   const startTime = Date.now();
   
   try {
-    // REF: Import database connection dynamically to avoid circular dependencies
-    const { db } = await import('./db-local');
+    // REF: Import unified database system to avoid circular dependencies
+    const { getDatabase } = await import('./db.js');
+    const db = await getDatabase();
     
     // REF: Simple query to test database connectivity
-    const result = await db.run('SELECT 1 as test');
+    const result = await db.execute('SELECT 1 as test');
     const responseTime = Date.now() - startTime;
 
     return {
       name: 'database',
       status: responseTime > 1000 ? 'warning' : 'healthy',
-      message: responseTime > 1000 ? 'Database response time is slow' : 'Database is responding normally',
+      message: responseTime > 1000 ? 'Database response time is slow' : `Database is responding normally (${process.env.NODE_ENV === 'production' ? 'PostgreSQL' : 'SQLite'})`,
       responseTime,
       timestamp: new Date(),
       details: {
