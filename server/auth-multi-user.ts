@@ -121,7 +121,8 @@ function setupPassportStrategies() {
     { usernameField: 'email' },
     async (email, password, done) => {
       try {
-        const user = await users.findFirst({ where: eq(users.email, email) });
+        const userResults = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        const user = userResults[0];
         if (!user) {
           return done(null, false, { message: 'Invalid email or password' });
         }
@@ -157,7 +158,8 @@ function setupPassportStrategies() {
         }
 
         // REF: Check if user already exists
-        let user = await users.findFirst({ where: eq(users.email, email) });
+        const userResults = await db.select().from(users).where(eq(users.email, email)).limit(1);
+        let user = userResults[0];
         
         if (!user) {
           // REF: Create new user from Google profile
@@ -197,7 +199,8 @@ function setupPassportStrategies() {
 
   passport.deserializeUser(async (id: string, done) => {
     try {
-      const user = await users.findFirst({ where: eq(users.id, id) });
+      const userResults = await db.select().from(users).where(eq(users.id, id)).limit(1);
+      const user = userResults[0];
       done(null, user);
     } catch (error) {
       done(error);
@@ -243,8 +246,8 @@ export async function setupAuth(app: Express) {
       const { firstName, lastName, email, password } = validationResult.data;
 
       // REF: Check if user already exists
-      const existingUser = await users.findFirst({ where: eq(users.email, email) });
-      if (existingUser) {
+      const existingUsers = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      if (existingUsers.length > 0) {
         return res.status(400).json({
           success: false,
           message: "An account with this email already exists",
@@ -326,7 +329,8 @@ export async function setupAuth(app: Express) {
       const { email, password } = validationResult.data;
 
       // REF: Find user by email
-      const user = await users.findFirst({ where: eq(users.email, email) });
+      const userResults = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      const user = userResults[0];
       if (!user) {
         return res.status(401).json({
           success: false,
@@ -424,13 +428,13 @@ export async function setupAuth(app: Express) {
         const user = req.user as any;
         if (user) {
           // REF: Create default client for new OAuth users
-          const existingClients = await clients.findMany({ where: eq(clients.userId, user.id) });
+          const existingClients = await db.select().from(clients).where(eq(clients.userId, user.id));
           if (existingClients.length === 0) {
-            await clients.insert({
+            await db.insert(clients).values({
               userId: user.id,
               name: 'Default',
               description: 'Default workspace',
-              isActive: 1, // REF: SQLite compatibility - use 1 instead of true
+              isActive: true, // REF: Use boolean for PostgreSQL compatibility
             }).returning({ id: clients.id });
           }
           
@@ -654,7 +658,7 @@ export function setupMultiUserAuth(app: Express): void {
 
       // REF: Create new user
       const userId = randomUUID();
-      const newUser = await users.insert({
+      const [newUser] = await db.insert(users).values({
         id: userId,
         email,
         firstName,
@@ -664,7 +668,7 @@ export function setupMultiUserAuth(app: Express): void {
         oauthId: null,
         profileImageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + " " + lastName)}&background=7C3AED&color=ffffff`,
         preferences: JSON.stringify({}),
-      }).returning({ ...users.fields });
+      }).returning();
 
       // REF: Create session
       (req.session as any).user = {
@@ -715,7 +719,8 @@ export function setupMultiUserAuth(app: Express): void {
       const { email, password } = validationResult.data;
 
       // REF: Find user by email
-      const user = await users.findFirst({ where: eq(users.email, email) });
+      const userResults = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      const user = userResults[0];
       if (!user) {
         return res.status(401).json({
           success: false,
