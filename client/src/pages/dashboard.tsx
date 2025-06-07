@@ -16,8 +16,9 @@ import {
   Sparkles, Plus, Upload, Users, CheckCircle2, Clock, TrendingUp, Search, 
   Loader2, LogOut, Filter, Eye, Trash2, RotateCcw, Target, Brain, Rocket, 
   AlertTriangle, Settings, Send, UserPlus, RefreshCw, Download, 
-  MoreHorizontal, Activity, User, CheckCircle, AlertCircle, Building2, Copy
+  MoreHorizontal, Activity, User, CheckCircle, AlertCircle, Building2, Copy, UserCheck, UserX
 } from "lucide-react";
+import { Link, useLocation } from 'wouter';
 
 // REF: Lazy load heavy components to reduce initial bundle size
 const ProspectForm = React.lazy(() => import("@/components/prospect-form"));
@@ -62,7 +63,8 @@ interface ReplyIoSettings {
 }
 
 export default function Dashboard() {
-  const { user, isLoading: authLoading, isLoggedOut } = useAuth();
+  const { user, isLoading: authLoading, isLoggedOut, error } = useAuth();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,6 +76,18 @@ export default function Dashboard() {
   const [activeTab, setActiveTab] = useState('analytics');
   const [currentView, setCurrentView] = useState('settings');
   const [redirected, setRedirected] = useState(false);
+
+  // Debug logging for authentication state
+  useEffect(() => {
+    console.log('🔍 Dashboard: Auth state debug:', {
+      user: !!user,
+      userDetails: user,
+      authLoading,
+      isLoggedOut,
+      error: error?.message,
+      redirected
+    });
+  }, [user, authLoading, isLoggedOut, error, redirected]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -94,18 +108,11 @@ export default function Dashboard() {
       
       // Increased delay to allow OAuth sessions to establish
       setTimeout(() => {
-        console.log('🔄 Dashboard: Redirecting to login page...');
-        window.location.href = "/login";
-      }, 2000); // Increased from 1000ms to 2000ms for OAuth flow
-      return;
+        console.log('🔄 Dashboard: Redirecting to login page');
+        setLocation('/login');
+      }, 2000); // Increased from 1000ms to 2000ms
     }
-    
-    // Reset redirect flag if user becomes authenticated
-    if (user && !isLoggedOut && redirected) {
-      console.log('✅ Dashboard: User authenticated, canceling redirect');
-      setRedirected(false);
-    }
-  }, [user, authLoading, isLoggedOut, toast, redirected]);
+  }, [user, isLoggedOut, authLoading, setLocation, toast, redirected]);
 
   // REF: Fetch Reply.io accounts to get selected campaign
   const { data: replyIoAccounts } = useQuery({
@@ -393,22 +400,51 @@ export default function Dashboard() {
     });
   };
 
-  // Show loading screen while authentication is being checked
-  if (authLoading || (!user && !isLoggedOut && !redirected)) {
+  // Show loading screen while authentication is being determined
+  if (authLoading) {
+    console.log('🔄 Dashboard: Showing loading screen (authLoading=true)');
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-        <div className="text-center space-y-4">
-          <div className="relative">
-            <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto"></div>
-            <Sparkles className="w-6 h-6 text-primary absolute top-3 left-1/2 transform -translate-x-1/2" />
-          </div>
-          <div className="space-y-2">
-            <h3 className="text-lg font-semibold text-foreground">Authenticating...</h3>
-            <p className="text-sm text-muted-foreground">
-              {authLoading ? 'Checking authentication...' : 'Establishing session...'}
-            </p>
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-6">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center space-y-4">
+              <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+              <h2 className="text-xl font-semibold text-gray-900">Authenticating...</h2>
+              <p className="text-gray-600 text-center">
+                Please wait while we verify your login...
+              </p>
+              <div className="text-sm text-gray-500 mt-4 p-3 bg-gray-50 rounded-lg">
+                <strong>Debug Info:</strong><br />
+                Auth Loading: {authLoading ? 'true' : 'false'}<br />
+                User: {user ? 'Found' : 'None'}<br />
+                Error: {error?.message || 'None'}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show error state if there's an authentication error
+  if (error && !authLoading) {
+    console.log('❌ Dashboard: Showing error screen:', error.message);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-orange-50 flex items-center justify-center p-6">
+        <Card className="w-full max-w-md">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center space-y-4">
+              <AlertTriangle className="h-8 w-8 text-red-600" />
+              <h2 className="text-xl font-semibold text-gray-900">Authentication Error</h2>
+              <p className="text-gray-600 text-center">
+                {error.message}
+              </p>
+              <Button onClick={() => setLocation('/login')} className="mt-4">
+                Go to Login
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
