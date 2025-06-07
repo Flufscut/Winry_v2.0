@@ -14,6 +14,8 @@ import session from 'express-session';
 import bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
+import passport from 'passport';
+import { Strategy as GoogleStrategy, Profile as GoogleProfile } from 'passport-google-oauth20';
 
 // Simple in-memory session store for development, can be replaced with Redis for production
 interface User {
@@ -152,6 +154,89 @@ export function setupAuth(app: express.Express) {
   
   // Session middleware
   app.use(getSessionMiddleware());
+  
+  // =============================
+  // Passport + Google OAuth Setup
+  // =============================
+
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  passport.serializeUser((user: any, done) => {
+    done(null, user.id);
+  });
+
+  passport.deserializeUser((id: string, done) => {
+    const user = users.get(id);
+    done(null, user || null);
+  });
+
+  if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    const googleStrategy = new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: '/auth/google/callback',
+      },
+      async (accessToken, refreshToken, profile: GoogleProfile, done) => {
+        try {
+          let user = Array.from(users.values()).find(
+            u => u.oauthProvider === 'google' && u.oauthId === profile.id,
+          );
+
+          if (!user) {
+            // If user with same email exists from manual signup, link accounts
+            const email = profile.emails && profile.emails[0]?.value;
+            if (email && usersByEmail.has(email)) {
+              user = usersByEmail.get(email)!;
+              user.oauthProvider = 'google';
+              user.oauthId = profile.id;
+            } else {
+              // Create new user
+              user = {
+                id: generateUserId(),
+                email: email || `google_${profile.id}@noemail.com`,
+                firstName: profile.name?.givenName || 'Google',
+                lastName: profile.name?.familyName || 'User',
+                oauthProvider: 'google',
+                oauthId: profile.id,
+                profileImageUrl: profile.photos && profile.photos[0]?.value,
+                createdAt: new Date().toISOString(),
+              } as User;
+              users.set(user.id, user);
+              usersByEmail.set(user.email, user);
+              createDefaultClient(user.id);
+            }
+          }
+
+          done(null, user);
+        } catch (err) {
+          done(err as any, undefined);
+        }
+      },
+    );
+    passport.use(googleStrategy);
+
+    // OAuth initiation route
+    app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+    // OAuth callback route
+    app.get(
+      '/auth/google/callback',
+      passport.authenticate('google', { failureRedirect: '/login', session: true }),
+      (req, res) => {
+        // Establish session for the user
+        if (req.user) {
+          (req as any).session.userId = (req.user as any).id;
+        }
+        res.redirect('/dashboard');
+      },
+    );
+
+    console.log('✅ Google OAuth configured');
+  } else {
+    console.warn('⚠️  Google OAuth not configured - missing env vars');
+  }
   
   // Initialize with test user for development
   if (process.env.NODE_ENV === 'development') {
