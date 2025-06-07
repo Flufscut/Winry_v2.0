@@ -18,41 +18,53 @@ import * as sharedSchema from '@shared/schema.js';
 // REF: Initialize database connection using unified system
 let users: any, prospects: any, csvUploads: any, userSettings: any, replyioAccounts: any, replyioCampaigns: any, clients: any, db: any;
 let isInitialized = false;
+let initPromise: Promise<void> | null = null;
 
 async function initializeStorage() {
   if (isInitialized) {
     return;
   }
-
-  try {
-    console.log('🔄 Storage: Initializing unified database system...');
-    
-    // REF: Use unified database system from db.ts
-    db = await getDatabase();
-    
-    // REF: Use shared schema for all environments (PostgreSQL compatible)
-    users = sharedSchema.users;
-    prospects = sharedSchema.prospects;
-    csvUploads = sharedSchema.csvUploads;
-    userSettings = sharedSchema.userSettings;
-    replyioAccounts = sharedSchema.replyioAccounts;
-    replyioCampaigns = sharedSchema.replyioCampaigns;
-    clients = sharedSchema.clients;
-    
-    isInitialized = true;
-    console.log('✅ Storage: Unified database system initialized successfully');
-  } catch (error) {
-    console.error('❌ Storage: Failed to initialize database:', error);
-    throw error;
+  
+  // REF: Prevent multiple concurrent initializations
+  if (initPromise) {
+    await initPromise;
+    return;
   }
+
+  initPromise = (async () => {
+    try {
+      console.log('🔄 Storage: Initializing unified database system...');
+      
+      // REF: Use unified database system from db.ts
+      db = await getDatabase();
+      
+      // REF: Use shared schema for all environments (PostgreSQL compatible)
+      users = sharedSchema.users;
+      prospects = sharedSchema.prospects;
+      csvUploads = sharedSchema.csvUploads;
+      userSettings = sharedSchema.userSettings;
+      replyioAccounts = sharedSchema.replyioAccounts;
+      replyioCampaigns = sharedSchema.replyioCampaigns;
+      clients = sharedSchema.clients;
+      
+      isInitialized = true;
+      console.log('✅ Storage: Unified database system initialized successfully');
+    } catch (error) {
+      console.error('❌ Storage: Failed to initialize database:', error);
+      initPromise = null; // Reset promise on error to allow retry
+      throw error;
+    }
+  })();
+  
+  await initPromise;
 }
 
-// REF: Auto-initialize on module load
-const initPromise = initializeStorage();
+// REF: Export initialization promise for external coordination
+export const storageInitialization = initializeStorage();
 
 // REF: Helper to ensure initialization
 async function ensureInitialized() {
-  await initPromise;
+  await storageInitialization;
   return { db, users, prospects, csvUploads, userSettings, replyioAccounts, replyioCampaigns, clients };
 }
 
@@ -142,7 +154,7 @@ export interface IStorage {
 export class DatabaseStorage implements IStorage {
   // REF: Ensure database is initialized before operations
   private async ensureInitialized() {
-    await initPromise;
+    await storageInitialization;
   }
 
   // REF: Helper function to get current timestamp in appropriate format

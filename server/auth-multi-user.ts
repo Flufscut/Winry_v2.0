@@ -15,7 +15,7 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import bcrypt from 'bcryptjs';
 import session from 'express-session';
 import type { Express, Request, Response, NextFunction, RequestHandler } from 'express';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto';
 import { z } from 'zod';
 
@@ -50,8 +50,8 @@ const loginSchema = z.object({
 
 // REF: Database and schema references
 let db: any;
-let users: any;
-let clients: any;
+let users: any = sharedSchema.users;
+let clients: any = sharedSchema.clients;
 let isInitialized = false;
 
 // REF: REMOVED duplicate database initialization to prevent conflicts with storage.ts
@@ -163,11 +163,13 @@ function setupPassportStrategies() {
           [user] = await db.insert(users).values(newUser).returning();
           
           // REF: Create default client for new user
+          const now = new Date().toISOString();
           await db.insert(clients).values({
             userId: user.id,
             name: 'Default',
             description: 'Default workspace',
-            isActive: true, // REF: Use boolean for PostgreSQL compatibility
+            // REF: Remove isActive, createdAt, updatedAt for SQLite compatibility
+            // Let database handle defaults and auto-generated fields
           }).returning({ id: clients.id });
         }
 
@@ -219,9 +221,11 @@ export async function setupAuth(app: Express) {
   app.post('/auth/signup', async (req, res) => {
     try {
       console.log('📝 Processing signup request...');
+      console.log('Request body:', req.body);
       
       const validationResult = signupSchema.safeParse(req.body);
       if (!validationResult.success) {
+        console.log('❌ Validation failed:', validationResult.error.issues);
         return res.status(400).json({
           success: false,
           message: "Invalid input data",
@@ -230,10 +234,18 @@ export async function setupAuth(app: Express) {
       }
 
       const { firstName, lastName, email, password } = validationResult.data;
+      console.log('✅ Validation passed for email:', email);
 
       // REF: Check if user already exists
+      console.log('🔍 Getting database instance...');
       const db = await getDbInstance();
+      console.log('✅ Database instance obtained');
+      
+      console.log('🔍 Checking for existing user...');
+      console.log('Users schema:', users);
       const existingUsers = await db.select().from(users).where(eq(users.email, email)).limit(1);
+      console.log('✅ User check completed, found:', existingUsers.length, 'users');
+      
       if (existingUsers.length > 0) {
         return res.status(400).json({
           success: false,
@@ -242,32 +254,98 @@ export async function setupAuth(app: Express) {
       }
 
       // REF: Hash password
+      console.log('🔐 Hashing password...');
       const saltRounds = 12;
       const passwordHash = await bcrypt.hash(password, saltRounds);
+      console.log('✅ Password hashed');
 
       // REF: Create new user
+      console.log('👤 Creating new user...');
+      console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
+      console.log('🔍 NODE_ENV !== "production":', process.env.NODE_ENV !== 'production');
       const userId = randomUUID();
-      const [newUser] = await db.insert(users).values({
-        id: userId,
-        email,
-        firstName,
-        lastName,
-        passwordHash,
-        oauthProvider: null,
-        oauthId: null,
-        profileImageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + " " + lastName)}&background=7C3AED&color=ffffff`,
-        preferences: JSON.stringify({}),
-      }).returning();
+      const now = new Date().toISOString();
+      
+      let newUser;
+      // REF: Force SQLite workaround for development (NODE_ENV is undefined in dev)
+      if (process.env.NODE_ENV !== 'production') {
+        // REF: Development SQLite workaround - use raw SQL to bypass schema incompatibility
+        console.log('🔧 Using SQLite development workaround...');
+        console.log('🔍 Database methods:', Object.getOwnPropertyNames(db).filter(name => typeof db[name] === 'function'));
+        
+        // REF: Try different database methods for raw SQL execution
+        try {
+          await db.run(sql`
+            INSERT INTO users (id, email, first_name, last_name, password_hash, oauth_provider, oauth_id, profile_image_url, preferences, created_at, updated_at)
+            VALUES (${userId}, ${email}, ${firstName}, ${lastName}, ${passwordHash}, ${null}, ${null}, ${`https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + " " + lastName)}&background=7C3AED&color=ffffff`}, ${JSON.stringify({})}, ${now}, ${now})
+          `);
+        } catch (runError) {
+          console.log('❌ db.run failed:', runError.message);
+          // REF: Fallback to all() method
+          await db.all(sql`
+            INSERT INTO users (id, email, first_name, last_name, password_hash, oauth_provider, oauth_id, profile_image_url, preferences, created_at, updated_at)
+            VALUES (${userId}, ${email}, ${firstName}, ${lastName}, ${passwordHash}, ${null}, ${null}, ${`https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + " " + lastName)}&background=7C3AED&color=ffffff`}, ${JSON.stringify({})}, ${now}, ${now})
+          `);
+        }
+        
+        newUser = {
+          id: userId,
+          email,
+          firstName,
+          lastName,
+          profileImageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + " " + lastName)}&background=7C3AED&color=ffffff`
+        };
+      } else {
+        // REF: Production PostgreSQL - use schema
+        console.log('🔧 Using PostgreSQL production schema...');
+        const [user] = await db.insert(users).values({
+          id: userId,
+          email,
+          firstName,
+          lastName,
+          passwordHash,
+          oauthProvider: null,
+          oauthId: null,
+          profileImageUrl: `https://ui-avatars.com/api/?name=${encodeURIComponent(firstName + " " + lastName)}&background=7C3AED&color=ffffff`,
+          preferences: JSON.stringify({}),
+          createdAt: now,
+          updatedAt: now,
+        }).returning();
+        newUser = user;
+      }
+      console.log('✅ User created:', newUser.id);
 
       // REF: Create default client for new user
-      await db.insert(clients).values({
-        userId: newUser.id,
-        name: 'Default',
-        description: 'Default workspace',
-        isActive: true, // REF: Use boolean for PostgreSQL compatibility
-      }).returning({ id: clients.id });
+      console.log('🏢 Creating default client...');
+      if (process.env.NODE_ENV !== 'production') {
+        // REF: Development SQLite workaround
+        console.log('🔧 Using SQLite client creation workaround...');
+        try {
+          await db.run(sql`
+            INSERT INTO clients (user_id, name, description, is_active, created_at, updated_at)
+            VALUES (${newUser.id}, ${'Default'}, ${'Default workspace'}, ${1}, ${now}, ${now})
+          `);
+        } catch (runError) {
+          console.log('❌ db.run failed for client:', runError.message);
+          // REF: Fallback to all() method
+          await db.all(sql`
+            INSERT INTO clients (user_id, name, description, is_active, created_at, updated_at)
+            VALUES (${newUser.id}, ${'Default'}, ${'Default workspace'}, ${1}, ${now}, ${now})
+          `);
+        }
+      } else {
+        // REF: Production PostgreSQL
+        console.log('🔧 Using PostgreSQL client creation...');
+        await db.insert(clients).values({
+          userId: newUser.id,
+          name: 'Default',
+          description: 'Default workspace',
+        }).returning({ id: clients.id });
+      }
+      console.log('✅ Default client created');
 
       // REF: Create session
+      console.log('🔑 Creating session...');
       (req.session as any).user = {
         id: newUser.id,
         email: newUser.email,
@@ -275,6 +353,7 @@ export async function setupAuth(app: Express) {
         lastName: newUser.lastName,
         profileImageUrl: newUser.profileImageUrl,
       };
+      console.log('✅ Session created');
 
       console.log(`✅ User created successfully: ${email}`);
       
@@ -292,6 +371,7 @@ export async function setupAuth(app: Express) {
 
     } catch (error) {
       console.error('❌ Signup error:', error);
+      console.error('❌ Error stack:', error.stack);
       res.status(500).json({
         success: false,
         message: "Internal server error during signup",
@@ -418,11 +498,13 @@ export async function setupAuth(app: Express) {
           // REF: Create default client for new OAuth users
           const existingClients = await db.select().from(clients).where(eq(clients.userId, user.id));
           if (existingClients.length === 0) {
+            const now = new Date().toISOString();
             await db.insert(clients).values({
               userId: user.id,
               name: 'Default',
               description: 'Default workspace',
-              isActive: true, // REF: Use boolean for PostgreSQL compatibility
+              // REF: Remove isActive, createdAt, updatedAt for SQLite compatibility
+              // Let database handle defaults and auto-generated fields
             }).returning({ id: clients.id });
           }
           
