@@ -44,19 +44,49 @@ console.log('✅ Schema initialized:', {
   insertClientSchema: typeof insertClientSchema 
 });
 
-// REF: Stub function for batch research processing
-// TODO: Implement proper research workflow integration
+// REF: Function to send prospects to n8n for research processing
 async function processBatchResearch(prospects: Array<{id: number, data: any}>, batchSize: number) {
   console.log(`🔬 Research batch processing requested for ${prospects.length} prospects (batch size: ${batchSize})`);
-  console.log('📝 Note: Research workflow integration not yet implemented');
   
-  // For now, just mark prospects as processing
+  const webhookUrl = "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-4154-84c1-c0e3a2ca572e";
+  
   for (const prospect of prospects) {
     try {
+      // Mark prospect as processing first
       await storage.updateProspectStatus(prospect.id, 'processing');
       console.log(`✅ Marked prospect ${prospect.id} as processing`);
+      
+      // Send prospect data to n8n webhook for research
+      const prospectData = {
+        id: prospect.id,
+        firstName: prospect.data.firstName,
+        lastName: prospect.data.lastName,
+        company: prospect.data.company,
+        title: prospect.data.title,
+        email: prospect.data.email,
+        linkedinUrl: prospect.data.linkedinUrl || ""
+      };
+      
+      console.log(`🚀 Sending prospect ${prospect.id} to n8n webhook:`, prospectData);
+      
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(prospectData)
+      });
+      
+      if (response.ok) {
+        console.log(`✅ Successfully sent prospect ${prospect.id} to n8n webhook`);
+      } else {
+        console.error(`❌ Failed to send prospect ${prospect.id} to n8n webhook: ${response.status} ${response.statusText}`);
+        await storage.updateProspectStatus(prospect.id, 'error', null, `Failed to send to n8n: ${response.status}`);
+      }
+      
     } catch (error) {
-      console.error(`❌ Failed to update prospect ${prospect.id}:`, error);
+      console.error(`❌ Failed to process prospect ${prospect.id}:`, error);
+      await storage.updateProspectStatus(prospect.id, 'error', null, `Processing error: ${error.message}`);
     }
   }
 }
