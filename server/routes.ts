@@ -91,18 +91,75 @@ async function processBatchResearch(prospects: Array<{id: number, data: any}>, b
   }
 }
 
-// REF: Stub function for CSV prospect processing
-// TODO: Implement proper CSV processing workflow
+// REF: Function to process CSV prospects and create them in the database
 async function processCsvProspects(uploadId: number, userId: string, clientId: number, records: any[], mapping: any, hasHeaders: boolean, batchSize: number) {
-  console.log(`📊 CSV processing requested for upload ${uploadId}: ${records.length} records (batch size: ${batchSize})`);
-  console.log('📝 Note: CSV processing workflow not yet implemented');
+  console.log(`📊 CSV processing started for upload ${uploadId}: ${records.length} records (batch size: ${batchSize})`);
   
-  // For now, just update the upload status
+  let processedCount = 0;
+  let errorCount = 0;
+  const createdProspects = [];
+  
   try {
-    await storage.updateCsvUploadProgress(uploadId, records.length, 'completed');
-    console.log(`✅ Marked CSV upload ${uploadId} as completed`);
+    // Process records in batches
+    for (let i = 0; i < records.length; i += batchSize) {
+      const batch = records.slice(i, Math.min(i + batchSize, records.length));
+      console.log(`📦 Processing batch ${Math.floor(i / batchSize) + 1}: ${batch.length} records`);
+      
+      for (const record of batch) {
+        try {
+          // Map CSV columns to prospect fields
+          const prospectData = {
+            userId,
+            clientId,
+            firstName: record[mapping.firstName] || '',
+            lastName: record[mapping.lastName] || '',
+            company: record[mapping.company] || '',
+            title: record[mapping.title] || '',
+            email: record[mapping.email] || '',
+            linkedinUrl: record[mapping.linkedinUrl] || '',
+          };
+          
+          // Validate required fields
+          if (!prospectData.firstName || !prospectData.lastName || !prospectData.company || !prospectData.title || !prospectData.email) {
+            console.error(`❌ Skipping record with missing required fields:`, prospectData);
+            errorCount++;
+            continue;
+          }
+          
+          // Create prospect in database
+          const prospect = await storage.createProspect(prospectData);
+          createdProspects.push({ id: prospect.id, data: prospectData });
+          processedCount++;
+          
+          console.log(`✅ Created prospect ${prospect.id}: ${prospectData.firstName} ${prospectData.lastName}`);
+          
+        } catch (error) {
+          console.error(`❌ Failed to create prospect from CSV record:`, error);
+          errorCount++;
+        }
+      }
+      
+      // Update progress after each batch
+      await storage.updateCsvUploadProgress(uploadId, processedCount, 'processing');
+      console.log(`📊 Progress: ${processedCount}/${records.length} processed, ${errorCount} errors`);
+      
+      // Send batch to n8n for research processing
+      if (createdProspects.length > 0) {
+        const batchToProcess = createdProspects.slice(-batch.length);
+        console.log(`🔬 Sending ${batchToProcess.length} prospects to n8n for research`);
+        await processBatchResearch(batchToProcess, batchSize);
+      }
+    }
+    
+    // Update final status
+    const finalStatus = errorCount === 0 ? 'completed' : 'completed_with_errors';
+    await storage.updateCsvUploadProgress(uploadId, processedCount, finalStatus);
+    
+    console.log(`✅ CSV processing completed: ${processedCount} prospects created, ${errorCount} errors`);
+    
   } catch (error) {
-    console.error(`❌ Failed to update CSV upload ${uploadId}:`, error);
+    console.error(`❌ Fatal error during CSV processing:`, error);
+    await storage.updateCsvUploadProgress(uploadId, processedCount, 'failed');
   }
 }
 
