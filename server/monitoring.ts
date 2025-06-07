@@ -296,10 +296,10 @@ export async function checkDatabaseHealth(): Promise<HealthCheck> {
   try {
     // REF: Import unified database system to avoid circular dependencies
     const { getDatabase } = await import('./db.js');
-    const db = await getDatabase();
+    const database = await getDatabase();
     
     // REF: Simple query to test database connectivity
-    const result = await db.execute('SELECT 1 as test');
+    const result = await database.db.execute('SELECT 1 as test');
     const responseTime = Date.now() - startTime;
 
     return {
