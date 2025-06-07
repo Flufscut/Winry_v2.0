@@ -1288,3 +1288,31 @@ Each code file should include:
 - Progress tracking shows real-time processing status
 - Error handling ensures partial success is possible
 - Status: ✅ RESOLVED - CSV upload fully functional
+
+### n8n Webhook Payload Format Fix (June 7, 2025)
+
+**Issue Identified**
+- Prospects were being sent to n8n but the webhook wasn't processing them correctly
+- The payload field names didn't match what n8n expected
+- n8n workflow expects specific field names like "jobtitle" instead of "title"
+
+**Solution Implemented**
+- Updated `processBatchResearch` function to format payload correctly for n8n
+- Changed field mappings:
+  - `title` → `jobtitle`
+  - `linkedinUrl` → `hs_linkedin_url`
+  - Added `hs_email_domain` field extracted from email
+  - Convert prospect ID to string format
+- Payload now matches n8n webhook's expected format exactly
+
+**Technical Details**
+- n8n expects fields at the root level of the JSON body
+- Field names must match exactly what n8n workflow is configured for
+- Email domain extraction helps with company research
+- String ID conversion ensures compatibility
+
+**Result**
+- Prospects are now properly received and processed by n8n
+- AI research workflow can access all prospect data correctly
+- Both manual and CSV uploads work with n8n integration
+- Status: ✅ RESOLVED - n8n webhook integration fully functional
