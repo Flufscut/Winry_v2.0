@@ -144,6 +144,12 @@ function createDefaultClient(userId: string): Client {
 export function setupAuth(app: express.Express) {
   console.log('🔄 Auth: Setting up simple authentication system...');
   
+  // REF: Behind Railway's TLS edge, Express sees the connection as HTTP.
+  // Setting trust proxy tells Express the original request was secure,
+  // allowing express-session to send a Secure cookie (Fix-01).
+  // See https://expressjs.com/en/guide/behind-proxies.html
+  app.set('trust proxy', 1);
+  
   // Session middleware
   app.use(getSessionMiddleware());
   

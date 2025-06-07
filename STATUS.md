@@ -284,6 +284,7 @@
 #### ✅ Recently Fixed Critical Issues:
 - **Missing Function References**: ✅ **FIXED** - Resolved `getDefaultReplyioConfiguration is not defined` errors in Reply.io analytics endpoints
 - **Server Stability**: ✅ **VERIFIED** - Server running correctly, health monitoring operational
+- **Secure Cookie Issue (Fix-01)**: ✅ **FIXED** - Added `app.set('trust proxy', 1)` in `setupAuth` to allow Secure session cookies behind Railway TLS; manual auth sessions will now persist
 
 #### ✅ Recently Completed:
 - **API Rate Limiting & Caching System**: ✅ **MAJOR MILESTONE COMPLETED** - Comprehensive caching and rate limiting infrastructure implemented
