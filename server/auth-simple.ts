@@ -16,6 +16,9 @@ import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import passport from 'passport';
 import { Strategy as GoogleStrategy, Profile as GoogleProfile } from 'passport-google-oauth20';
+import { storage } from './storage.js';
+
+// Use the shared storage instance to prevent database conflicts
 
 // Simple in-memory session store for development, can be replaced with Redis for production
 interface User {
@@ -38,14 +41,6 @@ interface Client {
   createdAt: string;
 }
 
-// In-memory storage for simplicity (replace with actual database calls)
-const users = new Map<string, User>();
-const usersByEmail = new Map<string, User>();
-const clients = new Map<number, Client>();
-const userClients = new Map<string, number[]>(); // userId -> clientIds
-
-let nextClientId = 1;
-
 // Validation schemas
 const signupSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
@@ -57,6 +52,12 @@ const signupSchema = z.object({
 const loginSchema = z.object({
   email: z.string().email("Valid email is required"),
   password: z.string().min(1, "Password is required"),
+});
+
+// Client creation schema
+const createClientSchema = z.object({
+  name: z.string().min(1, "Client name is required"),
+  description: z.string().optional(),
 });
 
 // Utility functions
@@ -74,6 +75,10 @@ async function verifyPassword(password: string, hash: string): Promise<boolean> 
 
 // Session configuration
 export function getSessionMiddleware() {
+  console.log('🔧 Configuring session middleware...');
+  console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
+  console.log('🔧 SESSION_SECRET exists:', !!process.env.SESSION_SECRET);
+  
   return session({
     secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
     resave: false,
@@ -93,19 +98,34 @@ export function getSessionMiddleware() {
 export function requireAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
   const session = (req as any).session;
   
+  console.log('🔍 Auth middleware - Session check:', {
+    hasSession: !!session,
+    sessionId: session?.id,
+    userId: session?.userId,
+    cookies: req.headers.cookie ? 'present' : 'missing'
+  });
+  
   if (!session || !session.userId) {
+    console.log('❌ Auth middleware - No session or userId');
     return res.status(401).json({ success: false, message: 'Authentication required' });
   }
   
-  const user = users.get(session.userId);
-  if (!user) {
-    session.destroy();
-    return res.status(401).json({ success: false, message: 'User not found' });
-  }
-  
-  // Add user to request object
-  (req as any).user = user;
-  next();
+  // Get user from database
+  storage.getUser(session.userId).then(user => {
+    if (!user) {
+      console.log('❌ Auth middleware - User not found in database:', session.userId);
+      session.destroy();
+      return res.status(401).json({ success: false, message: 'User not found' });
+    }
+    
+    console.log('✅ Auth middleware - User authenticated:', user.email);
+    // Add user to request object
+    (req as any).user = user;
+    next();
+  }).catch(err => {
+    console.error('❌ Auth middleware error:', err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  });
 }
 
 // Optional authentication middleware
@@ -113,31 +133,27 @@ export function optionalAuth(req: express.Request, res: express.Response, next: 
   const session = (req as any).session;
   
   if (session && session.userId) {
-    const user = users.get(session.userId);
-    if (user) {
-      (req as any).user = user;
-    }
+    storage.getUser(session.userId).then(user => {
+      if (user) {
+        (req as any).user = user;
+      }
+      next();
+    }).catch(err => {
+      console.error('Optional auth error:', err);
+      next();
+    });
+  } else {
+    next();
   }
-  
-  next();
 }
 
 // Create default client for new user
-function createDefaultClient(userId: string): Client {
-  const client: Client = {
-    id: nextClientId++,
+async function createDefaultClient(userId: string): Promise<Client> {
+  const client = await storage.createClient({
     userId,
     name: 'Default',
     description: 'Default workspace',
-    createdAt: new Date().toISOString(),
-  };
-  
-  clients.set(client.id, client);
-  
-  if (!userClients.has(userId)) {
-    userClients.set(userId, []);
-  }
-  userClients.get(userId)!.push(client.id);
+  });
   
   return client;
 }
@@ -166,9 +182,13 @@ export function setupAuth(app: express.Express) {
     done(null, user.id);
   });
 
-  passport.deserializeUser((id: string, done) => {
-    const user = users.get(id);
-    done(null, user || null);
+  passport.deserializeUser(async (id: string, done) => {
+    try {
+      const user = await storage.getUser(id);
+      done(null, user || null);
+    } catch (err) {
+      done(err, null);
+    }
   });
 
   if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
@@ -180,37 +200,36 @@ export function setupAuth(app: express.Express) {
       },
       async (accessToken, refreshToken, profile: GoogleProfile, done) => {
         try {
-          let user = Array.from(users.values()).find(
-            u => u.oauthProvider === 'google' && u.oauthId === profile.id,
-          );
-
+          // Check if user exists with this OAuth provider and ID
+          let user = await storage.getUserByEmail(profile.emails?.[0]?.value || '');
+          
           if (!user) {
-            // If user with same email exists from manual signup, link accounts
-            const email = profile.emails && profile.emails[0]?.value;
-            if (email && usersByEmail.has(email)) {
-              user = usersByEmail.get(email)!;
-              user.oauthProvider = 'google';
-              user.oauthId = profile.id;
-            } else {
-              // Create new user
-              user = {
-                id: generateUserId(),
-                email: email || `google_${profile.id}@noemail.com`,
-                firstName: profile.name?.givenName || 'Google',
-                lastName: profile.name?.familyName || 'User',
-                oauthProvider: 'google',
-                oauthId: profile.id,
-                profileImageUrl: profile.photos && profile.photos[0]?.value,
-                createdAt: new Date().toISOString(),
-              } as User;
-              users.set(user.id, user);
-              usersByEmail.set(user.email, user);
-              createDefaultClient(user.id);
-            }
+            // Create new user
+            const email = profile.emails?.[0]?.value || `google_${profile.id}@noemail.com`;
+            user = await storage.createUser({
+              id: generateUserId(),
+              email,
+              firstName: profile.name?.givenName || 'Google',
+              lastName: profile.name?.familyName || 'User',
+              oauthProvider: 'google',
+              oauthId: profile.id,
+              profileImageUrl: profile.photos?.[0]?.value,
+            });
+            
+            // Create default client for new user
+            await createDefaultClient(user.id);
+          } else if (!user.oauthProvider) {
+            // Link existing user to OAuth
+            user = await storage.updateUser(user.id, {
+              oauthProvider: 'google',
+              oauthId: profile.id,
+              profileImageUrl: profile.photos?.[0]?.value,
+            });
           }
 
           done(null, user);
         } catch (err) {
+          console.error('OAuth strategy error:', err);
           done(err as any, undefined);
         }
       },
@@ -262,18 +281,23 @@ export function setupAuth(app: express.Express) {
   
   // Initialize with test user for development
   if (process.env.NODE_ENV === 'development') {
-    const testUser: User = {
-      id: 'user_test_123',
-      email: 'test@example.com',
-      firstName: 'Test',
-      lastName: 'User',
-      passwordHash: '$2b$12$BrkeuBkvqBPI1Q74KlLkyupQsfVAk1TSGqBNIGRKqh4ZADjpRhT.6', // password: 'password123'
-      createdAt: new Date().toISOString(),
-    };
-    
-    users.set(testUser.id, testUser);
-    usersByEmail.set(testUser.email, testUser);
-    createDefaultClient(testUser.id);
+    // Check if test user already exists
+    storage.getUserByEmail('test@example.com').then(async (existingUser) => {
+      if (!existingUser) {
+        const testUser = await storage.createUser({
+          id: 'user_test_123',
+          email: 'test@example.com',
+          firstName: 'Test',
+          lastName: 'User',
+          passwordHash: '$2b$12$BrkeuBkvqBPI1Q74KlLkyupQsfVAk1TSGqBNIGRKqh4ZADjpRhT.6', // password: 'password123'
+        });
+        
+        await createDefaultClient(testUser.id);
+        console.log('✅ Test user created for development');
+      }
+    }).catch(err => {
+      console.error('Failed to create test user:', err);
+    });
   }
   
   // Signup endpoint
@@ -283,7 +307,8 @@ export function setupAuth(app: express.Express) {
       const body = signupSchema.parse(req.body);
       
       // Check if user already exists
-      if (usersByEmail.has(body.email)) {
+      const existingUser = await storage.getUserByEmail(body.email);
+      if (existingUser) {
         return res.status(400).json({ 
           success: false, 
           message: 'Account with this email already exists' 
@@ -292,21 +317,16 @@ export function setupAuth(app: express.Express) {
       
       // Create new user
       const passwordHash = await hashPassword(body.password);
-      const user: User = {
+      const user = await storage.createUser({
         id: generateUserId(),
         email: body.email,
         firstName: body.firstName,
         lastName: body.lastName,
         passwordHash,
-        createdAt: new Date().toISOString(),
-      };
+      });
       
-      // Store user
-      users.set(user.id, user);
-      usersByEmail.set(user.email, user);
-      
-      // Create default client
-      createDefaultClient(user.id);
+      // Create default client for new user
+      await createDefaultClient(user.id);
       
       // Create session
       (req as any).session.userId = user.id;
@@ -342,7 +362,7 @@ export function setupAuth(app: express.Express) {
       const body = loginSchema.parse(req.body);
       
       // Find user
-      const user = usersByEmail.get(body.email);
+      const user = await storage.getUserByEmail(body.email);
       if (!user || !user.passwordHash) {
         return res.status(401).json({ 
           success: false, 
@@ -411,10 +431,106 @@ export function setupAuth(app: express.Express) {
   // Get user clients endpoint
   app.get('/api/clients', requireAuth, (req, res) => {
     const user = (req as any).user;
-    const clientIds = userClients.get(user.id) || [];
-    const userClientsList = clientIds.map(id => clients.get(id)).filter(Boolean);
-    
-    res.json({ success: true, clients: userClientsList });
+    storage.getClientsByUser(user.id).then(clients => {
+      res.json(clients); // Return clients array directly, not wrapped in object
+    }).catch(err => {
+      console.error('Error getting user clients:', err);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    });
+  });
+
+  // Create new client endpoint
+  app.post('/api/clients', requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      // Validate client data
+      const validatedData = createClientSchema.parse(req.body);
+      
+      const client = await storage.createClient({
+        ...validatedData,
+        userId
+      });
+      
+      res.status(201).json(client);
+    } catch (error) {
+      console.error('Error creating client:', error);
+      if (error instanceof z.ZodError) {
+        res.status(400).json({ message: 'Invalid client data', errors: error.errors });
+      } else {
+        res.status(500).json({ message: 'Failed to create client' });
+      }
+    }
+  });
+
+  // Get current client endpoint
+  app.get('/api/current-client', requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      
+      // Get current client from session or default to first client
+      let currentClientId = (req as any).session.currentClientId;
+      
+      if (!currentClientId) {
+        // Default to the first/default client
+        const clients = await storage.getClientsByUser(userId);
+        const defaultClient = clients.find(c => c.name === 'Default') || clients[0];
+        currentClientId = defaultClient?.id;
+        if (currentClientId) {
+          (req as any).session.currentClientId = currentClientId;
+        }
+      }
+      
+      if (!currentClientId) {
+        return res.status(404).json({ message: 'No client found' });
+      }
+      
+      const clients = await storage.getClientsByUser(userId);
+      const client = clients.find(c => c.id === currentClientId);
+      
+      if (!client) {
+        // Clear invalid session and get default
+        delete (req as any).session.currentClientId;
+        const defaultClient = clients.find(c => c.name === 'Default') || clients[0];
+        if (defaultClient) {
+          (req as any).session.currentClientId = defaultClient.id;
+          return res.json(defaultClient);
+        }
+        return res.status(404).json({ message: 'No valid client found' });
+      }
+      
+      res.json(client);
+    } catch (error) {
+      console.error('Error fetching current client:', error);
+      res.status(500).json({ message: 'Failed to fetch current client' });
+    }
+  });
+
+  // Switch client endpoint
+  app.post('/api/switch-client/:id', requireAuth, async (req, res) => {
+    try {
+      const userId = (req as any).user.id;
+      const clientId = parseInt(req.params.id);
+      
+      // Verify client ownership
+      const clients = await storage.getClientsByUser(userId);
+      const client = clients.find(c => c.id === clientId);
+      
+      if (!client) {
+        return res.status(404).json({ message: 'Client not found' });
+      }
+      
+      // Update session with new current client
+      (req as any).session.currentClientId = clientId;
+      
+      res.json({ 
+        message: 'Client switched successfully', 
+        client: client 
+      });
+    } catch (error) {
+      console.error('Error switching client:', error);
+      res.status(500).json({ message: 'Failed to switch client' });
+    }
   });
   
   console.log('✅ Auth: Simple authentication system configured');

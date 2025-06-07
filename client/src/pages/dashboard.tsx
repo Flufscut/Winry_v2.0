@@ -407,7 +407,7 @@ export default function Dashboard() {
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 flex items-center justify-center p-6">
         <Card className="w-full max-w-md">
           <CardContent className="pt-6">
-            <div className="flex flex-col items-center space-y-4">
+        <div className="flex flex-col items-center space-y-4">
               <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
               <h2 className="text-xl font-semibold text-gray-900">Authenticating...</h2>
               <p className="text-gray-600 text-center">
@@ -422,7 +422,7 @@ export default function Dashboard() {
             </div>
           </CardContent>
         </Card>
-      </div>
+          </div>
     );
   }
 
@@ -442,7 +442,7 @@ export default function Dashboard() {
               <Button onClick={() => setLocation('/login')} className="mt-4">
                 Go to Login
               </Button>
-            </div>
+        </div>
           </CardContent>
         </Card>
       </div>

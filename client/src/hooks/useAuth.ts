@@ -6,8 +6,8 @@ import { useEffect } from "react";
 // Circuit breaker variables to prevent infinite auth loops
 let authFailureCount = 0;
 let lastFailureTime = 0;
-const MAX_AUTH_FAILURES = 2; // Reduced from 3 to 2
-const FAILURE_RESET_TIME = 60000; // Increased to 60 seconds
+const MAX_AUTH_FAILURES = 10; // Temporarily increased for debugging
+const FAILURE_RESET_TIME = 30000; // Reduced to 30 seconds
 
 export interface User {
   id: string;
@@ -42,6 +42,8 @@ export function useAuth() {
   const { data: user, isLoading, error, isSuccess } = useQuery<User | null>({
     queryKey: ["/api/auth/user"],
     queryFn: async () => {
+      console.log('🔄 Starting auth request...');
+      
       // Double-check circuit breaker in query function
       const now = Date.now();
       
@@ -57,8 +59,12 @@ export function useAuth() {
       }
 
       try {
+        console.log('🌐 Making API request to /api/auth/user...');
         const response = await apiRequest('GET', '/api/auth/user');
+        console.log('📡 Response received:', response.status, response.statusText);
+        
         const data = await response.json();
+        console.log('📄 Response data:', data);
         
         if (!response.ok) {
           authFailureCount++;
@@ -74,11 +80,13 @@ export function useAuth() {
         // Reset failure count on success
         authFailureCount = 0;
         console.log('✅ Authentication successful:', data);
-        return data;
+        // Extract user from the response format {success: true, user: {...}}
+        return data.user || data;
       } catch (error) {
         authFailureCount++;
         lastFailureTime = now;
         console.log(`🔒 Auth error ${authFailureCount}/${MAX_AUTH_FAILURES}:`, error);
+        console.error('🚨 Full error details:', error);
         throw error;
       }
     },
@@ -92,6 +100,15 @@ export function useAuth() {
   });
 
   const isLoggedOut = (error && !isLoading) || isCircuitBreakerActive;
+  
+  console.log('🔍 Auth state:', { 
+    user: !!user, 
+    isLoading, 
+    isLoggedOut, 
+    error: error?.message,
+    circuitBreakerActive: isCircuitBreakerActive,
+    failureCount: authFailureCount
+  });
   
   return {
     user: user || null,
