@@ -30,7 +30,7 @@ let isInitializing = false;
 
 /**
  * REF: Universal database connection function with caching
- * Returns configured database instance based on environment
+ * Returns configured database instance AND schema based on environment
  * Uses PostgreSQL in production, SQLite in development
  * CRITICAL: Never imports SQLite modules in production
  * PERFORMANCE: Caches connection to prevent multiple instances
@@ -55,8 +55,8 @@ export async function getDatabase() {
   try {
     if (usePostgreSQL) {
       console.log('🔄 Loading PostgreSQL production database...');
-      const { db } = await import('./db-production.js');
-      cachedDatabase = db;
+      const { db, schema } = await import('./db-production.js');
+      cachedDatabase = { db, schema };
       console.log('✅ PostgreSQL production database loaded and cached');
       return cachedDatabase;
     } else {
@@ -66,8 +66,8 @@ export async function getDatabase() {
       }
       
       console.log('🔄 Loading SQLite development database...');
-      const { db } = await import('./db-local.js');
-      cachedDatabase = db;
+      const { db, schema } = await import('./db-local.js');
+      cachedDatabase = { db, schema };
       console.log('✅ SQLite development database loaded and cached');
       return cachedDatabase;
     }

@@ -177,5 +177,6 @@ export async function getDatabaseHealth(): Promise<{
 
 // REF: Export schema types for production use
 export * from '../shared/schema.js';
+export { schema };
 
 console.log('📦 Production PostgreSQL database configuration loaded'); 

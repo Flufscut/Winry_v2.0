@@ -422,18 +422,6 @@ export const replyioCampaigns = sqliteTable('replyio_campaigns', {
   updatedAt: text('updated_at').default("datetime('now')"),
 });
 
-// Create local schema with SQLite tables
-const localSchema = {
-  sessions,
-  users,
-  clients,
-  prospects,
-  csvUploads,
-  userSettings,
-  replyioAccounts,
-  replyioCampaigns,
-};
-
 // Create insert schemas for local development
 export const insertUserSchema = createInsertSchema(users).pick({
   id: true,
@@ -518,6 +506,29 @@ export const updateReplyioCampaignSchema = insertReplyioCampaignSchema.partial()
   id: z.number(),
 });
 
+// Create local schema with SQLite tables and validation schemas
+const localSchema = {
+  // Table definitions
+  sessions,
+  users,
+  clients,
+  prospects,
+  csvUploads,
+  userSettings,
+  replyioAccounts,
+  replyioCampaigns,
+  // Validation schemas
+  insertUserSchema,
+  insertClientSchema,
+  insertProspectSchema,
+  insertCsvUploadSchema,
+  insertUserSettingsSchema,
+  insertReplyioAccountSchema,
+  updateReplyioAccountSchema,
+  insertReplyioCampaignSchema,
+  updateReplyioCampaignSchema,
+};
+
 // Export types - using local schema
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -538,4 +549,5 @@ export type UpdateReplyioCampaign = z.infer<typeof updateReplyioCampaignSchema>;
 
 // REF: Export database and pool instances (lazy initialization)
 export const db = getDrizzleInstance();
-export const pool = getSqliteInstance(); 
+export const pool = getSqliteInstance();
+export const schema = localSchema; 

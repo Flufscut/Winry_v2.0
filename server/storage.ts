@@ -13,7 +13,8 @@ import { eq, desc, and, count, sql, isNotNull } from "drizzle-orm";
 
 // REF: Import unified database system and schema
 import { getDatabase } from './db.js';
-import * as sharedSchema from '@shared/schema.js';
+// REF: Don't import shared schema directly - get it from database instance
+// import * as sharedSchema from '@shared/schema.js';
 
 // REF: Initialize database connection using unified system
 let users: any, prospects: any, csvUploads: any, userSettings: any, replyioAccounts: any, replyioCampaigns: any, clients: any, db: any;
@@ -36,16 +37,17 @@ async function initializeStorage() {
       console.log('🔄 Storage: Initializing unified database system...');
       
       // REF: Use unified database system from db.ts
-      db = await getDatabase();
+      const dbInstance = await getDatabase();
+      db = dbInstance.db;
       
-      // REF: Use shared schema for all environments (PostgreSQL compatible)
-      users = sharedSchema.users;
-      prospects = sharedSchema.prospects;
-      csvUploads = sharedSchema.csvUploads;
-      userSettings = sharedSchema.userSettings;
-      replyioAccounts = sharedSchema.replyioAccounts;
-      replyioCampaigns = sharedSchema.replyioCampaigns;
-      clients = sharedSchema.clients;
+      // REF: Get schema from database instance (environment-specific)
+      users = dbInstance.schema.users;
+      prospects = dbInstance.schema.prospects;
+      csvUploads = dbInstance.schema.csvUploads;
+      userSettings = dbInstance.schema.userSettings;
+      replyioAccounts = dbInstance.schema.replyioAccounts;
+      replyioCampaigns = dbInstance.schema.replyioCampaigns;
+      clients = dbInstance.schema.clients;
       
       isInitialized = true;
       console.log('✅ Storage: Unified database system initialized successfully');

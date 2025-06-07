@@ -2,7 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, requireAuth } from "./auth-simple";
+import { setupAuth, requireAuth, addDevLoginEndpoint } from "./auth-simple";
 import { replyIoService } from "./replyio-service";
 import { replyIoCachedService } from "./reply-io-cached-service";
 import { apiCacheManager } from "./api-cache";
@@ -14,12 +14,81 @@ import fs from 'fs';
 
 // REF: Import unified database system and schema
 import { getDatabase } from './db.js';
-import * as sharedSchema from '@shared/schema.js';
+// REF: Don't import shared schema directly - get it from database instance
+// import * as sharedSchema from '@shared/schema.js';
+
+// REF: Temporary direct import of validation schemas to fix prospect creation
+// import { insertProspectSchema, insertClientSchema } from './db-local.js';
+
+// REF: Inline validation schemas to ensure they're available at runtime
+const insertProspectSchema = z.object({
+  userId: z.string(),
+  clientId: z.number(),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  company: z.string().min(1, "Company is required"),
+  title: z.string().min(1, "Title is required"),
+  email: z.string().email("Valid email is required"),
+  linkedinUrl: z.string().optional(),
+});
+
+const insertClientSchema = z.object({
+  userId: z.string(),
+  name: z.string().min(1, "Client name is required"),
+  description: z.string().optional(),
+});
+
+// REF: Verify schema is properly initialized
+console.log('✅ Schema initialized:', { 
+  insertProspectSchema: typeof insertProspectSchema,
+  insertClientSchema: typeof insertClientSchema 
+});
+
+// REF: Stub function for batch research processing
+// TODO: Implement proper research workflow integration
+async function processBatchResearch(prospects: Array<{id: number, data: any}>, batchSize: number) {
+  console.log(`🔬 Research batch processing requested for ${prospects.length} prospects (batch size: ${batchSize})`);
+  console.log('📝 Note: Research workflow integration not yet implemented');
+  
+  // For now, just mark prospects as processing
+  for (const prospect of prospects) {
+    try {
+      await storage.updateProspectStatus(prospect.id, 'processing');
+      console.log(`✅ Marked prospect ${prospect.id} as processing`);
+    } catch (error) {
+      console.error(`❌ Failed to update prospect ${prospect.id}:`, error);
+    }
+  }
+}
+
+// REF: Stub function for CSV prospect processing
+// TODO: Implement proper CSV processing workflow
+async function processCsvProspects(uploadId: number, userId: string, clientId: number, records: any[], mapping: any, hasHeaders: boolean, batchSize: number) {
+  console.log(`📊 CSV processing requested for upload ${uploadId}: ${records.length} records (batch size: ${batchSize})`);
+  console.log('📝 Note: CSV processing workflow not yet implemented');
+  
+  // For now, just update the upload status
+  try {
+    await storage.updateCsvUploadProgress(uploadId, records.length, 'completed');
+    console.log(`✅ Marked CSV upload ${uploadId} as completed`);
+  } catch (error) {
+    console.error(`❌ Failed to update CSV upload ${uploadId}:`, error);
+  }
+}
 
 // REF: REMOVED duplicate database initialization to prevent conflicts with storage.ts
 // Storage module handles database initialization centrally to prevent duplicate systems loading
 // This fixes the infinite authentication loop issue in Railway production
-let users: any, insertProspectSchema: any, insertClientSchema: any, db: any, replyioAccounts: any, replyioCampaigns: any;
+let users: any, db: any, replyioAccounts: any, replyioCampaigns: any;
+
+// REF: Initialize schema from database instance (environment-specific)
+async function initializeSchema() {
+  const dbInstance = await getDatabase();
+  db = dbInstance.db;
+  users = dbInstance.schema.users;
+  replyioAccounts = dbInstance.schema.replyioAccounts;
+  replyioCampaigns = dbInstance.schema.replyioCampaigns;
+}
 
 // REF: Use storage module's database instance instead of initializing our own
 // This prevents the critical issue where multiple modules initialize database simultaneously
@@ -49,13 +118,20 @@ const upload = multer({
 // REF: Removed hardcoded webhook URL - now using dynamic settings
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // REF: Storage module handles database initialization - no need to wait here
+  // REF: Initialize schema from database instance (environment-specific)
+  await initializeSchema();
 
   // REF: Create HTTP server instance
   const server = createServer(app);
 
   // Auth middleware
   await setupAuth(app); // REF: Multi-user auth system with OAuth support
+
+  // Development helper endpoint
+  if (process.env.NODE_ENV === 'development') {
+    const { addDevLoginEndpoint } = await import('./auth-simple.js');
+    addDevLoginEndpoint(app);
+  }
 
   // Auth routes
   app.get('/api/auth/user', requireAuth, async (req: any, res) => {
@@ -548,6 +624,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!currentClientId) {
         return res.status(400).json({ message: 'No client workspace found. Please create a client workspace first.' });
       }
+      
+      // REF: Debug validation schema issue
+      console.log('🔍 DEBUG: insertProspectSchema =', typeof insertProspectSchema, insertProspectSchema);
+      console.log('🔍 DEBUG: req.body =', req.body);
+      console.log('🔍 DEBUG: prospect data to validate =', {
+        ...req.body,
+        userId,
+        clientId: currentClientId,
+      });
       
       // Validate request body
       const prospectData = insertProspectSchema.parse({

@@ -536,5 +536,48 @@ export function setupAuth(app: express.Express) {
   console.log('✅ Auth: Simple authentication system configured');
 }
 
+// Development helper endpoint to create a session with test user
+function createDevLoginEndpoint(app: express.Express) {
+  app.get('/api/dev-login', async (req: any, res) => {
+    try {
+      console.log('🔧 DEV: Creating session with test user...');
+      
+      // Get test user from database
+      const testUser = await storage.getUserByEmail('test@example.com');
+      if (!testUser) {
+        return res.status(404).json({ 
+          success: false, 
+          message: 'Test user not found. Please restart server to create test user.' 
+        });
+      }
+      
+      // Create session
+      (req as any).session.userId = testUser.id;
+      
+      console.log('✅ DEV: Session created with test user:', testUser.email);
+      res.json({ 
+        success: true, 
+        message: 'Development session created',
+        user: { 
+          id: testUser.id, 
+          email: testUser.email, 
+          firstName: testUser.firstName, 
+          lastName: testUser.lastName 
+        } 
+      });
+      
+    } catch (error) {
+      console.error('❌ DEV: Login error:', error);
+      res.status(500).json({ success: false, message: 'Development login failed' });
+    }
+  });
+}
+
+function noOpDevLogin(app: express.Express) {
+  // No-op in production
+}
+
+export const addDevLoginEndpoint = process.env.NODE_ENV === 'development' ? createDevLoginEndpoint : noOpDevLogin;
+
 // Export for use in other modules
 export { User, Client }; 
