@@ -537,28 +537,33 @@ export default function Dashboard() {
             transition={{ delay: 0.3 }}
             className="mt-6"
           >
-            <nav className="flex space-x-1 card-background-elevated p-1 rounded-xl">
+            <nav className="flex space-x-1 card-background-elevated p-1 rounded-xl overflow-x-auto">
               {[
-                { id: 'analytics', label: 'Pipeline Analytics', icon: TrendingUp },
-                { id: 'reply-analytics', label: 'Reply.io Analytics', icon: Target },
-                { id: 'cache-monitoring', label: 'Cache Monitoring', icon: Activity },
-                { id: 'prospects', label: 'Prospect Management', icon: Users },
-                { id: 'upload', label: 'Upload Prospects', icon: Upload },
-                { id: 'settings', label: 'Settings', icon: Settings }
+                { id: 'analytics', label: 'Pipeline Analytics', shortLabel: 'Pipeline', icon: TrendingUp },
+                { id: 'reply-analytics', label: 'Reply.io Analytics', shortLabel: 'Reply.io', icon: Target },
+                { id: 'cache-monitoring', label: 'Cache Monitoring', shortLabel: 'Cache', icon: Activity },
+                { id: 'prospects', label: 'Prospect Management', shortLabel: 'Prospects', icon: Users },
+                { id: 'upload', label: 'Upload Prospects', shortLabel: 'Upload', icon: Upload },
+                { id: 'settings', label: 'Settings', shortLabel: 'Settings', icon: Settings }
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
                   className={`
-                    flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200
+                    flex items-center gap-1 sm:gap-2 px-2 sm:px-4 lg:px-6 py-2 sm:py-3 rounded-lg font-medium transition-all duration-200 flex-shrink-0
                     ${activeTab === tab.id
                       ? 'bg-gradient-to-r from-purple-500/20 to-blue-500/20 text-foreground border border-purple-500/30 shadow-lg'
                       : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
                     }
                   `}
                 >
-                  <tab.icon className="w-5 h-5" />
-                  {tab.label}
+                  <tab.icon className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <span className="hidden sm:inline lg:hidden text-xs sm:text-sm font-medium">
+                    {tab.shortLabel}
+                  </span>
+                  <span className="hidden lg:inline text-sm">
+                    {tab.label}
+                  </span>
                 </button>
               ))}
             </nav>
