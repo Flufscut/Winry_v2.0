@@ -138,7 +138,7 @@ export default function SettingsMenu() {
     });
   };
 
-  const currentDomain = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5001';
+  const currentDomain = typeof window !== 'undefined' ? window.location.origin : (process.env.NODE_ENV === 'production' ? 'https://winrybysl-production.up.railway.app' : 'http://localhost:5001');
   const incomingWebhookUrl = `${currentDomain}/api/webhook/n8n-data`;
   const legacyWebhookUrl = `${currentDomain}/webhook/n8n-results`;
 
