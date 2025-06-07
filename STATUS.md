@@ -1295,6 +1295,7 @@ Each code file should include:
 - Prospects were being sent to n8n but the webhook wasn't processing them correctly
 - The payload field names didn't match what n8n expected
 - n8n workflow expects specific field names like "jobtitle" instead of "title"
+- n8n workflow nodes expect nested structure with properties.field.value format
 
 **Solution Implemented**
 - Updated `processBatchResearch` function to format payload correctly for n8n
@@ -1304,15 +1305,35 @@ Each code file should include:
   - Added `hs_email_domain` field extracted from email
   - Convert prospect ID to string format
 - Payload now matches n8n webhook's expected format exactly
+- Changed from flat structure to nested properties.field.value format
+- Each field now wrapped in object with `value` property
 
 **Technical Details**
-- n8n expects fields at the root level of the JSON body
+- n8n expects fields in a nested structure: `properties.firstname.value`
 - Field names must match exactly what n8n workflow is configured for
 - Email domain extraction helps with company research
 - String ID conversion ensures compatibility
+- The n8n Split Out1 and Required Fields1 nodes access data using this nested format
+
+**Payload Structure**
+```json
+{
+  "properties": {
+    "firstname": { "value": "Bradley" },
+    "lastname": { "value": "Aaronson" },
+    "company": { "value": "CIM Group" },
+    "jobtitle": { "value": "Managing Director of Development" },
+    "email": { "value": "baaronson@cimgroup.com" },
+    "hs_linkedin_url": { "value": "https://www.linkedin.com/in/bradley-aaronson-1a41585/" },
+    "hs_email_domain": { "value": "cimgroup.com" }
+  },
+  "id": "4"
+}
+```
 
 **Result**
 - Prospects are now properly received and processed by n8n
 - AI research workflow can access all prospect data correctly
 - Both manual and CSV uploads work with n8n integration
+- n8n nodes can properly extract values using properties.field.value syntax
 - Status: ✅ RESOLVED - n8n webhook integration fully functional
