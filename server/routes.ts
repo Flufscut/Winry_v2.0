@@ -48,7 +48,7 @@ console.log('✅ Schema initialized:', {
 async function processBatchResearch(prospects: Array<{id: number, data: any}>, batchSize: number) {
   console.log(`🔬 Research batch processing requested for ${prospects.length} prospects (batch size: ${batchSize})`);
   
-  const webhookUrl = "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-4154-84c1-c0e3a2ca572e";
+  const webhookUrl = process.env.N8N_WEBHOOK_URL || "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-4154-84c1-c0e3a2ca572e";
   
   for (const prospect of prospects) {
     try {
@@ -125,7 +125,7 @@ async function initializeSchema() {
 
 // Default application settings
 const DEFAULT_SETTINGS = {
-  webhookUrl: "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-4154-84c1-c0e3a2ca572e",
+  webhookUrl: process.env.N8N_WEBHOOK_URL || "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-4154-84c1-c0e3a2ca572e",
   webhookTimeoutSeconds: 1800, // 30 minutes for complex workflows
   maxRetries: 1, // Add one retry for 524 errors
   retryDelaySeconds: 30, // Longer delay between retries
