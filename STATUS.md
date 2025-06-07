@@ -75,6 +75,8 @@
 
 ## 🎯 Current Project Status
 
+**🚀 PRODUCTION DEPLOYMENT**: Application is now live on Railway at https://winrybysl-production.up.railway.app/
+
 ### ✅ COMPLETED (Foundation - v1.0)
 - [x] **Basic Project Setup** *(Completed)*
   - React + TypeScript frontend with Vite
@@ -552,9 +554,24 @@
 ## 🚀 RAILWAY PRODUCTION DEPLOYMENT
 
 ### 🌐 Live Application URLs
-- **Production App**: https://winry-ai-production.up.railway.app/
-- **GitHub Repository**: https://github.com/Flufscut/Winry_by_SL.git
+- **Production App**: https://winrybysl-production.up.railway.app/
+- **GitHub Repository**: https://github.com/Flufscut/Winry_by_SL
 - **Railway Project**: Winry.AI Production Environment
+
+### 📊 Current Deployment Status
+- **Deployment Method**: GitHub integration (main branch auto-deploy)
+- **Database**: PostgreSQL on Railway (internal connection)
+- **Environment**: Production with all environment variables configured
+- **OAuth Status**: ⚠️ **ACTION REQUIRED** - Google OAuth credentials need production URL authorization
+
+### 🔧 OAuth Configuration Required
+**Issue**: Google OAuth showing "invalid_client" error on production
+**Solution**: Add production URLs to Google Cloud Console OAuth client:
+1. Go to Google Cloud Console → APIs & Services → Credentials
+2. Edit OAuth 2.0 Client ID (336442540430-e5jpbmfngi29ph8rkpavnaou374k67q7a)
+3. Add to Authorized JavaScript origins: `https://winrybysl-production.up.railway.app`
+4. Add to Authorized redirect URIs: `https://winrybysl-production.up.railway.app/auth/google/callback`
+5. Save changes - no redeployment needed
 
 ### 🔄 Deployment Process
 **Railway Auto-Deployment Setup**: ✅ **CONFIGURED AND ACTIVE**
