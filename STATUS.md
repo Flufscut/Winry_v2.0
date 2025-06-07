@@ -1258,3 +1258,33 @@ Each code file should include:
 - Session storage: PostgreSQL-based for persistence across container restarts
 - Port: Dynamic Railway PORT environment variable
 - CORS: Configured for Railway production domain
+
+### CSV Prospect Upload Fix (June 7, 2025)
+
+**Issue Identified**
+- CSV uploads were not creating prospects in the database
+- Prospects were not being sent to n8n webhook for AI research
+- `processCsvProspects` was just a stub function that only marked uploads as complete
+
+**Solution Implemented**
+- Implemented full CSV processing logic in `processCsvProspects` function
+- Added batch processing with configurable batch size
+- Each CSV record is mapped to prospect fields and validated
+- Prospects are created in the database with proper client workspace isolation
+- After each batch, prospects are sent to n8n webhook for research
+- Progress tracking updates CSV upload status in real-time
+- Error handling for invalid records with detailed logging
+
+**Technical Details**
+- CSV column mapping uses the mapping object from frontend
+- Required fields validation (firstName, lastName, company, title, email)
+- Batch processing prevents overwhelming the system with large CSVs
+- Each batch is sent to `processBatchResearch` for n8n webhook processing
+- Status tracking: processing → completed/completed_with_errors/failed
+
+**Result**
+- CSV uploads now properly create prospects in the database
+- All prospects are automatically sent to n8n for AI research
+- Progress tracking shows real-time processing status
+- Error handling ensures partial success is possible
+- Status: ✅ RESOLVED - CSV upload fully functional
