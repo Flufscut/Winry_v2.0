@@ -57,24 +57,26 @@ async function processBatchResearch(prospects: Array<{id: number, data: any}>, b
       console.log(`✅ Marked prospect ${prospect.id} as processing`);
       
       // Send prospect data to n8n webhook for research
-      const prospectData = {
-        id: prospect.id,
+      // REF: n8n expects specific field names at the root level of the body
+      const n8nPayload = {
+        id: prospect.id.toString(), // n8n expects string ID
         firstName: prospect.data.firstName,
         lastName: prospect.data.lastName,
         company: prospect.data.company,
-        title: prospect.data.title,
+        jobtitle: prospect.data.title, // n8n expects "jobtitle" not "title"
         email: prospect.data.email,
-        linkedinUrl: prospect.data.linkedinUrl || ""
+        hs_linkedin_url: prospect.data.linkedinUrl || "", // n8n expects "hs_linkedin_url"
+        hs_email_domain: prospect.data.email.split('@')[1] || "" // Extract domain from email
       };
       
-      console.log(`🚀 Sending prospect ${prospect.id} to n8n webhook:`, prospectData);
+      console.log(`🚀 Sending prospect ${prospect.id} to n8n webhook:`, n8nPayload);
       
       const response = await fetch(webhookUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(prospectData)
+        body: JSON.stringify(n8nPayload)
       });
       
       if (response.ok) {
