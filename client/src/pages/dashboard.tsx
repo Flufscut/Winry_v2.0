@@ -150,6 +150,19 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
+  // Debug prospects data
+  useEffect(() => {
+    if (prospects) {
+      console.log('🔍 Prospects data updated:', {
+        count: Array.isArray(prospects) ? prospects.length : 'not array',
+        data: Array.isArray(prospects) ? prospects.slice(0, 2) : prospects, // Show first 2 for debugging
+        searchQuery,
+        statusFilter,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }, [prospects, searchQuery, statusFilter]);
+
   // Fetch Reply.io settings
   const { data: replyIoSettings } = useQuery({
     queryKey: ["/api/reply-io/settings"],

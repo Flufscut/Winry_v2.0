@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+As you work, please make note of any important details in the "implementation notes" section of the [STATUS.md](mdc:STATUS.md) file. This will be a place to keep track of all details of the project that will help us be more efficient as we move onto other tasks and components without losing track of what we need to keep in mind as we continue building. If an "implementation notes" section does not exist in the [STATUS.md](mdc:STATUS.md) file, please add it prior to starting. 

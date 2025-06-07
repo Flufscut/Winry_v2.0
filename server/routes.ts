@@ -478,6 +478,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      // DEBUG: Log detailed information about the request
+      console.log('🔍 /api/prospects - Debug Info:', {
+        userId,
+        currentClientId,
+        search,
+        status,
+        campaignId,
+        filterByCampaign,
+        sessionData: {
+          sessionId: req.session?.id || 'no session',
+          allSessionKeys: Object.keys(req.session || {}),
+          currentClientIdInSession: (req.session as any)?.currentClientId
+        },
+        timestamp: new Date().toISOString()
+      });
+      
       let prospects;
       
       // REF: Only filter by campaign if explicitly requested with filterByCampaign=true
@@ -507,6 +523,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return matchesSearch && matchesStatus;
           });
         }
+        
+        console.log(`🔍 Campaign filtered prospects: ${prospects.length} found for campaign ${campaignId}`);
       } else {
         // REF: Use client-filtered search for workspace isolation
         prospects = await storage.searchProspects(
@@ -515,6 +533,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status === "all" ? undefined : status as string,
           currentClientId // REF: Pass clientId for workspace isolation
         );
+        
+        console.log(`🔍 Workspace filtered prospects: ${prospects.length} found for user ${userId} in client ${currentClientId}`);
+      }
+      
+      // DEBUG: Log prospect summary for debugging
+      if (prospects.length > 0) {
+        console.log('🔍 First few prospects:', prospects.slice(0, 3).map(p => ({
+          id: p.id,
+          name: `${p.firstName} ${p.lastName}`,
+          email: p.email,
+          status: p.status,
+          clientId: p.clientId,
+          userId: p.userId
+        })));
+      } else {
+        console.log('🔍 No prospects found - checking total prospects for this user...');
+        const allUserProspects = await storage.getProspectsByUser(userId);
+        console.log(`🔍 Total prospects for user ${userId}: ${allUserProspects.length}`);
+        if (allUserProspects.length > 0) {
+          console.log('🔍 User prospects by workspace:', allUserProspects.reduce((acc, p) => {
+            acc[p.clientId] = (acc[p.clientId] || 0) + 1;
+            return acc;
+          }, {}));
+        }
       }
       
       res.json(prospects);

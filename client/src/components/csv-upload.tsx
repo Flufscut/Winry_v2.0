@@ -173,9 +173,26 @@ export default function CsvUpload({ onSuccess, onCancel }: CsvUploadProps) {
         description: `CSV processing started for ${data.totalRows} prospects!`,
       });
       
-      // Invalidate relevant queries
+      // Force complete data refresh with multiple strategies
+      console.log('🔄 CSV upload completed successfully, forcing data refresh...');
+      
+      // Strategy 1: Invalidate all prospect-related queries
       queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/stats"] });
+      
+      // Strategy 2: Refetch specific queries to ensure immediate update
+      queryClient.refetchQueries({ queryKey: ["/api/prospects"] });
+      queryClient.refetchQueries({ queryKey: ["/api/stats"] });
+      
+      // Strategy 3: Clear query cache completely for prospects
+      queryClient.removeQueries({ queryKey: ["/api/prospects"] });
+      
+      // Strategy 4: Add a delay to allow backend processing to complete
+      setTimeout(() => {
+        console.log('🔄 Forcing additional data refresh after CSV processing...');
+        queryClient.invalidateQueries({ queryKey: ["/api/prospects"] });
+        queryClient.refetchQueries({ queryKey: ["/api/prospects"] });
+      }, 2000);
       
       resetComponent();
       onSuccess();
