@@ -2,7 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./auth-multi-user";
+import { setupAuth, requireAuth } from "./auth-simple";
 import { replyIoService } from "./replyio-service";
 import { replyIoCachedService } from "./reply-io-cached-service";
 import { apiCacheManager } from "./api-cache";
@@ -58,82 +58,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
   await setupAuth(app); // REF: Multi-user auth system with OAuth support
 
   // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
+  app.get('/api/auth/user', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
-      console.log('🔍 AUTH DEBUG: userId =', userId);
-      const user = await storage.getUser(userId);
-      console.log('🔍 AUTH DEBUG: user object =', JSON.stringify(user, null, 2));
-      console.log('🔍 AUTH DEBUG: user.firstName =', user?.firstName);
-      console.log('🔍 AUTH DEBUG: user.first_name =', user?.first_name);
-      res.json(user);
+      const user = req.user; // Simple auth already provides user object
+      console.log('🔍 AUTH DEBUG: user =', JSON.stringify(user, null, 2));
+      res.json({
+        success: true,
+        user: {
+          id: user.id,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profileImageUrl: user.profileImageUrl
+        }
+      });
     } catch (error) {
       console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+      res.status(500).json({ success: false, message: "Failed to fetch user" });
     }
   });
 
-  // REF: Development Login Route - Creates session for local development bypass
+  // REF: Simple development login - redirects to login page with test credentials info
   app.get('/api/login', async (req: any, res) => {
-    try {
-      console.log('🔑 Processing development login request...');
-      
-      // REF: Only allow in development environment
-      if (process.env.NODE_ENV === 'production') {
-        return res.status(403).json({ 
-          success: false, 
-          message: 'Development login not available in production' 
-        });
-      }
-
-      // REF: Create or get development user
-      let user = await storage.getUserByEmail('dev@local.com');
-      
-      if (!user) {
-        // REF: Create development user if doesn't exist
-        const userId = 'local-dev-user';
-        user = await storage.createUser({
-          id: userId,
-          email: 'dev@local.com',
-          firstName: 'Development',
-          lastName: 'User',
-          passwordHash: null, // No password for dev user
-          oauthProvider: 'development',
-          oauthId: 'dev-local',
-          profileImageUrl: 'https://ui-avatars.com/api/?name=Development+User&background=7C3AED&color=ffffff',
-          preferences: JSON.stringify({}),
-        });
-
-        // REF: Create default client for development user
-        await storage.createClient({
-          userId: user.id,
-          name: 'Default',
-          description: 'Development workspace',
-          isActive: true,
-        });
-      }
-
-      // REF: Create session in format expected by isAuthenticated middleware
-      (req.session as any).user = {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        profileImageUrl: user.profileImageUrl,
-      };
-
-      console.log('✅ Development login successful');
-      
-      // REF: Redirect to dashboard after successful login
-      res.redirect('/dashboard');
-
-    } catch (error) {
-      console.error('❌ Development login error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Development login failed',
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ 
+        success: false, 
+        message: 'Development login not available in production' 
       });
     }
+
+    // REF: Redirect to login page in development 
+    res.redirect('/login?dev=true');
   });
 
   // REF: Logout Route - Destroys session and redirects to login
@@ -170,9 +125,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Profile routes
-  app.put('/api/profile', isAuthenticated, async (req: any, res) => {
+  app.put('/api/profile', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Validate profile data
       const profileSchema = z.object({
@@ -206,9 +161,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Preferences routes
-  app.get('/api/preferences', isAuthenticated, async (req: any, res) => {
+  app.get('/api/preferences', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Get user's preferences from database
       const user = await storage.getUser(userId);
@@ -252,9 +207,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/preferences', isAuthenticated, async (req: any, res) => {
+  app.put('/api/preferences', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Validation schema for preferences
       const preferencesSchema = z.object({
@@ -309,7 +264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Settings endpoints
-  app.get('/api/settings', isAuthenticated, async (req: any, res) => {
+  app.get('/api/settings', requireAuth, async (req: any, res) => {
     try {
       const settings = await getAppSettings();
       res.json(settings);
@@ -319,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put('/api/settings', isAuthenticated, async (req: any, res) => {
+  app.put('/api/settings', requireAuth, async (req: any, res) => {
     try {
       const settingsSchema = z.object({
         webhookUrl: z.string().url(),
@@ -346,9 +301,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard stats
-  app.get('/api/stats', isAuthenticated, async (req: any, res) => {
+  app.get('/api/stats', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { campaignId, filterByCampaign } = req.query;
       
       // REF: Get current client from session for workspace isolation
@@ -382,9 +337,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get stats for a specific campaign
-  app.get('/api/stats/campaign/:campaignId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/stats/campaign/:campaignId', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { campaignId } = req.params;
       
       if (!campaignId || isNaN(parseInt(campaignId))) {
@@ -400,9 +355,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get prospects with search and filter
-  app.get('/api/prospects', isAuthenticated, async (req: any, res) => {
+  app.get('/api/prospects', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { search, status, campaignId, filterByCampaign } = req.query;
       
       // REF: Get current client from session for workspace isolation
@@ -464,9 +419,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get prospects for a specific campaign
-  app.get('/api/prospects/campaign/:campaignId', isAuthenticated, async (req: any, res) => {
+  app.get('/api/prospects/campaign/:campaignId', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { campaignId } = req.params;
       
       if (!campaignId || isNaN(parseInt(campaignId))) {
@@ -482,7 +437,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get single prospect
-  app.get('/api/prospects/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/prospects/:id', requireAuth, async (req: any, res) => {
     try {
       const prospectId = parseInt(req.params.id);
       const prospect = await storage.getProspect(prospectId);
@@ -492,7 +447,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify ownership
-      if (prospect.userId !== req.user.claims.sub) {
+      if (prospect.userId !== req.user.id) {
         return res.status(403).json({ message: "Access denied" });
       }
       
@@ -504,10 +459,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete prospect
-  app.delete('/api/prospects/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/prospects/:id', requireAuth, async (req: any, res) => {
     try {
       const prospectId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       const deleted = await storage.deleteProspect(prospectId, userId);
       
@@ -523,10 +478,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Retry failed prospect
-  app.post('/api/prospects/:id/retry', isAuthenticated, async (req: any, res) => {
+  app.post('/api/prospects/:id/retry', requireAuth, async (req: any, res) => {
     try {
       const prospectId = parseInt(req.params.id);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       console.log(`Retry request for prospect ${prospectId} by user ${userId}`);
       
@@ -574,9 +529,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create new prospect
-  app.post('/api/prospects', isAuthenticated, async (req: any, res) => {
+  app.post('/api/prospects', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // REF: Get current client from session or default to first client
       let currentClientId = (req.session as any).currentClientId;
@@ -622,9 +577,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload CSV file
-  app.post('/api/prospects/csv', isAuthenticated, upload.single('csvFile'), async (req: any, res) => {
+  app.post('/api/prospects/csv', requireAuth, upload.single('csvFile'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const file = req.file;
       const hasHeaders = req.body.hasHeaders === 'true';
       
@@ -687,9 +642,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Process CSV with column mapping
-  app.post('/api/prospects/csv/process', isAuthenticated, upload.single('csvFile'), async (req: any, res) => {
+  app.post('/api/prospects/csv/process', requireAuth, upload.single('csvFile'), async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const file = req.file;
       const mapping = JSON.parse(req.body.mapping);
       const hasHeaders = req.body.hasHeaders === 'true';
@@ -766,9 +721,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== REPLY.IO INTEGRATION ENDPOINTS =====
 
   // Get user's Reply.io settings
-  app.get('/api/reply-io/settings', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/settings', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const settings = await storage.getUserSettings(userId);
       
       console.log('=== REPLY.IO SETTINGS DEBUG ===');
@@ -806,9 +761,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Save user's Reply.io settings
-  app.post('/api/reply-io/settings', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reply-io/settings', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // REF: Preprocess request body to handle null values
       const processedBody = {
@@ -858,7 +813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test Reply.io connection
-  app.post('/api/reply-io/test-connection', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reply-io/test-connection', requireAuth, async (req: any, res) => {
     try {
       const { apiKey } = req.body;
       
@@ -888,7 +843,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get detailed access information for an API key
-  app.post('/api/reply-io/test-access-level', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reply-io/test-access-level', requireAuth, async (req: any, res) => {
     try {
       const { apiKey } = req.body;
       
@@ -928,13 +883,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Send selected prospects to Reply.io
-  app.post('/api/reply-io/send-prospects', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reply-io/send-prospects', requireAuth, async (req: any, res) => {
     try {
       console.log('=== REPLY.IO SEND PROSPECTS DEBUG ===');
       console.log('Endpoint hit at:', new Date().toISOString());
       console.log('Request body:', req.body);
       
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { prospectIds } = req.body; // REF: Remove campaignId dependency - always use default
       
       console.log('User ID:', userId);
@@ -1040,9 +995,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== REPLY.IO CAMPAIGN STATISTICS ENDPOINTS =====
 
   // Get all user's Reply.io campaigns
-  app.get('/api/reply-io/campaigns', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/campaigns', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // REF: Get user's Reply.io settings to get API key
       const userSettings = await storage.getUserSettings(userId);
@@ -1073,9 +1028,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== REPLY.IO MULTI-ACCOUNT MANAGEMENT ENDPOINTS =====
 
   // Get all Reply.io accounts for user
-  app.get('/api/reply-io/accounts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/accounts', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // REF: Get current client ID from session for multi-tenant filtering
       let currentClientId = (req.session as any).currentClientId;
@@ -1128,9 +1083,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Create new Reply.io account
-  app.post('/api/reply-io/accounts', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reply-io/accounts', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { name, apiKey } = req.body;
 
       if (!name || !apiKey) {
@@ -1235,9 +1190,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
    * REF: Client-specific Reply.io account endpoints
    * PURPOSE: Support client-specific account management that appears to be expected by frontend
    */
-  app.get('/api/clients/:id/replyio-accounts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/clients/:id/replyio-accounts', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const clientId = parseInt(req.params.id);
       
       // REF: Verify client ownership
@@ -1266,9 +1221,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/clients/:id/replyio-accounts', isAuthenticated, async (req: any, res) => {
+  app.post('/api/clients/:id/replyio-accounts', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const clientId = parseInt(req.params.id);
       const { name, apiKey } = req.body;
 
@@ -1312,9 +1267,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Update Reply.io account
-  app.put('/api/reply-io/accounts/:accountId', isAuthenticated, async (req: any, res) => {
+  app.put('/api/reply-io/accounts/:accountId', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { accountId } = req.params;
       const { name, apiKey } = req.body;
 
@@ -1362,9 +1317,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Delete Reply.io account
-  app.delete('/api/reply-io/accounts/:accountId', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/reply-io/accounts/:accountId', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { accountId } = req.params;
 
       // REF: Verify account belongs to user
@@ -1390,9 +1345,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Set default Reply.io account
-  app.post('/api/reply-io/accounts/:accountId/set-default', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reply-io/accounts/:accountId/set-default', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { accountId } = req.params;
 
       // REF: Verify account belongs to user
@@ -1423,9 +1378,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get campaigns for a specific Reply.io account
-  app.get('/api/reply-io/accounts/:accountId/campaigns', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/accounts/:accountId/campaigns', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { accountId } = req.params;
 
       // REF: Verify account belongs to user
@@ -1472,9 +1427,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Save/sync campaigns for a Reply.io account
-  app.post('/api/reply-io/accounts/:accountId/sync-campaigns', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reply-io/accounts/:accountId/sync-campaigns', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { accountId } = req.params;
 
       // REF: Verify account belongs to user
@@ -1521,9 +1476,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Set default campaign for an account
-  app.post('/api/reply-io/campaigns/:campaignId/set-default', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reply-io/campaigns/:campaignId/set-default', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { campaignId } = req.params;
 
       // REF: Find campaign by Reply.io campaign ID across all user's accounts
@@ -1568,9 +1523,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== END REPLY.IO MULTI-ACCOUNT ENDPOINTS =====
 
   // Get statistics for a specific campaign
-  app.get('/api/reply-io/campaigns/:campaignId/statistics', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/campaigns/:campaignId/statistics', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { campaignId } = req.params;
       
       if (!campaignId || isNaN(parseInt(campaignId))) {
@@ -1603,9 +1558,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get contacts for a specific campaign
-  app.get('/api/reply-io/campaigns/:campaignId/contacts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/campaigns/:campaignId/contacts', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const { campaignId } = req.params;
       
       if (!campaignId || isNaN(parseInt(campaignId))) {
@@ -1645,9 +1600,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const CACHE_DURATION = 15000; // 15 seconds to respect Reply.io's 10-second limit
 
   // Get overall Reply.io statistics across all campaigns (Enhanced with Caching)
-  app.get('/api/reply-io/statistics', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/statistics', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const currentClientId = req.session.currentClientId;
       const { filterByCampaign } = req.query;
       
@@ -1811,9 +1766,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // ===== ADVANCED REPLY.IO ANALYTICS ENDPOINTS =====
 
   // REF: NEW ENDPOINT - Advanced Campaign Analytics
-  app.get('/api/reply-io/analytics/advanced', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/analytics/advanced', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const currentClientId = req.session.currentClientId;
       
       // REF: Check cache first to prevent rate limiting
@@ -1868,9 +1823,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // REF: NEW ENDPOINT - Campaign Optimization Recommendations
-  app.get('/api/reply-io/campaigns/:campaignId/optimization', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/campaigns/:campaignId/optimization', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const currentClientId = req.session.currentClientId;
       const { campaignId } = req.params;
       
@@ -1930,9 +1885,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // REF: NEW ENDPOINT - Bulk Campaign Performance Report
-  app.get('/api/reply-io/analytics/performance-report', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/analytics/performance-report', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const currentClientId = req.session.currentClientId;
       
       // REF: Check cache first
@@ -2057,9 +2012,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Test Reply.io API keys for all accounts
-  app.get('/api/reply-io/test-keys', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/test-keys', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // REF: Get all user's Reply.io accounts
       const userAccounts = await storage.getReplyioAccounts(userId);
@@ -2420,7 +2375,7 @@ URL: ${req.url}
   });
 
   // REF: Enhanced Reply.io reporting routes
-  app.post('/api/reply-io/reports/generate', isAuthenticated, async (req, res) => {
+  app.post('/api/reply-io/reports/generate', requireAuth, async (req, res) => {
     try {
       const { reportType, dateFrom, dateTo, campaignIds, groupBy } = req.body;
       
@@ -2431,7 +2386,7 @@ URL: ${req.url}
         });
       }
 
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const replyIoSettings = await storage.getUserSettings(userId);
       if (!replyIoSettings?.replyIoApiKey) {
         return res.status(400).json({ 
@@ -2483,11 +2438,11 @@ URL: ${req.url}
     }
   });
 
-  app.get('/api/reply-io/reports/:reportId/status', isAuthenticated, async (req, res) => {
+  app.get('/api/reply-io/reports/:reportId/status', requireAuth, async (req, res) => {
     try {
       const { reportId } = req.params;
       
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const replyIoSettings = await storage.getUserSettings(userId);
       if (!replyIoSettings?.replyIoApiKey) {
         return res.status(400).json({ 
@@ -2513,12 +2468,12 @@ URL: ${req.url}
     }
   });
 
-  app.get('/api/reply-io/reports/:reportId/download', isAuthenticated, async (req, res) => {
+  app.get('/api/reply-io/reports/:reportId/download', requireAuth, async (req, res) => {
     try {
       const { reportId } = req.params;
       const { reportType } = req.query;
       
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const replyIoSettings = await storage.getUserSettings(userId);
       if (!replyIoSettings?.replyIoApiKey) {
         return res.status(400).json({ 
@@ -2561,7 +2516,7 @@ URL: ${req.url}
     }
   });
 
-  app.post('/api/reply-io/reports/comprehensive', isAuthenticated, async (req, res) => {
+  app.post('/api/reply-io/reports/comprehensive', requireAuth, async (req, res) => {
     try {
       const { dateFrom, dateTo, campaignIds } = req.body;
       
@@ -2572,7 +2527,7 @@ URL: ${req.url}
         });
       }
 
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const replyIoSettings = await storage.getUserSettings(userId);
       if (!replyIoSettings?.replyIoApiKey) {
         return res.status(400).json({ 
@@ -2603,7 +2558,7 @@ URL: ${req.url}
     }
   });
 
-  app.get('/api/reply-io/reports/export', isAuthenticated, async (req, res) => {
+  app.get('/api/reply-io/reports/export', requireAuth, async (req, res) => {
     try {
       const { dateFrom, dateTo, campaignIds, format = 'json' } = req.query;
       
@@ -2614,7 +2569,7 @@ URL: ${req.url}
         });
       }
 
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const replyIoSettings = await storage.getUserSettings(userId);
       if (!replyIoSettings?.replyIoApiKey) {
         return res.status(400).json({ 
@@ -2811,7 +2766,7 @@ URL: ${req.url}
   }
 
   // REF: Temporary route to fix campaign statuses (remove performance metrics from status field)
-  app.post('/api/reply-io/fix-campaign-statuses', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reply-io/fix-campaign-statuses', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       
@@ -2877,9 +2832,9 @@ URL: ${req.url}
    * AUTH: Required
    * PURPOSE: List all client workspaces for multi-tenant management
    */
-  app.get('/api/clients', isAuthenticated, async (req: any, res) => {
+  app.get('/api/clients', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const clients = await storage.getClientsByUser(userId);
       
       // Add counts for each client
@@ -2933,9 +2888,9 @@ URL: ${req.url}
    * AUTH: Required  
    * PURPOSE: Retrieve client details for editing or display
    */
-  app.get('/api/clients/:id', isAuthenticated, async (req: any, res) => {
+  app.get('/api/clients/:id', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const clientId = parseInt(req.params.id);
       
       const client = await storage.getClient(clientId);
@@ -2956,9 +2911,9 @@ URL: ${req.url}
    * AUTH: Required
    * PURPOSE: Add new client workspace for multi-tenant organization
    */
-  app.post('/api/clients', isAuthenticated, async (req: any, res) => {
+  app.post('/api/clients', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // REF: Validate client data using schema
       const validatedData = insertClientSchema.parse({
@@ -2984,9 +2939,9 @@ URL: ${req.url}
    * AUTH: Required
    * PURPOSE: Modify client workspace details
    */
-  app.put('/api/clients/:id', isAuthenticated, async (req: any, res) => {
+  app.put('/api/clients/:id', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const clientId = parseInt(req.params.id);
       
       // REF: Verify client ownership
@@ -3016,9 +2971,9 @@ URL: ${req.url}
    * AUTH: Required
    * PURPOSE: Remove client workspace and all associated data
    */
-  app.delete('/api/clients/:id', isAuthenticated, async (req: any, res) => {
+  app.delete('/api/clients/:id', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const clientId = parseInt(req.params.id);
       
       
@@ -3052,9 +3007,9 @@ URL: ${req.url}
    * AUTH: Required
    * PURPOSE: List prospects filtered by client workspace
    */
-  app.get('/api/clients/:id/prospects', isAuthenticated, async (req: any, res) => {
+  app.get('/api/clients/:id/prospects', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const clientId = parseInt(req.params.id);
       
       // REF: Verify client ownership
@@ -3077,9 +3032,9 @@ URL: ${req.url}
    * AUTH: Required
    * PURPOSE: Retrieve the current client context for the user session
    */
-  app.get('/api/current-client', isAuthenticated, async (req: any, res) => {
+  app.get('/api/current-client', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // REF: Get current client from session or default to first client
       let currentClientId = (req.session as any).currentClientId;
@@ -3122,9 +3077,9 @@ URL: ${req.url}
    * AUTH: Required
    * PURPOSE: Change the active client context for the user session
    */
-  app.post('/api/switch-client/:id', isAuthenticated, async (req: any, res) => {
+  app.post('/api/switch-client/:id', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const clientId = parseInt(req.params.id);
       
       // REF: Verify client ownership
@@ -3152,9 +3107,9 @@ URL: ${req.url}
    * AUTH: Required  
    * PURPOSE: Retrieve clients with detailed statistics for dashboard display
    */
-  app.get('/api/clients/with-counts', isAuthenticated, async (req: any, res) => {
+  app.get('/api/clients/with-counts', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Get all clients for the user
       const clients = await storage.getClientsByUser(userId);
@@ -3210,9 +3165,9 @@ URL: ${req.url}
    * AUTH: Required  
    * PURPOSE: Retrieve basic client list for workspace management
    */
-  app.get('/api/clients', isAuthenticated, async (req: any, res) => {
+  app.get('/api/clients', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const clients = await storage.getClientsByUser(userId);
       
       // Add counts for each client
@@ -3261,7 +3216,7 @@ URL: ${req.url}
   });
 
   // DEBUG: Test auto-send function manually
-  app.post('/api/debug/test-auto-send', isAuthenticated, async (req: any, res) => {
+  app.post('/api/debug/test-auto-send', requireAuth, async (req: any, res) => {
     try {
       const { prospectId } = req.body;
       const userId = getUserId(req);
@@ -3295,10 +3250,10 @@ URL: ${req.url}
   });
 
   // REF: Test endpoint to manually trigger auto-send for debugging
-  app.post('/api/debug/manual-auto-send/:prospectId', isAuthenticated, async (req: any, res) => {
+  app.post('/api/debug/manual-auto-send/:prospectId', requireAuth, async (req: any, res) => {
     try {
       const prospectId = parseInt(req.params.prospectId);
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       
       // Get the prospect
       const prospect = await storage.getProspect(prospectId);
@@ -3335,7 +3290,7 @@ URL: ${req.url}
   });
 
   // REF: Temporary route to fix campaign statuses (remove performance metrics from status field)
-  app.post('/api/reply-io/fix-campaign-statuses', isAuthenticated, async (req: any, res) => {
+  app.post('/api/reply-io/fix-campaign-statuses', requireAuth, async (req: any, res) => {
     try {
       const userId = getUserId(req);
       
@@ -3394,41 +3349,41 @@ URL: ${req.url}
   // Advanced Analytics Endpoints
 
   // REF: Temporarily disabled all analytics endpoints to resolve authentication issues
-  // app.get('/api/analytics/time-series', isAuthenticated, async (req: any, res) => {
+  // app.get('/api/analytics/time-series', requireAuth, async (req: any, res) => {
   //   // Endpoint disabled to resolve authentication issues
   // });
 
-  // app.get('/api/analytics/pipeline-flow', isAuthenticated, async (req: any, res) => {
+  // app.get('/api/analytics/pipeline-flow', requireAuth, async (req: any, res) => {
   //   // Endpoint disabled to resolve authentication issues
   // });
 
-  // app.get('/api/analytics/operational', isAuthenticated, async (req: any, res) => {
+  // app.get('/api/analytics/operational', requireAuth, async (req: any, res) => {
   //   // Endpoint disabled to resolve authentication issues
   // });
 
   // Company and prospect intelligence from research results
   // REF: Temporarily disabled problematic analytics endpoints to resolve prospect profile issues
-  // app.get('/api/analytics/prospect-intelligence', isAuthenticated, async (req: any, res) => {
+  // app.get('/api/analytics/prospect-intelligence', requireAuth, async (req: any, res) => {
   //   // Endpoint disabled to resolve authentication issues
   // });
 
-  // app.get('/api/analytics/response-timing', isAuthenticated, async (req: any, res) => {
+  // app.get('/api/analytics/response-timing', requireAuth, async (req: any, res) => {
   //   // Endpoint disabled to resolve authentication issues  
   // });
 
   // General API endpoints continue...
 
   // REF: Temporarily disabled problematic analytics endpoint
-  // app.get('/api/analytics/prospect-quality', isAuthenticated, async (req: any, res) => {
+  // app.get('/api/analytics/prospect-quality', requireAuth, async (req: any, res) => {
   //   // Endpoint disabled to resolve prospect profile issues
   // });
 
   // ===== ADVANCED REPLY.IO ANALYTICS ENDPOINTS =====
 
   // REF: NEW ENDPOINT - Advanced Campaign Analytics
-  app.get('/api/reply-io/analytics/advanced', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/analytics/advanced', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const currentClientId = req.session.currentClientId;
       
       // REF: Check cache first to prevent rate limiting
@@ -3483,9 +3438,9 @@ URL: ${req.url}
   });
 
   // REF: NEW ENDPOINT - Campaign Optimization Recommendations
-  app.get('/api/reply-io/campaigns/:campaignId/optimization', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/campaigns/:campaignId/optimization', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const currentClientId = req.session.currentClientId;
       const { campaignId } = req.params;
       
@@ -3545,9 +3500,9 @@ URL: ${req.url}
   });
 
   // REF: NEW ENDPOINT - Bulk Campaign Performance Report
-  app.get('/api/reply-io/analytics/performance-report', isAuthenticated, async (req: any, res) => {
+  app.get('/api/reply-io/analytics/performance-report', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.id;
       const currentClientId = req.session.currentClientId;
       
       // REF: Check cache first
@@ -3678,10 +3633,10 @@ URL: ${req.url}
   app.get('/api/health', healthCheckHandler);
   
   // REF: Detailed metrics endpoint for monitoring dashboards
-  app.get('/api/metrics', isAuthenticated, metricsHandler);
+  app.get('/api/metrics', requireAuth, metricsHandler);
   
   // REF: Production-ready status endpoint
-  app.get('/api/status', isAuthenticated, async (req: any, res) => {
+  app.get('/api/status', requireAuth, async (req: any, res) => {
     try {
       const { healthMonitor } = await import('./monitoring');
       const health = healthMonitor.getHealthStatus();
@@ -3721,7 +3676,7 @@ URL: ${req.url}
   // ===== API CACHE MONITORING ENDPOINTS =====
   
   // REF: Cache statistics endpoint for monitoring dashboard
-  app.get('/api/cache/statistics', isAuthenticated, (req: any, res) => {
+  app.get('/api/cache/statistics', requireAuth, (req: any, res) => {
     try {
       const stats = apiCacheManager.getStats();
       
@@ -3741,7 +3696,7 @@ URL: ${req.url}
   });
   
   // REF: Clear cache endpoint for manual cache management
-  app.post('/api/cache/clear', isAuthenticated, (req: any, res) => {
+  app.post('/api/cache/clear', requireAuth, (req: any, res) => {
     try {
       // Clear all cache entries
       apiCacheManager.clear();
