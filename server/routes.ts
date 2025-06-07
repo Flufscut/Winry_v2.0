@@ -16,38 +16,13 @@ import fs from 'fs';
 import { getDatabase } from './db.js';
 import * as sharedSchema from '@shared/schema.js';
 
-// REF: Initialize database connection using unified system
+// REF: REMOVED duplicate database initialization to prevent conflicts with storage.ts
+// Storage module handles database initialization centrally to prevent duplicate systems loading
+// This fixes the infinite authentication loop issue in Railway production
 let users: any, insertProspectSchema: any, insertClientSchema: any, db: any, replyioAccounts: any, replyioCampaigns: any;
-let isInitialized = false;
 
-async function initializeRouteDatabase() {
-  if (isInitialized) {
-    return;
-  }
-
-  try {
-    console.log('🔄 Routes: Initializing unified database system...');
-    
-    // REF: Use unified database system from db.ts
-    db = await getDatabase();
-    
-    // REF: Use shared schema for all environments (PostgreSQL compatible)
-    users = sharedSchema.users;
-    insertProspectSchema = sharedSchema.insertProspectSchema;
-    insertClientSchema = sharedSchema.insertClientSchema;
-    replyioAccounts = sharedSchema.replyioAccounts;
-    replyioCampaigns = sharedSchema.replyioCampaigns;
-    
-    isInitialized = true;
-    console.log('✅ Routes: Unified database system initialized successfully');
-  } catch (error) {
-    console.error('❌ Routes: Failed to initialize database:', error);
-    throw error;
-  }
-}
-
-// REF: Initialize on module load
-const routeDbInitPromise = initializeRouteDatabase();
+// REF: Use storage module's database instance instead of initializing our own
+// This prevents the critical issue where multiple modules initialize database simultaneously
 
 // Default application settings
 const DEFAULT_SETTINGS = {
@@ -74,8 +49,7 @@ const upload = multer({
 // REF: Removed hardcoded webhook URL - now using dynamic settings
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // REF: Ensure database schemas are initialized before registering routes
-  await routeDbInitPromise;
+  // REF: Storage module handles database initialization - no need to wait here
 
   // REF: Create HTTP server instance
   const server = createServer(app);

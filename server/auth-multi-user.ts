@@ -54,30 +54,15 @@ let users: any;
 let clients: any;
 let isInitialized = false;
 
-// REF: Initialize authentication database connection
-async function initializeAuthDatabase() {
-  if (isInitialized) {
-    return;
-  }
+// REF: REMOVED duplicate database initialization to prevent conflicts with storage.ts
+// Storage module handles database initialization centrally to prevent duplicate systems loading
+// This fixes the infinite authentication loop issue in Railway production
 
-  try {
-    console.log('🔄 Auth: Initializing unified database system...');
-    
-    // REF: Use unified database system from db.ts
-    db = await getDatabase();
-    users = sharedSchema.users;
-    clients = sharedSchema.clients;
-    
-    isInitialized = true;
-    console.log('✅ Auth: Unified database system initialized successfully');
-  } catch (error) {
-    console.error('❌ Auth: Failed to initialize database:', error);
-    throw error;
-  }
+// REF: Get database instance from storage module when needed
+async function getDbInstance() {
+  const { getDatabase } = await import('./db.js');
+  return await getDatabase();
 }
-
-// REF: Auto-initialize on module load
-const authInitPromise = initializeAuthDatabase();
 
 /**
  * REF: Production-ready session configuration
@@ -121,6 +106,7 @@ function setupPassportStrategies() {
     { usernameField: 'email' },
     async (email, password, done) => {
       try {
+        const db = await getDbInstance();
         const userResults = await db.select().from(users).where(eq(users.email, email)).limit(1);
         const user = userResults[0];
         if (!user) {
@@ -152,6 +138,7 @@ function setupPassportStrategies() {
     },
     async (accessToken, refreshToken, profile, done) => {
       try {
+        const db = await getDbInstance();
         const email = profile.emails?.[0]?.value;
         if (!email) {
           return done(new Error('No email found in Google profile'));
@@ -199,6 +186,7 @@ function setupPassportStrategies() {
 
   passport.deserializeUser(async (id: string, done) => {
     try {
+      const db = await getDbInstance();
       const userResults = await db.select().from(users).where(eq(users.id, id)).limit(1);
       const user = userResults[0];
       done(null, user);
@@ -210,10 +198,8 @@ function setupPassportStrategies() {
 
 // REF: Main authentication setup function
 export async function setupAuth(app: Express) {
-  // REF: CRITICAL - Ensure database is initialized before setting up authentication
-  console.log('🔄 Auth: Waiting for database initialization...');
-  await authInitPromise;
-  console.log('✅ Auth: Database initialization completed');
+  // REF: Database initialization handled by storage module - no need to wait here
+  console.log('🔄 Auth: Setting up authentication (database handled by storage module)...');
   
   // REF: Configure session management
   app.use(getSession());
@@ -246,6 +232,7 @@ export async function setupAuth(app: Express) {
       const { firstName, lastName, email, password } = validationResult.data;
 
       // REF: Check if user already exists
+      const db = await getDbInstance();
       const existingUsers = await db.select().from(users).where(eq(users.email, email)).limit(1);
       if (existingUsers.length > 0) {
         return res.status(400).json({
@@ -329,6 +316,7 @@ export async function setupAuth(app: Express) {
       const { email, password } = validationResult.data;
 
       // REF: Find user by email
+      const db = await getDbInstance();
       const userResults = await db.select().from(users).where(eq(users.email, email)).limit(1);
       const user = userResults[0];
       if (!user) {
