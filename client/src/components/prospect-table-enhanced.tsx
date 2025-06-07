@@ -522,10 +522,10 @@ export default function ProspectTableEnhanced({
         </Card>
       )}
 
-      {/* Enhanced Table */}
+      {/* Enhanced Table - Mobile Responsive */}
       <div className="space-y-2">
-        {/* Sortable Table Header */}
-        <div className="grid grid-cols-12 gap-4 p-4 border border-border/50 rounded-xl font-medium text-sm text-muted-foreground"
+        {/* Mobile-Optimized Table Header */}
+        <div className="hidden sm:grid sm:grid-cols-12 gap-4 p-4 border border-border/50 rounded-xl font-medium text-sm text-muted-foreground"
              style={{ background: 'var(--gradient-surface)' }}>
           <div className="col-span-1 flex items-center">
             <Checkbox
@@ -606,6 +606,42 @@ export default function ProspectTableEnhanced({
           </div>
         </div>
 
+        {/* Mobile-Only Simplified Header */}
+        <div className="sm:hidden flex items-center justify-between p-3 border border-border/50 rounded-xl font-medium text-sm text-muted-foreground"
+             style={{ background: 'var(--gradient-surface)' }}>
+          <div className="flex items-center space-x-3">
+            <Checkbox
+              checked={allSelected}
+              onCheckedChange={allSelected ? onDeselectAll : onSelectAll}
+              className="rounded"
+              data-state={someSelected ? "indeterminate" : undefined}
+            />
+            <span>Prospects ({paginatedProspects.length})</span>
+          </div>
+          
+          {/* Mobile Sort Controls */}
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              onClick={() => handleSort('name')}
+              className="h-auto p-1 hover:bg-transparent"
+              title="Sort by name"
+            >
+              <Users className="w-4 h-4" />
+              {getSortIcon('name')}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => handleSort('status')}
+              className="h-auto p-1 hover:bg-transparent"
+              title="Sort by status"
+            >
+              <Target className="w-4 h-4" />
+              {getSortIcon('status')}
+            </Button>
+          </div>
+        </div>
+
         {/* Table Rows */}
         {paginatedProspects.map((prospect, index) => {
           const statusConfig = getStatusConfig(prospect.status);
@@ -623,9 +659,10 @@ export default function ProspectTableEnhanced({
           
           return (
             <div key={prospect.id} className="space-y-0">
+              {/* Desktop Table Row */}
               <div
                 className={`
-                  grid grid-cols-12 gap-4 p-4 border border-border/50 rounded-xl transition-all duration-300 cursor-pointer group 
+                  hidden sm:grid sm:grid-cols-12 gap-4 p-4 border border-border/50 rounded-xl transition-all duration-300 cursor-pointer group 
                   hover:scale-[1.01] hover:shadow-md hover:bg-gradient-to-r hover:from-muted/30 hover:to-muted/10
                   analytics-card
                   ${isSelected ? 'bg-primary/5 border-primary/20' : ''}
@@ -777,6 +814,153 @@ export default function ProspectTableEnhanced({
                       <ChevronRight className="w-4 h-4" />
                     )}
                   </Button>
+                </div>
+              </div>
+
+              {/* Mobile Card Layout */}
+              <div
+                className={`
+                  sm:hidden border border-border/50 rounded-xl transition-all duration-300 cursor-pointer group 
+                  hover:shadow-md hover:bg-gradient-to-r hover:from-muted/30 hover:to-muted/10
+                  analytics-card
+                  ${isSelected ? 'bg-primary/5 border-primary/20' : ''}
+                  ${isExpanded ? 'bg-muted/20' : ''}
+                `}
+                style={{ 
+                  background: isSelected ? 'linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--secondary) / 0.05))' : 
+                             isHovered ? statusConfig.bgColor : 'hsl(var(--card))',
+                  borderColor: isSelected ? 'hsl(var(--primary) / 0.3)' : isExpanded ? statusConfig.borderColor : 'hsl(var(--border) / 0.5)',
+                  animation: `chart-entrance 0.3s ease ${index * 0.1}s both`,
+                  borderBottomLeftRadius: isExpanded ? '0' : undefined,
+                  borderBottomRightRadius: isExpanded ? '0' : undefined
+                }}
+                onMouseEnter={() => setHoveredRow(prospect.id)}
+                onMouseLeave={() => setHoveredRow(null)}
+                onClick={handleRowClick}
+              >
+                <div className="p-3 space-y-3">
+                  {/* Mobile Header Row */}
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3 flex-1 min-w-0">
+                      <Checkbox
+                        checked={isSelected}
+                        onCheckedChange={(checked) => onSelectProspect(prospect.id, !!checked)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="rounded flex-shrink-0"
+                      />
+                      <div className="w-8 h-8 rounded-lg border-2 border-border/50 flex items-center justify-center flex-shrink-0 animate-float-enhanced"
+                           style={{ background: 'var(--gradient-accent)' }}>
+                        <span className="text-xs font-bold text-white">
+                          {prospect.firstName.charAt(0)}{prospect.lastName.charAt(0)}
+                        </span>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDetails(prospect.id);
+                          }}
+                          className="text-left hover:text-primary transition-colors duration-200 btn-enhanced w-full"
+                        >
+                          <p className="font-semibold text-foreground truncate text-sm">
+                            {prospect.firstName} {prospect.lastName}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate" title={prospect.company}>
+                            {prospect.company}
+                          </p>
+                        </button>
+                      </div>
+                    </div>
+                    
+                    {/* Mobile Status & Actions */}
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      <div className="scale-75">
+                        {statusConfig.badge}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewDetails(prospect.id);
+                        }}
+                        className="h-7 w-7 p-0 rounded-lg hover:bg-primary/10 transition-all duration-200 btn-enhanced"
+                      >
+                        <Eye className="w-3 h-3" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedRow(isExpanded ? null : prospect.id);
+                        }}
+                        className="h-7 w-7 p-0 rounded-lg hover:bg-muted/20 transition-all duration-200 btn-enhanced"
+                      >
+                        {isExpanded ? (
+                          <ChevronDown className="w-3 h-3" />
+                        ) : (
+                          <ChevronRight className="w-3 h-3" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Mobile Details Row */}
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <div className="flex items-center space-x-3 min-w-0">
+                      <span className="truncate" title={prospect.title}>
+                        {prospect.title}
+                      </span>
+                      {prospect.researchResults?.location && (
+                        <span className="truncate" title={prospect.researchResults.location}>
+                          📍 {prospect.researchResults.location}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      <span>{format(new Date(prospect.createdAt), "MMM d")}</span>
+                      {prospect.status === "failed" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRetry(prospect.id);
+                          }}
+                          className="h-6 w-6 p-0 rounded hover:bg-warning/10 transition-all duration-200 btn-enhanced"
+                        >
+                          <RotateCcw className="w-3 h-3" />
+                        </Button>
+                      )}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-6 w-6 p-0 rounded hover:bg-destructive/10 transition-all duration-200 btn-enhanced"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Prospect</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete {prospect.firstName} {prospect.lastName} and all research data.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={() => onDelete(prospect.id)} className="bg-destructive hover:bg-destructive/90">
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
+                  </div>
                 </div>
               </div>
 

@@ -677,28 +677,33 @@ export default function Dashboard() {
               transition={{ duration: 0.3 }}
             >
               <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-3xl font-bold text-foreground">Prospect Management</h2>
-                    <p className="text-muted-foreground mt-1">Manage your prospects and track their progress</p>
+                {/* Mobile-Optimized Header */}
+                <div className="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0">
+                  <div className="text-center sm:text-left">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-foreground">Prospect Management</h2>
+                    <p className="text-sm sm:text-base text-muted-foreground mt-1">Manage your prospects and track their progress</p>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    {/* Add Prospect and Upload CSV buttons - always visible */}
+                  {/* Mobile-Optimized Action Buttons */}
+                  <div className="flex items-center justify-center gap-2 sm:gap-3">
+                    {/* Mobile: Icon-only buttons with tooltips, Desktop: Full buttons */}
                     <Button
                       onClick={() => setShowProspectForm(true)}
-                      className="bg-blue-600 hover:bg-blue-700"
+                      className="bg-blue-600 hover:bg-blue-700 px-3 sm:px-4"
+                      title="Add Prospect"
                     >
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Prospect
+                      <Plus className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Add Prospect</span>
                     </Button>
                     
                     <Button
                       onClick={() => setActiveTab('upload')}
                       variant="outline"
+                      className="px-3 sm:px-4"
+                      title="Upload CSV"
                     >
-                      <Upload className="w-4 h-4 mr-2" />
-                      Upload CSV
+                      <Upload className="w-4 h-4 sm:mr-2" />
+                      <span className="hidden sm:inline">Upload CSV</span>
                     </Button>
                   </div>
                 </div>
