@@ -537,7 +537,53 @@ export default function Dashboard() {
             transition={{ delay: 0.3 }}
             className="mt-6"
           >
-            <nav className="flex space-x-1 card-background-elevated p-1 rounded-xl overflow-x-auto">
+            {/* Mobile Dropdown Navigation */}
+            <div className="sm:hidden">
+              <Select value={activeTab} onValueChange={(value) => setActiveTab(value as any)}>
+                <SelectTrigger className="w-full card-background-elevated border-border/50">
+                  <SelectValue>
+                    <div className="flex items-center gap-2">
+                      {(() => {
+                        const currentTab = [
+                          { id: 'analytics', label: 'Pipeline Analytics', shortLabel: 'Pipeline', icon: TrendingUp },
+                          { id: 'reply-analytics', label: 'Reply.io Analytics', shortLabel: 'Reply.io', icon: Target },
+                          { id: 'cache-monitoring', label: 'Cache Monitoring', shortLabel: 'Cache', icon: Activity },
+                          { id: 'prospects', label: 'Prospect Management', shortLabel: 'Prospects', icon: Users },
+                          { id: 'upload', label: 'Upload Prospects', shortLabel: 'Upload', icon: Upload },
+                          { id: 'settings', label: 'Settings', shortLabel: 'Settings', icon: Settings }
+                        ].find(tab => tab.id === activeTab);
+                        return currentTab ? (
+                          <>
+                            <currentTab.icon className="w-4 h-4 text-purple-500" />
+                            <span className="font-medium">{currentTab.label}</span>
+                          </>
+                        ) : null;
+                      })()}
+                    </div>
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent className="card-background-elevated border-border/50">
+                  {[
+                    { id: 'analytics', label: 'Pipeline Analytics', shortLabel: 'Pipeline', icon: TrendingUp },
+                    { id: 'reply-analytics', label: 'Reply.io Analytics', shortLabel: 'Reply.io', icon: Target },
+                    { id: 'cache-monitoring', label: 'Cache Monitoring', shortLabel: 'Cache', icon: Activity },
+                    { id: 'prospects', label: 'Prospect Management', shortLabel: 'Prospects', icon: Users },
+                    { id: 'upload', label: 'Upload Prospects', shortLabel: 'Upload', icon: Upload },
+                    { id: 'settings', label: 'Settings', shortLabel: 'Settings', icon: Settings }
+                  ].map((tab) => (
+                    <SelectItem key={tab.id} value={tab.id} className="focus:bg-purple-500/10 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <tab.icon className="w-4 h-4 text-purple-500" />
+                        <span>{tab.label}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Desktop/Tablet Tab Navigation (hidden on mobile) */}
+            <nav className="hidden sm:flex space-x-1 card-background-elevated p-1 rounded-xl overflow-x-auto">
               {[
                 { id: 'analytics', label: 'Pipeline Analytics', shortLabel: 'Pipeline', icon: TrendingUp },
                 { id: 'reply-analytics', label: 'Reply.io Analytics', shortLabel: 'Reply.io', icon: Target },
