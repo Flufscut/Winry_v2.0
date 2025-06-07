@@ -1293,47 +1293,44 @@ Each code file should include:
 
 **Issue Identified**
 - Prospects were being sent to n8n but the webhook wasn't processing them correctly
-- The payload field names didn't match what n8n expected
-- n8n workflow expects specific field names like "jobtitle" instead of "title"
-- n8n workflow nodes expect nested structure with properties.field.value format
+- The payload format didn't match what n8n expected
+- n8n workflow expects an array of objects with specific field names
 
 **Solution Implemented**
 - Updated `processBatchResearch` function to format payload correctly for n8n
-- Changed field mappings:
-  - `title` → `jobtitle`
-  - `linkedinUrl` → `hs_linkedin_url`
-  - Added `hs_email_domain` field extracted from email
-  - Convert prospect ID to string format
-- Payload now matches n8n webhook's expected format exactly
-- Changed from flat structure to nested properties.field.value format
-- Each field now wrapped in object with `value` property
+- Changed to array format as n8n expects body to be an array
+- Use exact field names with spaces:
+  - `firstName` → `First Name`
+  - `lastName` → `Last Name`
+  - `linkedinUrl` → `LinkedIn`
+  - `title` → `Title`
+  - `company` → `Company`
+  - `email` → `EMail`
+- Removed all nested structures and extra fields
 
 **Technical Details**
-- n8n expects fields in a nested structure: `properties.firstname.value`
-- Field names must match exactly what n8n workflow is configured for
-- Email domain extraction helps with company research
-- String ID conversion ensures compatibility
-- The n8n Split Out1 and Required Fields1 nodes access data using this nested format
+- n8n expects the body to be an array of objects
+- Field names must match exactly (including spaces)
+- Simple flat object structure, no nesting required
+- Each prospect sent as a single-element array
 
 **Payload Structure**
 ```json
-{
-  "properties": {
-    "firstname": { "value": "Bradley" },
-    "lastname": { "value": "Aaronson" },
-    "company": { "value": "CIM Group" },
-    "jobtitle": { "value": "Managing Director of Development" },
-    "email": { "value": "baaronson@cimgroup.com" },
-    "hs_linkedin_url": { "value": "https://www.linkedin.com/in/bradley-aaronson-1a41585/" },
-    "hs_email_domain": { "value": "cimgroup.com" }
-  },
-  "id": "4"
-}
+[
+  {
+    "First Name": "Linda",
+    "Last Name": "Abramson",
+    "LinkedIn": "https://www.linkedin.com/in/linda-abramson-b568044a/",
+    "Title": "President",
+    "Company": "Investors Property Management Group",
+    "EMail": "labramson@ipmgsd.com"
+  }
+]
 ```
 
 **Result**
 - Prospects are now properly received and processed by n8n
 - AI research workflow can access all prospect data correctly
 - Both manual and CSV uploads work with n8n integration
-- n8n nodes can properly extract values using properties.field.value syntax
+- Matches the exact format shown in n8n webhook execution logs
 - Status: ✅ RESOLVED - n8n webhook integration fully functional
