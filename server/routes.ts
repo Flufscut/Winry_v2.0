@@ -625,7 +625,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Process prospect research asynchronously as a single-item batch
       console.log(`Starting research batch for prospect ${prospectId}`);
-      processBatchResearch([{ id: prospect.id, data: prospectData }], 1);
+      try {
+        await processBatchResearch([{ id: prospect.id, data: prospectData }], 1);
+        console.log(`✅ Research batch started successfully for prospect ${prospectId}`);
+      } catch (error) {
+        console.error(`❌ Failed to start research batch for prospect ${prospectId}:`, error);
+      }
       
       res.json({ message: "Prospect research restarted successfully" });
     } catch (error) {
@@ -675,7 +680,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const prospect = await storage.createProspect(prospectData);
       
       // Process prospect research asynchronously as a single-item batch
-      processBatchResearch([{ id: prospect.id, data: prospectData }], 1);
+      try {
+        await processBatchResearch([{ id: prospect.id, data: prospectData }], 1);
+        console.log(`✅ Research batch started successfully for prospect ${prospect.id}`);
+      } catch (error) {
+        console.error(`❌ Failed to start research batch for prospect ${prospect.id}:`, error);
+      }
       
       res.json(prospect);
     } catch (error) {
