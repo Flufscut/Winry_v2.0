@@ -57,16 +57,32 @@ async function processBatchResearch(prospects: Array<{id: number, data: any}>, b
       console.log(`✅ Marked prospect ${prospect.id} as processing`);
       
       // Send prospect data to n8n webhook for research
-      // REF: n8n expects specific field names at the root level of the body
+      // REF: n8n expects data in a specific nested format with properties.field.value structure
       const n8nPayload = {
-        id: prospect.id.toString(), // n8n expects string ID
-        firstName: prospect.data.firstName,
-        lastName: prospect.data.lastName,
-        company: prospect.data.company,
-        jobtitle: prospect.data.title, // n8n expects "jobtitle" not "title"
-        email: prospect.data.email,
-        hs_linkedin_url: prospect.data.linkedinUrl || "", // n8n expects "hs_linkedin_url"
-        hs_email_domain: prospect.data.email.split('@')[1] || "" // Extract domain from email
+        properties: {
+          firstname: {
+            value: prospect.data.firstName
+          },
+          lastname: {
+            value: prospect.data.lastName
+          },
+          company: {
+            value: prospect.data.company
+          },
+          jobtitle: {
+            value: prospect.data.title
+          },
+          email: {
+            value: prospect.data.email
+          },
+          hs_linkedin_url: {
+            value: prospect.data.linkedinUrl || ""
+          },
+          hs_email_domain: {
+            value: prospect.data.email.split('@')[1] || ""
+          }
+        },
+        id: prospect.id.toString() // Keep ID at root level for reference
       };
       
       console.log(`🚀 Sending prospect ${prospect.id} to n8n webhook:`, n8nPayload);
