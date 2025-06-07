@@ -1,5 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useLocation } from "wouter";
+import { useEffect } from "react";
 
 // Circuit breaker variables to prevent infinite auth loops
 let authFailureCount = 0;
@@ -16,6 +18,19 @@ export interface User {
 }
 
 export function useAuth() {
+  const [location] = useLocation();
+  
+  // Reset circuit breaker on route changes (especially after OAuth redirects)
+  useEffect(() => {
+    if (location === '/dashboard' || location === '/') {
+      // Reset circuit breaker when navigating to protected routes
+      // This allows OAuth redirects to work properly
+      authFailureCount = 0;
+      lastFailureTime = 0;
+      console.log('🔄 Route change detected, resetting auth circuit breaker');
+    }
+  }, [location]);
+  
   // Check circuit breaker before even creating the query
   const now = Date.now();
   if (now - lastFailureTime > FAILURE_RESET_TIME) {
@@ -48,7 +63,7 @@ export function useAuth() {
         if (!response.ok) {
           authFailureCount++;
           lastFailureTime = now;
-          console.log(`🔒 Auth failure ${authFailureCount}/${MAX_AUTH_FAILURES}`);
+          console.log(`🔒 Auth failure ${authFailureCount}/${MAX_AUTH_FAILURES}:`, data.message || 'Unknown error');
           
           if (data.message) {
             throw new Error(data.message);
@@ -58,6 +73,7 @@ export function useAuth() {
         
         // Reset failure count on success
         authFailureCount = 0;
+        console.log('✅ Authentication successful:', data);
         return data;
       } catch (error) {
         authFailureCount++;
@@ -68,11 +84,11 @@ export function useAuth() {
     },
     enabled: !isCircuitBreakerActive, // CRITICAL: Don't run query if circuit breaker is active
     retry: false, // CRITICAL: Disable all retries to prevent loops
-    refetchOnMount: false,
+    refetchOnMount: true, // Allow refetch on mount for OAuth redirects
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 30 * 1000, // Reduced to 30 seconds for faster OAuth response
+    gcTime: 5 * 60 * 1000, // 5 minutes
   });
 
   const isLoggedOut = (error && !isLoading) || isCircuitBreakerActive;

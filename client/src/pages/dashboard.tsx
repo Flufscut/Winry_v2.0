@@ -77,18 +77,33 @@ export default function Dashboard() {
 
   // Redirect to login if not authenticated
   useEffect(() => {
+    // Don't redirect immediately on first load to allow OAuth session to establish
     if (!authLoading && (isLoggedOut || !user) && !redirected) {
+      console.log('🔄 Dashboard: User not authenticated, scheduling redirect...', { 
+        user: !!user, 
+        isLoggedOut, 
+        authLoading 
+      });
+      
       setRedirected(true);
       toast({
         title: "Unauthorized",
         description: "Please log in to continue...",
         variant: "destructive",
       });
+      
+      // Increased delay to allow OAuth sessions to establish
       setTimeout(() => {
-        // REF: Redirect to proper login page (not development endpoint)
+        console.log('🔄 Dashboard: Redirecting to login page...');
         window.location.href = "/login";
-      }, 1000); // Increased delay to prevent rapid redirects
+      }, 2000); // Increased from 1000ms to 2000ms for OAuth flow
       return;
+    }
+    
+    // Reset redirect flag if user becomes authenticated
+    if (user && !isLoggedOut && redirected) {
+      console.log('✅ Dashboard: User authenticated, canceling redirect');
+      setRedirected(false);
     }
   }, [user, authLoading, isLoggedOut, toast, redirected]);
 
@@ -378,15 +393,21 @@ export default function Dashboard() {
     });
   };
 
-  if (authLoading) {
+  // Show loading screen while authentication is being checked
+  if (authLoading || (!user && !isLoggedOut && !redirected)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center space-y-4">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
+        <div className="text-center space-y-4">
           <div className="relative">
-            <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-            <Sparkles className="w-6 h-6 text-primary absolute top-3 left-3" />
+            <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto"></div>
+            <Sparkles className="w-6 h-6 text-primary absolute top-3 left-1/2 transform -translate-x-1/2" />
           </div>
-          <p className="text-muted-foreground animate-pulse">Loading Winry.AI...</p>
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-foreground">Authenticating...</h3>
+            <p className="text-sm text-muted-foreground">
+              {authLoading ? 'Checking authentication...' : 'Establishing session...'}
+            </p>
+          </div>
         </div>
       </div>
     );

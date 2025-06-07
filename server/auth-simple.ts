@@ -225,11 +225,33 @@ export function setupAuth(app: express.Express) {
       '/auth/google/callback',
       passport.authenticate('google', { failureRedirect: '/login', session: true }),
       (req, res) => {
+        console.log('🔄 OAuth callback received, processing user session...');
+        
         // Establish session for the user
         if (req.user) {
-          (req as any).session.userId = (req.user as any).id;
+          const user = req.user as any;
+          console.log('✅ OAuth user authenticated:', user.email);
+          
+          // Set session userId (this ensures compatibility with requireAuth middleware)
+          (req as any).session.userId = user.id;
+          
+          // Save session explicitly to ensure it's persisted before redirect
+          (req as any).session.save((err: any) => {
+            if (err) {
+              console.error('❌ Session save error:', err);
+              return res.redirect('/login?error=session_error');
+            }
+            
+            console.log('✅ Session saved successfully, redirecting to dashboard...');
+            // Add a small delay to ensure session cookie is set in browser
+            setTimeout(() => {
+              res.redirect('/dashboard');
+            }, 100);
+          });
+        } else {
+          console.error('❌ No user found in OAuth callback');
+          res.redirect('/login?error=oauth_failed');
         }
-        res.redirect('/dashboard');
       },
     );
 
