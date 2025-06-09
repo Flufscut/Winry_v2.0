@@ -156,21 +156,32 @@ export function N8nMonitoring() {
    */
   const fetchAnalytics = async () => {
     try {
+      console.log('[N8N MONITORING] Starting analytics fetch...');
       const endDate = new Date();
       const startDate = new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000); // Last 7 days
       
-      const response = await fetch(`/api/n8n/analytics?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`);
+      const url = `/api/n8n/analytics?startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`;
+      console.log('[N8N MONITORING] Analytics URL:', url);
+      
+      const response = await fetch(url);
+      console.log('[N8N MONITORING] Analytics response status:', response.status);
       
       if (!response.ok) {
         throw new Error(`Failed to fetch analytics: ${response.statusText}`);
       }
       
       const result = await response.json();
+      console.log('[N8N MONITORING] Analytics result:', result);
+      
       if (result.success) {
+        console.log('[N8N MONITORING] Setting analytics data:', result.analytics);
         setAnalytics(result.analytics);
+      } else {
+        console.error('[N8N MONITORING] Analytics API returned success=false:', result);
       }
     } catch (err) {
       console.error('[N8N MONITORING] Error fetching analytics:', err);
+      setError(`Failed to fetch analytics: ${err.message}`);
     }
   };
 
