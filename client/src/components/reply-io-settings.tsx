@@ -996,13 +996,15 @@ export function ReplyIoSettings() {
                                       {/* Status Badge */}
                                       <div className="flex items-center gap-2">
                                         <Badge 
-                                          variant={campaign.isDefault ? "secondary" : "outline"} 
+                                          variant="outline"
                                           className={`text-xs ${
                                             campaign.isDefault 
-                                              ? 'bg-primary-foreground text-primary' 
-                                              : campaign.status === 'Active' 
-                                                ? 'border-green-500 text-green-700' 
-                                                : 'border-muted-foreground'
+                                              ? 'bg-primary-foreground text-primary border-primary' 
+                                              : formatCampaignStatus(campaign.status) === 'Active'
+                                                ? 'bg-green-500/20 border-green-500 text-green-400'
+                                                : formatCampaignStatus(campaign.status) === 'Paused'
+                                                  ? 'bg-red-500/20 border-red-500 text-red-400'
+                                                  : 'bg-slate-500/20 border-slate-500 text-slate-400'
                                           }`}
                                         >
                                           {formatCampaignStatus(campaign.status)}

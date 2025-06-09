@@ -310,7 +310,16 @@ function CampaignSelector() {
           {currentCampaign ? (
             <div className="flex items-center space-x-2">
               <span>{currentCampaign.campaignName}</span>
-              <Badge variant={currentCampaign.status === 'active' || currentCampaign.status === '2' ? 'default' : 'secondary'} className="text-xs">
+              <Badge 
+                variant="outline"
+                className={`text-xs ${
+                  formatCampaignStatus(currentCampaign.status) === 'Active'
+                    ? 'bg-green-500/20 border-green-500 text-green-400'
+                    : formatCampaignStatus(currentCampaign.status) === 'Paused'
+                      ? 'bg-red-500/20 border-red-500 text-red-400'
+                      : 'bg-slate-500/20 border-slate-500 text-slate-400'
+                }`}
+              >
                 {formatCampaignStatus(currentCampaign.status)}
               </Badge>
             </div>
@@ -323,7 +332,16 @@ function CampaignSelector() {
             <SelectItem key={campaign.id} value={campaign.id.toString()}>
               <div className="flex items-center space-x-2">
                 <span>{campaign.campaignName}</span>
-                <Badge variant={campaign.status === 'active' || campaign.status === '2' ? 'default' : 'secondary'} className="text-xs">
+                <Badge 
+                  variant="outline"
+                  className={`text-xs ${
+                    formatCampaignStatus(campaign.status) === 'Active'
+                      ? 'bg-green-500/20 border-green-500 text-green-400'
+                      : formatCampaignStatus(campaign.status) === 'Paused'
+                        ? 'bg-red-500/20 border-red-500 text-red-400'
+                        : 'bg-slate-500/20 border-slate-500 text-slate-400'
+                  }`}
+                >
                   {formatCampaignStatus(campaign.status)}
                 </Badge>
               </div>
