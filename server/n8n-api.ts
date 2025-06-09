@@ -303,12 +303,19 @@ export async function getExecutionAnalytics(timeRange: {
 }> {
   try {
     const executions = await n8nClient.getExecutions({
-      startedAfter: timeRange.startDate,
-      startedBefore: timeRange.endDate,
       limit: 1000 // Adjust based on expected volume
+      // Note: n8n API doesn't support startedAfter/startedBefore parameters
+      // We'll filter the results in-memory instead
     });
 
-    const data = executions.data || [];
+    let data = executions.data || [];
+    
+    // Filter by date range in-memory since n8n API doesn't support date parameters
+    data = data.filter((exec: any) => {
+      const startedAt = new Date(exec.startedAt);
+      return startedAt >= timeRange.startDate && startedAt <= timeRange.endDate;
+    });
+    
     const total = data.length;
     const successful = data.filter((exec: any) => exec.success).length;
     const durations = data
