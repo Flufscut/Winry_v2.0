@@ -873,7 +873,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const userId = req.user.id;
       const file = req.file;
-      const mapping = JSON.parse(req.body.mapping);
+      
+      // REF: Handle mapping from FormData - extract mapping object from form fields
+      let mapping = {};
+      if (req.body.mapping) {
+        try {
+          mapping = JSON.parse(req.body.mapping);
+        } catch (e) {
+          // REF: If JSON.parse fails, mapping is sent as individual form fields
+          mapping = req.body.mapping;
+        }
+      } else {
+        // REF: Extract mapping from individual form fields (mapping[firstName]=First Name)
+        for (const key in req.body) {
+          if (key.startsWith('mapping[') && key.endsWith(']')) {
+            const fieldName = key.slice(8, -1); // Remove 'mapping[' and ']'
+            mapping[fieldName] = req.body[key];
+          }
+        }
+      }
+      
       const hasHeaders = req.body.hasHeaders === 'true';
       const batchSize = parseInt(req.body.batchSize) || 10;
       const startRow = parseInt(req.body.startRow) || 1;
