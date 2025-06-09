@@ -226,6 +226,9 @@ export function ReplyIoSettings() {
               isDefault: false, // Live campaigns don't have default status
               createdAt: liveCampaign.createdAt,
               updatedAt: liveCampaign.updatedAt,
+              ownerEmail: liveCampaign.ownerEmail,
+              ownerFirstName: liveCampaign.ownerFirstName,
+              ownerLastName: liveCampaign.ownerLastName,
               // REF: Explicitly exclude ALL performance metrics
               // No openRate, clickRate, replyRate, bounceRate, etc.
             };
@@ -383,6 +386,9 @@ export function ReplyIoSettings() {
               isDefault: false, // Live campaigns won't have default status
               createdAt: liveCampaign.createdAt,
               updatedAt: liveCampaign.updatedAt,
+              ownerEmail: liveCampaign.ownerEmail,
+              ownerFirstName: liveCampaign.ownerFirstName,
+              ownerLastName: liveCampaign.ownerLastName,
               // REF: Explicitly exclude ALL performance metrics
               // No openRate, clickRate, replyRate, bounceRate, etc.
             };
