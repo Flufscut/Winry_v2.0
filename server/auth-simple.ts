@@ -78,8 +78,9 @@ export function getSessionMiddleware() {
   console.log('🔧 Configuring session middleware...');
   console.log('🔧 NODE_ENV:', process.env.NODE_ENV);
   console.log('🔧 SESSION_SECRET exists:', !!process.env.SESSION_SECRET);
+  console.log('🔧 DATABASE_URL exists:', !!process.env.DATABASE_URL);
   
-  return session({
+  const sessionConfig: any = {
     secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
@@ -91,7 +92,24 @@ export function getSessionMiddleware() {
       maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
       sameSite: 'lax',
     },
-  });
+  };
+
+  // Use PostgreSQL session store in production
+  if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL) {
+    console.log('🔧 Using PostgreSQL session store for production');
+    const connectPg = require('connect-pg-simple');
+    const pgStore = connectPg(session);
+    sessionConfig.store = new pgStore({
+      conString: process.env.DATABASE_URL,
+      createTableIfMissing: true,
+      ttl: 7 * 24 * 60 * 60, // 1 week in seconds
+      tableName: 'sessions',
+    });
+  } else {
+    console.log('🔧 Using in-memory session store for development');
+  }
+  
+  return session(sessionConfig);
 }
 
 // Authentication middleware
@@ -382,15 +400,23 @@ export function setupAuth(app: express.Express) {
       // Create session
       (req as any).session.userId = user.id;
       
-      console.log('✅ User logged in successfully:', user.email);
-      res.json({ 
-        success: true, 
-        user: { 
-          id: user.id, 
-          email: user.email, 
-          firstName: user.firstName, 
-          lastName: user.lastName 
-        } 
+      // Explicitly save session to ensure it's persisted to PostgreSQL
+      (req as any).session.save((err: any) => {
+        if (err) {
+          console.error('❌ Session save error during login:', err);
+          return res.status(500).json({ success: false, message: 'Session save failed' });
+        }
+        
+        console.log('✅ User logged in successfully and session saved:', user.email);
+        res.json({ 
+          success: true, 
+          user: { 
+            id: user.id, 
+            email: user.email, 
+            firstName: user.firstName, 
+            lastName: user.lastName 
+          } 
+        });
       });
       
     } catch (error) {
