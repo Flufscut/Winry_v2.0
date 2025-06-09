@@ -239,7 +239,8 @@ export class ApiCache {
     let cleanedCount = 0;
     let freedMB = 0;
 
-    for (const [key, entry] of this.cache.entries()) {
+    for (const key of Array.from(this.cache.keys())) {
+      const entry = this.cache.get(key)!;
       if (now - entry.timestamp > entry.ttl) {
         this.cache.delete(key);
         freedMB += (entry.size || 0) / (1024 * 1024);
@@ -326,12 +327,12 @@ export class RateLimiter {
    * REF: Setup default rate limiting configurations for different APIs
    */
   private setupDefaultConfigs(): void {
-    // REF: Reply.io rate limits - 15,000 calls per month
+    // REF: Reply.io rate limits - 15,000 calls per month = 500/day, but be conservative
     this.config.set('reply.io', {
-      maxRequests: 500, // Monthly limit / 30 days
+      maxRequests: 300, // Conservative daily limit (60% of theoretical max)
       windowMs: 24 * 60 * 60 * 1000, // 24 hours
-      retryAfter: 60 * 1000, // 1 minute
-      burstLimit: 50 // Allow bursts up to 50 requests
+      retryAfter: 5 * 60 * 1000, // 5 minutes - longer retry for Reply.io
+      burstLimit: 20 // Reduced burst limit to prevent spikes
     });
 
     // REF: Generic API limits for other services

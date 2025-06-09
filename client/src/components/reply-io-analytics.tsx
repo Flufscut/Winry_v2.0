@@ -85,20 +85,22 @@ export function ReplyIoAnalytics() {
   const [selectedCampaign, setSelectedCampaign] = useState<string>('all');
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Fetch overall Reply.io statistics
+  // Fetch overall Reply.io statistics - OPTIMIZED FOR RATE LIMITING
   const { data: overallStats, isLoading: statsLoading, refetch: refetchStats } = useQuery<ApiResponse>({
     queryKey: ["/api/reply-io/statistics", refreshKey],
     retry: false,
     enabled: true,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 60 * 1000, // 30 minutes - reduced to prevent rate limiting
+    refetchInterval: false, // Disable auto-refresh
   });
 
-  // Fetch all campaigns
+  // Fetch all campaigns - OPTIMIZED FOR RATE LIMITING
   const { data: campaignsData, isLoading: campaignsLoading } = useQuery<ApiResponse>({
     queryKey: ["/api/reply-io/campaigns", refreshKey],
     retry: false,
     enabled: true,
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 60 * 60 * 1000, // 1 hour - campaigns change very rarely
+    refetchInterval: false, // Disable auto-refresh
   });
 
   const handleRefresh = () => {

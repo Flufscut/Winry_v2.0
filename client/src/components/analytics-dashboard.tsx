@@ -133,12 +133,13 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
     return null; // Will be updated when we have the campaign data
   };
 
-  // Fetch Reply.io statistics for unified pipeline view - with campaign filtering
+  // Fetch Reply.io statistics for unified pipeline view - OPTIMIZED FOR RATE LIMITING
   const { data: replyIoData, isLoading: replyLoading, refetch: refetchReply } = useQuery<ApiResponse>({
     queryKey: ["/api/reply-io/statistics", refreshKey],
     retry: false,
     enabled: true,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 60 * 1000, // 30 minutes - reduced frequency to prevent rate limiting
+    refetchInterval: false, // Disable auto-refresh 
   });
 
   // REF: Fetch Reply.io settings for API key validation

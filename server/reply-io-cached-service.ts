@@ -17,14 +17,14 @@
 import { apiCacheManager } from './api-cache';
 import { ReplyIoService } from './replyio-service';
 
-// REF: Cache TTL configurations for different Reply.io data types
+// REF: Cache TTL configurations for different Reply.io data types - OPTIMIZED FOR RATE LIMITING
 const CACHE_TTLS = {
-  campaigns: 60 * 60 * 1000, // 1 hour - campaigns don't change frequently
-  statistics: 30 * 60 * 1000, // 30 minutes - stats update regularly
-  analytics: 2 * 60 * 60 * 1000, // 2 hours - analytics are historical
-  prospects: 5 * 60 * 1000, // 5 minutes - prospect data changes frequently
+  campaigns: 8 * 60 * 60 * 1000, // 8 hours - campaigns rarely change
+  statistics: 4 * 60 * 60 * 1000, // 4 hours - stats don't need frequent updates  
+  analytics: 8 * 60 * 60 * 1000, // 8 hours - analytics are historical
+  prospects: 30 * 60 * 1000, // 30 minutes - longer cache for prospects
   account: 24 * 60 * 60 * 1000, // 24 hours - account info rarely changes
-  templates: 4 * 60 * 60 * 1000 // 4 hours - templates change occasionally
+  templates: 12 * 60 * 60 * 1000 // 12 hours - templates change very rarely
 };
 
 // REF: Development-specific cache TTLs - much more aggressive to prevent rate limiting
@@ -205,7 +205,7 @@ export class ReplyIoCachedService {
 
     // REF: Send prospect immediately if not rate limited
     console.log(`📤 Sending prospect to Reply.io campaign: ${campaignId}`);
-    return await this.replyIoService.sendProspectToCampaign(apiKey, prospectData, parseInt(campaignId));
+    return await this.replyIoService.sendProspectToReply(apiKey, prospectData, parseInt(campaignId));
   }
 
   /**
@@ -229,7 +229,8 @@ export class ReplyIoCachedService {
 
     console.log(`📦 Starting batch send of ${prospects.length} prospects to campaign: ${campaignId}`);
 
-    for (const [index, prospect] of prospects.entries()) {
+    for (let index = 0; index < prospects.length; index++) {
+      const prospect = prospects[index];
       try {
         // REF: Use medium priority for batch operations to allow urgent requests through
         const result = await this.sendProspect(apiKey, prospect, campaignId, 'medium');

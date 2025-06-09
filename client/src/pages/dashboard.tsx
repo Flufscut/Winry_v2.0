@@ -122,11 +122,13 @@ export default function Dashboard() {
     enabled: !!user,
   });
 
-  // REF: Get the selected campaign ID from Reply.io statistics response
+  // REF: Get the selected campaign ID from Reply.io statistics response - REDUCED FREQUENCY 
   const { data: replyIoStats } = useQuery<any>({
     queryKey: ["/api/reply-io/statistics"],
     retry: false,
     enabled: !!user && !!replyIoAccounts,
+    staleTime: 30 * 60 * 1000, // 30 minutes - much longer cache to reduce API calls
+    refetchInterval: false, // Disable auto-refresh to prevent constant polling
   });
 
   // REF: Extract selected campaign ID from Reply.io statistics
