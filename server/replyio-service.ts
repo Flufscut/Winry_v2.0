@@ -415,33 +415,56 @@ export class ReplyIoService {
    * - Returns structured error response
    */
   async validateConnection(apiKey: string): Promise<ReplyIoResponse> {
-    try {
-      const response = await fetch(`${REPLY_IO_BASE_URL}/campaigns`, {
-        method: 'GET',
+    // REF: Try multiple authentication methods to determine which one Reply.io uses
+    const authMethods = [
+      {
+        name: 'x-api-key',
         headers: {
           'x-api-key': apiKey,
           'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        return {
-          success: true,
-          message: 'Connection successful',
-          data: await response.json(),
-        };
-      } else {
-        return {
-          success: false,
-          message: `API connection failed: ${response.status} ${response.statusText}`,
-        };
+        }
+      },
+      {
+        name: 'Authorization Bearer',
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        }
       }
-    } catch (error) {
-      return {
-        success: false,
-        message: `Network error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-      };
+    ];
+
+    for (const method of authMethods) {
+      try {
+        console.log(`🧪 Testing Reply.io authentication with ${method.name}...`);
+        
+        const response = await fetch(`${REPLY_IO_BASE_URL}/campaigns`, {
+          method: 'GET',
+          headers: method.headers,
+        });
+
+        console.log(`📊 Reply.io ${method.name} response: ${response.status} ${response.statusText}`);
+
+        if (response.ok) {
+          console.log(`✅ Reply.io authentication successful with ${method.name}`);
+          return {
+            success: true,
+            message: `Connection successful using ${method.name}`,
+            data: await response.json(),
+          };
+        } else {
+          const errorText = await response.text();
+          console.log(`❌ Reply.io ${method.name} failed: ${response.status} - ${errorText}`);
+        }
+      } catch (error) {
+        console.log(`❌ Reply.io ${method.name} network error:`, error);
+      }
     }
+
+    // REF: If all methods fail, return error
+    return {
+      success: false,
+      message: `API connection failed with all authentication methods`,
+    };
   }
 
   /**
