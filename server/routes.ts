@@ -1395,7 +1395,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // REF: Test the API key connection before storing
       try {
-        await replyIoService.getCampaigns(apiKey);
+        const connectionResult = await replyIoService.validateConnection(apiKey);
+        if (!connectionResult.success) {
+          return res.status(400).json({ 
+            message: connectionResult.message || "Invalid API key or connection failed",
+            error: connectionResult.data?.error || 'Connection validation failed'
+          });
+        }
       } catch (error) {
         return res.status(400).json({ 
           message: "Invalid API key or connection failed",
