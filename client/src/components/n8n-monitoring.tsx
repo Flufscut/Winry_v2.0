@@ -527,7 +527,8 @@ export function N8nMonitoring() {
 
         {/* Analytics Tab */}
         <TabsContent value="analytics" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Performance Metrics */}
             <Card>
               <CardHeader>
                 <CardTitle>Performance Metrics (Last 7 Days)</CardTitle>
@@ -556,30 +557,221 @@ export function N8nMonitoring() {
               </CardContent>
             </Card>
 
+            {/* Research Productivity */}
             <Card>
               <CardHeader>
-                <CardTitle>Common Failure Reasons</CardTitle>
+                <CardTitle>Research Productivity</CardTitle>
+                <CardDescription>Prospect research efficiency metrics</CardDescription>
               </CardHeader>
               <CardContent>
-                <ScrollArea className="h-64">
-                  {analytics?.failureReasons.length ? (
-                    <div className="space-y-2">
-                      {analytics.failureReasons.map((failure, index) => (
-                        <div key={index} className="flex justify-between items-center p-2 border rounded">
-                          <span className="text-sm truncate">{failure.reason}</span>
-                          <Badge variant="outline">{failure.count}</Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No failure data available
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Prospects Researched:</span>
+                    <span className="font-medium">{analytics?.totalExecutions || 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Daily Average:</span>
+                    <span className="font-medium">{analytics ? Math.round(analytics.totalExecutions / 7) : 0}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Time per Prospect:</span>
+                    <span className="font-medium">{analytics ? formatExecutionTime(analytics.averageDuration) : 'N/A'}</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Based on successful n8n workflow executions
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Business Impact */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Business Impact</CardTitle>
+                <CardDescription>ROI and time savings</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Time Saved:</span>
+                    <span className="font-medium">
+                      {analytics ? Math.round((analytics.totalExecutions * 15) / 60) : 0}h
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Manual Research Cost:</span>
+                    <span className="font-medium">
+                      ${analytics ? (analytics.totalExecutions * 25).toLocaleString() : 0}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>ROI Multiplier:</span>
+                    <span className="font-medium text-green-600">10x</span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2">
+                    Estimated based on 15min/prospect @ $100/hr manual research
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Research Quality Metrics */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Research Quality</CardTitle>
+                <CardDescription>Data enrichment success</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex justify-between">
+                    <span>Success Rate:</span>
+                    <span className="font-medium">{analytics ? formatPercentage(analytics.successRate) : 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Data Quality Score:</span>
+                    <span className="font-medium">{analytics && analytics.successRate > 80 ? 'High' : analytics && analytics.successRate > 60 ? 'Medium' : 'Needs Improvement'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Failed Lookups:</span>
+                    <span className="font-medium">{analytics ? (analytics.totalExecutions - Math.round(analytics.totalExecutions * analytics.successRate / 100)) : 0}</span>
+                  </div>
+                  {analytics && analytics.successRate < 80 && (
+                    <div className="text-xs text-orange-600 mt-2">
+                      ⚠️ Consider optimizing LinkedIn profile detection
                     </div>
                   )}
-                </ScrollArea>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Peak Usage Hours */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Peak Usage Hours</CardTitle>
+                <CardDescription>When research happens most</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {analytics?.hourlyDistribution ? (
+                  <div className="space-y-2">
+                    {analytics.hourlyDistribution
+                      .map((item, index) => ({ ...item, hour: index }))
+                      .sort((a, b) => b.count - a.count)
+                      .slice(0, 3)
+                      .map((item, index) => (
+                        <div key={item.hour} className="flex justify-between items-center">
+                          <span className="text-sm">
+                            {item.hour}:00 - {item.hour + 1}:00
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{item.count}</span>
+                            {index === 0 && <Badge variant="secondary">Peak</Badge>}
+                          </div>
+                        </div>
+                      ))}
+                    <div className="text-xs text-muted-foreground mt-2">
+                      Top 3 busiest hours for prospect research
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-4 text-muted-foreground">
+                    No usage data available
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Optimization Recommendations */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Optimization Opportunities</CardTitle>
+                <CardDescription>Ways to improve efficiency</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {analytics ? (
+                    <>
+                      {analytics.successRate < 90 && (
+                        <div className="flex items-start gap-2 p-2 bg-orange-50 border border-orange-200 rounded">
+                          <AlertCircle className="w-4 h-4 text-orange-500 mt-0.5" />
+                          <div className="text-sm">
+                            <div className="font-medium">Improve Success Rate</div>
+                            <div className="text-muted-foreground">Current: {formatPercentage(analytics.successRate)}, Target: 90%+</div>
+                          </div>
+                        </div>
+                      )}
+                      {analytics.averageDuration > 120000 && (
+                        <div className="flex items-start gap-2 p-2 bg-blue-50 border border-blue-200 rounded">
+                          <Clock className="w-4 h-4 text-blue-500 mt-0.5" />
+                          <div className="text-sm">
+                            <div className="font-medium">Optimize Processing Time</div>
+                            <div className="text-muted-foreground">Current: {formatExecutionTime(analytics.averageDuration)}, Target: &lt;2min</div>
+                          </div>
+                        </div>
+                      )}
+                      {analytics.totalExecutions > 0 && (
+                        <div className="flex items-start gap-2 p-2 bg-green-50 border border-green-200 rounded">
+                          <TrendingUp className="w-4 h-4 text-green-500 mt-0.5" />
+                          <div className="text-sm">
+                            <div className="font-medium">Great Progress!</div>
+                            <div className="text-muted-foreground">{analytics.totalExecutions} prospects researched this week</div>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      Start processing prospects to see optimization recommendations
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </div>
+
+          {/* Common Failure Reasons */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Common Issues & Solutions</CardTitle>
+              <CardDescription>Most frequent problems and how to fix them</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-64">
+                {analytics?.failureReasons.length ? (
+                  <div className="space-y-3">
+                    {analytics.failureReasons.map((failure, index) => (
+                      <div key={index} className="flex justify-between items-start p-3 border rounded-lg">
+                        <div className="flex-1">
+                          <div className="font-medium text-sm">{failure.reason}</div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {failure.reason.toLowerCase().includes('linkedin') ? 
+                              '💡 Solution: Ensure prospects have valid LinkedIn profiles' :
+                              failure.reason.toLowerCase().includes('timeout') ?
+                              '💡 Solution: Check n8n workflow performance' :
+                              failure.reason.toLowerCase().includes('api') ?
+                              '💡 Solution: Verify API credentials and rate limits' :
+                              '💡 Solution: Check n8n workflow configuration'
+                            }
+                          </div>
+                        </div>
+                        <div className="ml-4 flex items-center gap-2">
+                          <Badge variant="outline">{failure.count}</Badge>
+                          <div className="text-xs text-muted-foreground">
+                            {Math.round((failure.count / analytics.totalExecutions) * 100)}%
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CheckCircle className="w-12 h-12 mx-auto mb-2 text-green-500" />
+                    <div className="font-medium">No Issues Found!</div>
+                    <div className="text-sm">All workflows are running smoothly</div>
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
     </div>

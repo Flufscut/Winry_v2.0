@@ -634,6 +634,52 @@ The comprehensive testing confirms that all user interface components, authentic
 4. Use debug endpoints to identify specific failure points
 5. Verify n8n workflow configuration accepts Railway URL
 
+### ✅ ownerEmail Feature for Reply.io Campaign Display (Current Date)
+
+**Feature Request Completed**: Added ownerEmail to each campaign display in the settings tab
+
+**Backend Implementation**:
+- **Database Method**: Added `getReplyioCampaignsWithOwnerEmail()` method to storage layer
+- **Database Joins**: Implemented JOIN query across three tables:
+  - `replyioCampaigns` → `replyioAccounts` → `users`
+  - Fetches `ownerEmail`, `ownerFirstName`, `ownerLastName` from users table
+- **API Integration**: Updated campaigns endpoint to use new method with owner information
+- **Route**: `/api/reply-io/accounts/:accountId/campaigns` now returns owner data
+
+**Frontend Implementation**:
+- **Interface Updates**: Added `ownerEmail?`, `ownerFirstName?`, `ownerLastName?` to `ReplyIoCampaign` interface
+- **Data Mapping**: Updated both `fetchCampaigns()` and `fetchCampaignsWithAutoSync()` to map owner information
+- **UI Display**: Added owner email display to campaign cards with conditional rendering:
+  ```tsx
+  {/* Owner Email */}
+  {campaign.ownerEmail && (
+    <p className={`text-xs ${campaign.isDefault ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+      Owner: {campaign.ownerEmail}
+    </p>
+  )}
+  ```
+
+**Visual Implementation**:
+- **Positioning**: Owner email appears between status badge and campaign ID
+- **Styling**: Proper color adaptation based on default/selected campaign state
+- **Responsive**: Works across different card layouts and screen sizes
+
+**Issue Resolution**:
+- **Problem Found**: Live campaign mapping was missing ownerEmail fields in frontend
+- **Root Cause**: `fetchCampaignsWithAutoSync()` and `fetchCampaigns()` weren't including owner data for live campaigns
+- **Fix Applied**: Added missing `ownerEmail`, `ownerFirstName`, `ownerLastName` to live campaign objects
+- **Deployment**: Fix deployed successfully via commit 1038324
+
+**Deployment Status**: ✅ **SUCCESSFULLY DEPLOYED AND VERIFIED**
+- **Code Review**: All implementation verified as correct
+- **Database Schema**: JOIN queries working properly  
+- **API Endpoints**: Owner data properly returned from backend
+- **UI Components**: Campaign cards display owner email correctly
+- **GitHub Integration**: Changes committed and deployed via Railway
+- **Live Testing**: ✅ **CONFIRMED WORKING** - All 5 campaign cards show "Owner: testowner@winryai.test"
+
+**Visual Verification**: Screenshots confirm ownerEmail is now visible on all campaign cards in the Reply.io settings tab.
+
 ---
 
 *Last Updated: June 8, 2025*
