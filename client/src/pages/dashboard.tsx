@@ -137,6 +137,13 @@ export default function Dashboard() {
     return null;
   }, [replyIoStats]);
 
+  // REF: Fetch clients for workspace count in status indicator
+  const { data: clients = [] } = useQuery<any[]>({
+    queryKey: ['/api/clients'],
+    retry: false,
+    enabled: !!user,
+  });
+
   // Fetch dashboard stats - filtered by campaign if selected
   const { data: statsData, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ["/api/stats"],
@@ -839,7 +846,7 @@ export default function Dashboard() {
                     <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                     <div>
                       <p className="text-sm font-medium text-foreground">Workspaces</p>
-                      <p className="text-xs text-muted-foreground">2 active</p>
+                      <p className="text-xs text-muted-foreground">{clients.length} active</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-center">
