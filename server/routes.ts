@@ -3994,6 +3994,167 @@ URL: ${req.url}
 
   // ===== END PRODUCTION HEALTH MONITORING ENDPOINTS =====
 
+  // ===== N8N MONITORING API ENDPOINTS =====
+  
+  // REF: Import n8n API functions
+  const n8nApi = await import('./n8n-api');
+  const {
+    getExecutions: getN8nExecutions,
+    getExecutionDetails: getN8nExecutionDetails,
+    getActiveExecutions: getCurrentN8nExecutions,
+    getWorkflows: getN8nWorkflows,
+    getProspectMonitoringStatus,
+    getExecutionAnalytics
+  } = n8nApi;
+  
+  // REF: Get n8n executions with filtering
+  app.get('/api/n8n/executions', requireAuth, async (req: any, res) => {
+    try {
+      const {
+        status,
+        workflowId,
+        limit = 50,
+        offset = 0,
+        startedAfter,
+        startedBefore
+      } = req.query;
+      
+      const filters: any = { limit: parseInt(limit), offset: parseInt(offset) };
+      
+      if (status) filters.status = status;
+      if (workflowId) filters.workflowId = workflowId;
+      if (startedAfter) filters.startedAfter = new Date(startedAfter);
+      if (startedBefore) filters.startedBefore = new Date(startedBefore);
+      
+      const result = await getN8nExecutions(filters);
+      
+      res.json({
+        success: true,
+        executions: result.data || [],
+        total: result.total || 0,
+        filters
+      });
+    } catch (error) {
+      console.error('Error fetching n8n executions:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch n8n executions',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // REF: Get n8n execution details
+  app.get('/api/n8n/executions/:executionId', requireAuth, async (req: any, res) => {
+    try {
+      const { executionId } = req.params;
+      const execution = await getN8nExecutionDetails(executionId);
+      
+      res.json({
+        success: true,
+        execution
+      });
+    } catch (error) {
+      console.error(`Error fetching execution ${req.params.executionId}:`, error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch execution details',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // REF: Get active n8n executions
+  app.get('/api/n8n/executions/active', requireAuth, async (req: any, res) => {
+    try {
+      const result = await getCurrentN8nExecutions();
+      
+      res.json({
+        success: true,
+        activeExecutions: result.data || [],
+        count: result.data?.length || 0
+      });
+    } catch (error) {
+      console.error('Error fetching active executions:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch active executions',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // REF: Get n8n workflows
+  app.get('/api/n8n/workflows', requireAuth, async (req: any, res) => {
+    try {
+      const result = await getN8nWorkflows();
+      
+      res.json({
+        success: true,
+        workflows: result.data || []
+      });
+    } catch (error) {
+      console.error('Error fetching n8n workflows:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch n8n workflows',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // REF: Get execution analytics
+  app.get('/api/n8n/analytics', requireAuth, async (req: any, res) => {
+    try {
+      const { 
+        startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+        endDate = new Date().toISOString()
+      } = req.query;
+      
+      const analytics = await getExecutionAnalytics({
+        startDate: new Date(startDate as string),
+        endDate: new Date(endDate as string)
+      });
+      
+      res.json({
+        success: true,
+        analytics,
+        period: {
+          startDate,
+          endDate
+        }
+      });
+    } catch (error) {
+      console.error('Error fetching execution analytics:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch execution analytics',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+  
+  // REF: Get prospect monitoring status (combines prospects + n8n data)
+  app.get('/api/prospects/monitoring/status', requireAuth, async (req: any, res) => {
+    try {
+      const status = await getProspectMonitoringStatus();
+      
+      res.json({
+        success: true,
+        monitoring: status
+      });
+    } catch (error) {
+      console.error('Error fetching prospect monitoring status:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch prospect monitoring status',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // ===== END N8N MONITORING API ENDPOINTS =====
+
   // ===== API CACHE MONITORING ENDPOINTS =====
   
   // REF: Cache statistics endpoint for monitoring dashboard
