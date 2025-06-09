@@ -20,6 +20,15 @@ import { updateProspectN8nExecution } from './storage.js';
 const N8N_API_BASE_URL = process.env.N8N_API_BASE_URL || 'https://salesleopard.app.n8n.cloud';
 const N8N_API_KEY = process.env.N8N_API_KEY || ''; // REF: Set this in Railway environment variables
 
+// REF: Validate API key is present
+console.log(`[N8N CONFIG] API Base URL: ${N8N_API_BASE_URL}`);
+console.log(`[N8N CONFIG] API Key present: ${N8N_API_KEY ? 'YES' : 'NO'}`);
+console.log(`[N8N CONFIG] API Key length: ${N8N_API_KEY.length}`);
+
+if (!N8N_API_KEY) {
+  console.error('[N8N CONFIG] ERROR: N8N_API_KEY environment variable is not set!');
+}
+
 /**
  * REF: n8n API client for making authenticated requests
  * PURPOSE: Centralized API client with authentication and error handling
@@ -41,6 +50,11 @@ class N8nApiClient {
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.baseUrl}/api/v1${endpoint}`;
     
+    // REF: Validate API key before making request
+    if (!this.apiKey) {
+      throw new Error('N8N API key is missing or empty. Check N8N_API_KEY environment variable.');
+    }
+    
     const headers = {
       'X-N8N-API-KEY': this.apiKey,
       'Content-Type': 'application/json',
@@ -50,6 +64,11 @@ class N8nApiClient {
 
     try {
       console.log(`[N8N API] Making request to: ${url}`);
+      console.log(`[N8N API] Headers:`, { 
+        'X-N8N-API-KEY': this.apiKey ? `${this.apiKey.substring(0, 10)}...` : 'MISSING',
+        'Content-Type': headers['Content-Type'],
+        'Accept': headers['Accept']
+      });
       
       const response = await fetch(url, {
         ...options,
