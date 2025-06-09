@@ -834,6 +834,7 @@ export class DatabaseStorage implements IStorage {
           set: {
             campaignName: campaignData.campaignName,
             campaignStatus: campaignData.campaignStatus,
+            ownerEmail: campaignData.ownerEmail,
             updatedAt: campaignData.updatedAt,
           },
         })

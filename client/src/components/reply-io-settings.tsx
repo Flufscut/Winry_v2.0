@@ -76,6 +76,7 @@ interface ReplyIoCampaign {
   isDefault?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  ownerEmail?: string;
   // REF: Explicitly exclude performance metrics from settings UI
   // openRate?: number;
   // clickRate?: number; 
@@ -1011,10 +1012,17 @@ export function ReplyIoSettings() {
                                         </Badge>
                                       </div>
                                       
-                                      {/* Campaign ID - now below status badges */}
-                                      <p className={`text-xs ${campaign.isDefault ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                        Campaign ID: {campaign.id}
-                                      </p>
+                                      {/* Campaign Details */}
+                                      <div className="space-y-1">
+                                        <p className={`text-xs ${campaign.isDefault ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                          Campaign ID: {campaign.id}
+                                        </p>
+                                        {campaign.ownerEmail && (
+                                          <p className={`text-xs ${campaign.isDefault ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                            Owner: {campaign.ownerEmail}
+                                          </p>
+                                        )}
+                                      </div>
                                       
                                       {/* Action Button */}
                                       {campaign.isDefault ? (

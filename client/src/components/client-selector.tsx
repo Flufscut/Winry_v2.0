@@ -42,6 +42,7 @@ interface Campaign {
   campaignId: string;
   campaignName: string;
   status: string;
+  ownerEmail?: string;
 }
 
 interface ClientContext {
@@ -330,20 +331,27 @@ function CampaignSelector() {
         <SelectContent className="bg-slate-800 border-slate-600">
           {campaigns.map((campaign: Campaign) => (
             <SelectItem key={campaign.id} value={campaign.id.toString()}>
-              <div className="flex items-center space-x-2">
-                <span>{campaign.campaignName}</span>
-                <Badge 
-                  variant="outline"
-                  className={`text-xs ${
-                    formatCampaignStatus(campaign.status) === 'Active'
-                      ? 'bg-green-500/20 border-green-500 text-green-400'
-                      : formatCampaignStatus(campaign.status) === 'Paused'
-                        ? 'bg-red-500/20 border-red-500 text-red-400'
-                        : 'bg-slate-500/20 border-slate-500 text-slate-400'
-                  }`}
-                >
-                  {formatCampaignStatus(campaign.status)}
-                </Badge>
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2">
+                  <span>{campaign.campaignName}</span>
+                  <Badge 
+                    variant="outline"
+                    className={`text-xs ${
+                      formatCampaignStatus(campaign.status) === 'Active'
+                        ? 'bg-green-500/20 border-green-500 text-green-400'
+                        : formatCampaignStatus(campaign.status) === 'Paused'
+                          ? 'bg-red-500/20 border-red-500 text-red-400'
+                          : 'bg-slate-500/20 border-slate-500 text-slate-400'
+                    }`}
+                  >
+                    {formatCampaignStatus(campaign.status)}
+                  </Badge>
+                </div>
+                {campaign.ownerEmail && (
+                  <div className="text-xs text-slate-400">
+                    Owner: {campaign.ownerEmail}
+                  </div>
+                )}
               </div>
             </SelectItem>
           ))}

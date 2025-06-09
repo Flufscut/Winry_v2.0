@@ -417,6 +417,7 @@ export const replyioCampaigns = sqliteTable('replyio_campaigns', {
   campaignId: integer('campaign_id').notNull(), // Reply.io campaign ID
   campaignName: text('campaign_name').notNull(), // Campaign name from Reply.io
   campaignStatus: text('campaign_status'), // active, paused, etc.
+  ownerEmail: text('owner_email'), // Email of campaign owner/creator
   isDefault: integer('is_default').default(0), // Only one default per account (SQLite: 1=true, 0=false)
   createdAt: text('created_at').default("datetime('now')"),
   updatedAt: text('updated_at').default("datetime('now')"),

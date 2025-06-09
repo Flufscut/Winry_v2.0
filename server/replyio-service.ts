@@ -83,6 +83,7 @@ interface ReplyIoCampaign {
   createdAt: string;
   updatedAt: string;
   settings?: any;
+  ownerEmail?: string;
 }
 
 /**
@@ -840,6 +841,8 @@ export class ReplyIoService {
           createdAt: campaign.createdAt,
           updatedAt: campaign.updatedAt,
           settings: campaign.settings,
+          // REF: Try to extract owner email from various possible fields
+          ownerEmail: campaign.ownerEmail || campaign.owner?.email || campaign.user?.email || campaign.createdBy?.email || campaign.userEmail,
             // REF: Explicitly exclude performance metrics from campaign data
             // This ensures no performance data leaks into the settings UI
             // Performance metrics should only be accessed via getCampaignStatistics()
