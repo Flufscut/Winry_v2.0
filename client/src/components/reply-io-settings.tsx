@@ -37,7 +37,8 @@ import {
   Building2,
   Target,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  User
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -75,6 +76,19 @@ interface ReplyIoCampaign {
   isDefault?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  // REF: Owner information
+  owner?: {
+    id?: number;
+    name?: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
+  };
+  ownerId?: number;
+  ownerName?: string;
+  ownerEmail?: string;
+  createdBy?: string;
+  assignedTo?: string;
   // REF: Explicitly exclude performance metrics from settings UI
   // openRate?: number;
   // clickRate?: number; 
@@ -988,6 +1002,24 @@ export function ReplyIoSettings() {
                                       }`}>
                                         {campaign.name}
                                       </h5>
+                                      
+                                      {/* Campaign Owner */}
+                                      {(campaign.owner?.name || campaign.ownerName || campaign.createdBy || campaign.assignedTo) && (
+                                        <div className={`flex items-center gap-1 text-xs ${
+                                          campaign.isDefault ? 'text-primary-foreground/70' : 'text-muted-foreground'
+                                        }`}>
+                                          <User className="w-3 h-3" />
+                                          <span>
+                                            {campaign.owner?.name || 
+                                             campaign.ownerName || 
+                                             campaign.createdBy || 
+                                             campaign.assignedTo}
+                                          </span>
+                                          {campaign.owner?.email && (
+                                            <span className="opacity-70">({campaign.owner.email})</span>
+                                          )}
+                                        </div>
+                                      )}
                                       
                                       {/* Status Badge */}
                                       <div className="flex items-center gap-2">
