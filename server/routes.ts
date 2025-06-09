@@ -4021,10 +4021,12 @@ URL: ${req.url}
       
       const filters: any = { limit: parseInt(limit), offset: parseInt(offset) };
       
-      if (status) filters.status = status;
+      // REF: Only allow valid n8n API status values: success, error, waiting
+      if (status && ['success', 'error', 'waiting'].includes(status)) {
+        filters.status = status;
+      }
       if (workflowId) filters.workflowId = workflowId;
-      if (startedAfter) filters.startedAfter = new Date(startedAfter);
-      if (startedBefore) filters.startedBefore = new Date(startedBefore);
+      // REF: Removed date filters as they may not be supported by n8n API
       
       const result = await getN8nExecutions(filters);
       

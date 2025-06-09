@@ -76,7 +76,7 @@ class N8nApiClient {
    * PURPOSE: Track executions by status, workflow, date range, etc.
    */
   async getExecutions(filters: {
-    status?: 'running' | 'success' | 'failed' | 'waiting' | 'error';
+    status?: 'success' | 'error' | 'waiting';
     workflowId?: string;
     limit?: number;
     offset?: number;
@@ -107,11 +107,12 @@ class N8nApiClient {
   }
 
   /**
-   * REF: Get currently active (running) executions
+   * REF: Get currently active (running) executions  
    * PURPOSE: Monitor real-time workflow processing
+   * NOTE: Using waiting status as n8n API doesn't have a direct "current" endpoint
    */
   async getActiveExecutions(): Promise<any> {
-    return this.makeRequest('/executions/current');
+    return this.makeRequest('/executions?status=waiting&limit=50');
   }
 
   /**
@@ -165,8 +166,8 @@ export async function getProspectMonitoringStatus(): Promise<{
     
     // REF: Get recent executions for context
     const recentExecutions = await n8nClient.getExecutions({
-      limit: 50,
-      startedAfter: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+      limit: 50
+      // Note: Removed startedAfter as it may not be supported by n8n API
     });
 
     return {
