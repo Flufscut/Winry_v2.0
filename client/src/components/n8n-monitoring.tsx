@@ -167,7 +167,7 @@ export function N8nMonitoring() {
       
       const result = await response.json();
       if (result.success) {
-        setAnalytics(result.data);
+        setAnalytics(result.analytics);
       }
     } catch (err) {
       console.error('[N8N MONITORING] Error fetching analytics:', err);
