@@ -108,6 +108,13 @@ export default function ProspectProfileInteractive({ prospectId, onClose }: Pros
 
   const { data: prospect, isLoading, error } = useQuery<Prospect>({
     queryKey: [`/api/prospects/${prospectId}`],
+    queryFn: async () => {
+      const response = await fetch(`/api/prospects/${prospectId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch prospect: ${response.status}`);
+      }
+      return response.json();
+    },
     retry: false,
   });
 

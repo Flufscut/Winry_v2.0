@@ -7,6 +7,7 @@ import { DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ExternalLink, Copy, Loader2 } from "lucide-react";
+import { useEffect } from "react";
 
 interface ProspectDetailsProps {
   prospectId: number;
@@ -16,10 +17,21 @@ interface ProspectDetailsProps {
 export default function ProspectDetails({ prospectId, onClose }: ProspectDetailsProps) {
   const { toast } = useToast();
 
-  const { data: prospect, isLoading } = useQuery({
+  const { data: prospect, isLoading, error } = useQuery({
     queryKey: [`/api/prospects/${prospectId}`],
+    queryFn: async () => {
+      const response = await fetch(`/api/prospects/${prospectId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch prospect: ${response.status}`);
+      }
+      return response.json();
+    },
     retry: false,
-    onError: (error: Error) => {
+  });
+
+  // Handle errors in the component
+  useEffect(() => {
+    if (error) {
       if (isUnauthorizedError(error)) {
         toast({
           title: "Unauthorized",
@@ -37,8 +49,8 @@ export default function ProspectDetails({ prospectId, onClose }: ProspectDetails
         description: "Failed to load prospect details",
         variant: "destructive",
       });
-    },
-  });
+    }
+  }, [error, toast]);
 
   const copyEmailToClipboard = () => {
     const results = prospect?.researchResults;

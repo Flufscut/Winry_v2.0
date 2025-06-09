@@ -32,6 +32,13 @@ export default function ProspectDetailsModern({ prospectId, onClose }: ProspectD
 
   const { data: prospect, isLoading, error } = useQuery({
     queryKey: [`/api/prospects/${prospectId}`],
+    queryFn: async () => {
+      const response = await fetch(`/api/prospects/${prospectId}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch prospect: ${response.status}`);
+      }
+      return response.json();
+    },
     retry: false,
   });
 
