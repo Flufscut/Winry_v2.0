@@ -42,7 +42,7 @@ class N8nApiClient {
     const url = `${this.baseUrl}/api/v1${endpoint}`;
     
     const headers = {
-      'Authorization': `Bearer ${this.apiKey}`,
+      'X-N8N-API-KEY': this.apiKey,
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       ...options.headers,
