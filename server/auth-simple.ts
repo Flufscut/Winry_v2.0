@@ -408,14 +408,14 @@ export function setupAuth(app: express.Express) {
         }
         
         console.log('✅ User logged in successfully and session saved:', user.email);
-        res.json({ 
-          success: true, 
-          user: { 
-            id: user.id, 
-            email: user.email, 
-            firstName: user.firstName, 
-            lastName: user.lastName 
-          } 
+      res.json({ 
+        success: true, 
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          firstName: user.firstName, 
+          lastName: user.lastName 
+        } 
         });
       });
       

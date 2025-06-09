@@ -117,6 +117,7 @@ export interface IStorage {
   
   // Reply.io campaign operations
   createReplyioCampaign(campaign: any): Promise<any>;
+  upsertReplyioCampaign(campaign: any): Promise<any>;
   getReplyioCampaigns(accountId: number): Promise<any[]>;
   getReplyioCampaign(id: number): Promise<any>;
   updateReplyioCampaign(id: number, updates: any): Promise<any>;
@@ -779,6 +780,66 @@ export class DatabaseStorage implements IStorage {
       .values(campaignData)
       .returning();
     return newCampaign;
+  }
+
+  // REF: Upsert campaign to handle existing campaigns during sync
+  async upsertReplyioCampaign(campaign: any): Promise<any> {
+    await this.ensureInitialized();
+    const campaignData = {
+      ...campaign,
+      updatedAt: this.getCurrentTimestamp(),
+    };
+
+    if (process.env.NODE_ENV === 'development') {
+      // REF: SQLite doesn't support onConflictDoUpdate for composite keys, use manual upsert
+      const existingCampaign = await db
+        .select()
+        .from(replyioCampaigns)
+        .where(and(
+          eq(replyioCampaigns.accountId, campaign.accountId),
+          eq(replyioCampaigns.campaignId, campaign.campaignId)
+        ))
+        .limit(1);
+
+      if (existingCampaign.length > 0) {
+        const [updatedCampaign] = await db
+          .update(replyioCampaigns)
+          .set(campaignData)
+          .where(eq(replyioCampaigns.id, existingCampaign[0].id))
+          .returning();
+        return updatedCampaign;
+      } else {
+        const campaignDataWithCreated = {
+          ...campaignData,
+          createdAt: this.getCurrentTimestamp(),
+        };
+        const [newCampaign] = await db
+          .insert(replyioCampaigns)
+          .values(campaignDataWithCreated)
+          .returning();
+        return newCampaign;
+      }
+    } else {
+      // REF: PostgreSQL supports proper upsert with composite key
+      const campaignDataWithCreated = {
+        ...campaignData,
+        createdAt: this.getCurrentTimestamp(),
+      };
+
+      const [upsertedCampaign] = await db
+        .insert(replyioCampaigns)
+        .values(campaignDataWithCreated)
+        .onConflictDoUpdate({
+          target: [replyioCampaigns.accountId, replyioCampaigns.campaignId],
+          set: {
+            campaignName: campaignData.campaignName,
+            campaignStatus: campaignData.campaignStatus,
+            updatedAt: campaignData.updatedAt,
+          },
+        })
+        .returning();
+      return upsertedCampaign;
+    }
   }
 
   async getReplyioCampaigns(accountId: number): Promise<any[]> {

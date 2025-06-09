@@ -1740,21 +1740,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const apiKey = replyIoService.decryptApiKey(existingAccount.apiKey);
       const liveCampaigns = await replyIoService.getCampaigns(apiKey);
 
-      // REF: Sync campaigns to database
+      // REF: Sync campaigns to database using upsert to handle existing campaigns
       const syncedCampaigns = [];
       for (const campaign of liveCampaigns) {
         try {
-          const newCampaign = await storage.createReplyioCampaign({
+          const upsertedCampaign = await storage.upsertReplyioCampaign({
             accountId: parseInt(accountId),
             campaignId: campaign.id,
             campaignName: campaign.name,
             campaignStatus: campaign.status,
             isDefault: false,
           });
-          syncedCampaigns.push(newCampaign);
+          syncedCampaigns.push(upsertedCampaign);
+          console.log(`✅ Upserted campaign: ${campaign.name} (ID: ${campaign.id})`);
         } catch (error) {
-          // REF: Campaign might already exist, skip
-          console.log(`Campaign ${campaign.id} already exists, skipping`);
+          console.error(`❌ Failed to upsert campaign ${campaign.id} (${campaign.name}):`, error);
         }
       }
 

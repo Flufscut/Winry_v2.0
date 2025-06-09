@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You have access to Railway, Github, and n8n logs as well as the app's own logs. You can access any combination of these at any point to test and debug. You also have access to Github and Railway MCP's as well as Puppeteer for testing.
