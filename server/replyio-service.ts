@@ -83,19 +83,6 @@ interface ReplyIoCampaign {
   createdAt: string;
   updatedAt: string;
   settings?: any;
-  // REF: Add owner information if available from Reply.io API
-  owner?: {
-    id?: number;
-    name?: string;
-    email?: string;
-    firstName?: string;
-    lastName?: string;
-  };
-  ownerId?: number;
-  ownerName?: string;
-  ownerEmail?: string;
-  createdBy?: string;
-  assignedTo?: string;
 }
 
 /**
@@ -428,6 +415,16 @@ export class ReplyIoService {
    * - Returns structured error response
    */
   async validateConnection(apiKey: string): Promise<ReplyIoResponse> {
+    // REF: TESTING MODE - Return success for test API key
+    if (apiKey === 'TEST_MULTIPLE_CAMPAIGNS_KEY') {
+      console.log('🧪 [TEST MODE] Validating test API key - returning success');
+      return {
+        success: true,
+        message: 'Test connection successful',
+        data: { campaignsFound: 5 },
+      };
+    }
+
     // REF: Try multiple authentication methods to determine which one Reply.io uses
     const authMethods = [
       {
@@ -772,6 +769,48 @@ export class ReplyIoService {
    */
   async getCampaigns(apiKey: string): Promise<ReplyIoCampaign[]> {
     try {
+      // REF: TESTING MODE - Return mock campaigns for test API key
+      if (apiKey === 'TEST_MULTIPLE_CAMPAIGNS_KEY') {
+        console.log('🧪 [TEST MODE] Returning mock campaigns for testing');
+        return [
+          {
+            id: 1001,
+            name: "Test Marketing Campaign",
+            status: "2", // Active
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: 1002,
+            name: "Test Sales Outreach",
+            status: "1", // Paused
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: 1003,
+            name: "Test Follow-up Sequence",
+            status: "2", // Active
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: 1004,
+            name: "Test LinkedIn Outreach",
+            status: "0", // Inactive
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          },
+          {
+            id: 1005,
+            name: "Test Cold Email Campaign",
+            status: "2", // Active
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }
+        ];
+      }
+
       const response = await fetch(`${REPLY_IO_BASE_URL}/campaigns`, {
         method: 'GET',
         headers: {
@@ -792,48 +831,19 @@ export class ReplyIoService {
         }
         console.log('=== END REPLY.IO DEBUG ===');
         
-                return data.map((campaign: any) => {
+        return data.map((campaign: any) => {
           // REF: Create clean campaign object with only essential fields
-          const cleanCampaign: ReplyIoCampaign = {
-            id: campaign.id,
-            name: campaign.name,
-            status: campaign.status,
-            createdAt: campaign.createdAt,
-            updatedAt: campaign.updatedAt,
-            settings: campaign.settings,
+          const cleanCampaign = {
+          id: campaign.id,
+          name: campaign.name,
+          status: campaign.status,
+          createdAt: campaign.createdAt,
+          updatedAt: campaign.updatedAt,
+          settings: campaign.settings,
             // REF: Explicitly exclude performance metrics from campaign data
             // This ensures no performance data leaks into the settings UI
             // Performance metrics should only be accessed via getCampaignStatistics()
           };
-
-          // REF: Add owner information if available from Reply.io API
-          // Common owner field patterns in Reply.io API
-          if (campaign.owner) {
-            cleanCampaign.owner = {
-              id: campaign.owner.id,
-              name: campaign.owner.name || `${campaign.owner.firstName || ''} ${campaign.owner.lastName || ''}`.trim(),
-              email: campaign.owner.email,
-              firstName: campaign.owner.firstName,
-              lastName: campaign.owner.lastName,
-            };
-          } else if (campaign.ownerId || campaign.ownerName || campaign.ownerEmail) {
-            cleanCampaign.ownerId = campaign.ownerId;
-            cleanCampaign.ownerName = campaign.ownerName;
-            cleanCampaign.ownerEmail = campaign.ownerEmail;
-          } else if (campaign.createdBy) {
-            cleanCampaign.createdBy = campaign.createdBy;
-          } else if (campaign.assignedTo) {
-            cleanCampaign.assignedTo = campaign.assignedTo;
-          } else if (campaign.user) {
-            // Some APIs use 'user' field for owner
-            cleanCampaign.owner = {
-              id: campaign.user.id,
-              name: campaign.user.name || `${campaign.user.firstName || ''} ${campaign.user.lastName || ''}`.trim(),
-              email: campaign.user.email,
-              firstName: campaign.user.firstName,
-              lastName: campaign.user.lastName,
-            };
-          }
           
           // REF: Debug log the cleaned campaign object
           console.log('Cleaned campaign object:', JSON.stringify(cleanCampaign, null, 2));
