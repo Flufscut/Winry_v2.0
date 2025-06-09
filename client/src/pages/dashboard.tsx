@@ -147,6 +147,24 @@ export default function Dashboard() {
   // Fetch prospects with search and filter - filtered by campaign if selected
   const { data: prospects, isLoading: prospectsLoading, refetch: refetchProspects } = useQuery({
     queryKey: ["/api/prospects", searchQuery, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.append('search', searchQuery);
+      if (statusFilter && statusFilter !== 'all') params.append('status', statusFilter);
+      
+      const url = `/api/prospects${params.toString() ? `?${params.toString()}` : ''}`;
+      console.log('🔍 Making prospects API call to:', url);
+      
+      const response = await apiRequest('GET', url);
+      const data = await response.json();
+      
+      console.log('📊 Prospects API response:', {
+        count: Array.isArray(data) ? data.length : 'not array',
+        data: Array.isArray(data) ? data.slice(0, 2) : data
+      });
+      
+      return data;
+    },
     retry: false,
     enabled: !!user,
   });
