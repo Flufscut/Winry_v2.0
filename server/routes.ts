@@ -586,15 +586,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         console.log(`🔍 Campaign filtered prospects: ${prospects.length} found for campaign ${campaignId}`);
       } else {
-        // REF: Use client-filtered search for workspace isolation
-        prospects = await storage.searchProspects(
-          userId,
-          search as string,
-          status === "all" ? undefined : status as string,
-          currentClientId // REF: Pass clientId for workspace isolation
-        );
-        
-        console.log(`🔍 Workspace filtered prospects: ${prospects.length} found for user ${userId} in client ${currentClientId}`);
+        // REF: FIXED - Use fallback logic to ensure prospects are always visible
+        if (currentClientId) {
+          // REF: Use client-filtered search for workspace isolation when client is set
+          prospects = await storage.searchProspects(
+            userId,
+            search as string,
+            status === "all" ? undefined : status as string,
+            currentClientId // REF: Pass clientId for workspace isolation
+          );
+          
+          console.log(`🔍 Workspace filtered prospects: ${prospects.length} found for user ${userId} in client ${currentClientId}`);
+        } else {
+          // REF: FALLBACK - If no client is set, show ALL user prospects to prevent empty state
+          console.log('⚠️ No currentClientId found, falling back to show all user prospects');
+          const allUserProspects = await storage.getProspectsByUser(userId);
+          
+          // REF: Apply search and status filters manually
+          prospects = allUserProspects.filter(prospect => {
+            let matchesSearch = true;
+            let matchesStatus = true;
+            
+            if (search) {
+              const searchLower = search.toLowerCase();
+              matchesSearch = 
+                prospect.firstName.toLowerCase().includes(searchLower) ||
+                prospect.lastName.toLowerCase().includes(searchLower) ||
+                prospect.company.toLowerCase().includes(searchLower) ||
+                prospect.email.toLowerCase().includes(searchLower);
+            }
+            
+            if (status && status !== 'all') {
+              matchesStatus = prospect.status === status;
+            }
+            
+            return matchesSearch && matchesStatus;
+          });
+          
+          console.log(`🔍 Fallback: ${prospects.length} prospects found (showing all user prospects)`);
+        }
       }
       
       // DEBUG: Log prospect summary for debugging
@@ -609,10 +639,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })));
       } else {
         console.log('🔍 No prospects found - checking total prospects for this user...');
-        const allUserProspects = await storage.getProspectsByUser(userId);
-        console.log(`🔍 Total prospects for user ${userId}: ${allUserProspects.length}`);
-        if (allUserProspects.length > 0) {
-          console.log('🔍 User prospects by workspace:', allUserProspects.reduce((acc, p) => {
+        const debugAllUserProspects = await storage.getProspectsByUser(userId);
+        console.log(`🔍 Total prospects for user ${userId}: ${debugAllUserProspects.length}`);
+        if (debugAllUserProspects.length > 0) {
+          console.log('🔍 User prospects by workspace:', debugAllUserProspects.reduce((acc, p) => {
             acc[p.clientId] = (acc[p.clientId] || 0) + 1;
             return acc;
           }, {}));
