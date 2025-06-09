@@ -137,36 +137,104 @@ export function ReplyIoAdvancedAnalytics() {
   });
 
   // REF: Fetch advanced analytics data
-  const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useQuery<{
+  const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics, error: analyticsError } = useQuery<{
     success: boolean;
     analytics: AdvancedAnalytics;
     accountName: string;
     lastUpdated: string;
   }>({
     queryKey: ["/api/reply-io/analytics/advanced"],
-    retry: false,
+    queryFn: async () => {
+      console.log('[REPLY.IO ADVANCED] Fetching advanced analytics...');
+      const response = await fetch('/api/reply-io/analytics/advanced');
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('Reply.io API rate limit reached. Please try again later.');
+        }
+        throw new Error(`Failed to fetch advanced analytics: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('[REPLY.IO ADVANCED] Analytics result:', result);
+      return result;
+    },
+    retry: (failureCount, error) => {
+      // Don't retry on rate limit errors
+      if (error?.message?.includes('rate limit')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
   });
 
   // REF: Fetch performance report
-  const { data: reportData, isLoading: reportLoading, refetch: refetchReport } = useQuery<{
+  const { data: reportData, isLoading: reportLoading, refetch: refetchReport, error: reportError } = useQuery<{
     success: boolean;
     report: PerformanceReport;
     accountName: string;
   }>({
     queryKey: ["/api/reply-io/analytics/performance-report"],
-    retry: false,
+    queryFn: async () => {
+      console.log('[REPLY.IO ADVANCED] Fetching performance report...');
+      const response = await fetch('/api/reply-io/analytics/performance-report');
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('Reply.io API rate limit reached. Please try again later.');
+        }
+        throw new Error(`Failed to fetch performance report: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('[REPLY.IO ADVANCED] Report result:', result);
+      return result;
+    },
+    retry: (failureCount, error) => {
+      // Don't retry on rate limit errors
+      if (error?.message?.includes('rate limit')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
+    staleTime: 30 * 60 * 1000, // 30 minutes
   });
 
   // REF: Fetch optimization recommendations for selected campaign
-  const { data: optimizationData, isLoading: optimizationLoading } = useQuery<{
+  const { data: optimizationData, isLoading: optimizationLoading, error: optimizationError } = useQuery<{
     success: boolean;
     recommendations: OptimizationRecommendations;
     accountName: string;
     lastUpdated: string;
   }>({
     queryKey: ["/api/reply-io/campaigns", selectedCampaignId, "optimization"],
-    retry: false,
+    queryFn: async () => {
+      if (!selectedCampaignId) return null;
+      
+      console.log('[REPLY.IO ADVANCED] Fetching optimization recommendations...');
+      const response = await fetch(`/api/reply-io/campaigns/${selectedCampaignId}/optimization`);
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('Reply.io API rate limit reached. Please try again later.');
+        }
+        throw new Error(`Failed to fetch optimization recommendations: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('[REPLY.IO ADVANCED] Optimization result:', result);
+      return result;
+    },
+    retry: (failureCount, error) => {
+      // Don't retry on rate limit errors
+      if (error?.message?.includes('rate limit')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
     enabled: !!selectedCampaignId,
+    staleTime: 30 * 60 * 1000, // 30 minutes
   });
 
   // REF: Handle refresh all data

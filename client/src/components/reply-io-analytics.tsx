@@ -86,18 +86,60 @@ export function ReplyIoAnalytics() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   // Fetch overall Reply.io statistics - OPTIMIZED FOR RATE LIMITING
-  const { data: overallStats, isLoading: statsLoading, refetch: refetchStats } = useQuery<ApiResponse>({
+  const { data: overallStats, isLoading: statsLoading, refetch: refetchStats, error: statsError } = useQuery<ApiResponse>({
     queryKey: ["/api/reply-io/statistics", refreshKey],
-    retry: false,
+    queryFn: async () => {
+      console.log('[REPLY.IO ANALYTICS] Fetching overall statistics...');
+      const response = await fetch('/api/reply-io/statistics');
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('Reply.io API rate limit reached. Please try again later.');
+        }
+        throw new Error(`Failed to fetch Reply.io statistics: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('[REPLY.IO ANALYTICS] Statistics result:', result);
+      return result;
+    },
+    retry: (failureCount, error) => {
+      // Don't retry on rate limit errors
+      if (error?.message?.includes('rate limit')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
     enabled: true,
     staleTime: 30 * 60 * 1000, // 30 minutes - reduced to prevent rate limiting
     refetchInterval: false, // Disable auto-refresh
   });
 
   // Fetch all campaigns - OPTIMIZED FOR RATE LIMITING
-  const { data: campaignsData, isLoading: campaignsLoading } = useQuery<ApiResponse>({
+  const { data: campaignsData, isLoading: campaignsLoading, error: campaignsError } = useQuery<ApiResponse>({
     queryKey: ["/api/reply-io/campaigns", refreshKey],
-    retry: false,
+    queryFn: async () => {
+      console.log('[REPLY.IO ANALYTICS] Fetching campaigns...');
+      const response = await fetch('/api/reply-io/campaigns');
+      
+      if (!response.ok) {
+        if (response.status === 429) {
+          throw new Error('Reply.io API rate limit reached. Please try again later.');
+        }
+        throw new Error(`Failed to fetch Reply.io campaigns: ${response.statusText}`);
+      }
+      
+      const result = await response.json();
+      console.log('[REPLY.IO ANALYTICS] Campaigns result:', result);
+      return result;
+    },
+    retry: (failureCount, error) => {
+      // Don't retry on rate limit errors
+      if (error?.message?.includes('rate limit')) {
+        return false;
+      }
+      return failureCount < 2;
+    },
     enabled: true,
     staleTime: 60 * 60 * 1000, // 1 hour - campaigns change very rarely
     refetchInterval: false, // Disable auto-refresh
@@ -107,6 +149,10 @@ export function ReplyIoAnalytics() {
     setRefreshKey(prev => prev + 1);
     refetchStats();
   };
+
+  // Handle rate limit and other errors
+  const isRateLimited = statsError?.message?.includes('rate limit') || campaignsError?.message?.includes('rate limit');
+  const hasApiError = !!(statsError || campaignsError);
 
   if (statsLoading || campaignsLoading) {
     return (
@@ -124,6 +170,51 @@ export function ReplyIoAnalytics() {
           ))}
         </div>
       </div>
+    );
+  }
+
+  // Rate limit error handling
+  if (isRateLimited) {
+    return (
+      <Card className="command-card">
+        <CardContent className="p-6 text-center">
+          <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white mb-2">Reply.io API Rate Limited</h3>
+          <p className="text-muted-foreground mb-4">
+            Reply.io API is temporarily rate limited. Analytics will be available once the rate limit resets.
+          </p>
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+          <div className="mt-4 flex items-center justify-center gap-2 text-sm text-green-400">
+            <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+            <span>Account configured: Test</span>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Rate limits typically reset within 15-60 minutes
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // Other API errors
+  if (hasApiError && !isRateLimited) {
+    return (
+      <Card className="command-card">
+        <CardContent className="p-6 text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-white mb-2">API Error</h3>
+          <p className="text-muted-foreground mb-4">
+            {statsError?.message || campaignsError?.message || 'Failed to fetch Reply.io data'}
+          </p>
+          <Button onClick={handleRefresh} variant="outline" size="sm">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Try Again
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
