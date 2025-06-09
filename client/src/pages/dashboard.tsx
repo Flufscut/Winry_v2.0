@@ -28,6 +28,7 @@ const ProspectTableEnhanced = React.lazy(() => import("@/components/prospect-tab
 const SettingsMenu = React.lazy(() => import("@/components/settings-menu"));
 const CommandCenterDashboard = React.lazy(() => import("@/components/analytics-dashboard").then(module => ({ default: module.CommandCenterDashboard })));
 const CacheMonitoringDashboard = React.lazy(() => import("@/components/cache-monitoring-dashboard"));
+const N8nMonitoring = React.lazy(() => import("@/components/n8n-monitoring"));
 
 // REF: Keep lightweight components as regular imports
 import { ReplyIoSettings } from "@/components/reply-io-settings";
@@ -579,6 +580,7 @@ export default function Dashboard() {
                   {[
                     { id: 'analytics', label: 'Pipeline Analytics', shortLabel: 'Pipeline', icon: TrendingUp },
                     { id: 'reply-analytics', label: 'Reply.io Analytics', shortLabel: 'Reply.io', icon: Target },
+                    { id: 'n8n-monitoring', label: 'n8n Monitoring', shortLabel: 'n8n', icon: Brain },
                     { id: 'cache-monitoring', label: 'Cache Monitoring', shortLabel: 'Cache', icon: Activity },
                     { id: 'prospects', label: 'Prospect Management', shortLabel: 'Prospects', icon: Users },
                     { id: 'upload', label: 'Upload Prospects', shortLabel: 'Upload', icon: Upload },
@@ -600,6 +602,7 @@ export default function Dashboard() {
               {[
                 { id: 'analytics', label: 'Pipeline Analytics', shortLabel: 'Pipeline', icon: TrendingUp },
                 { id: 'reply-analytics', label: 'Reply.io Analytics', shortLabel: 'Reply.io', icon: Target },
+                { id: 'n8n-monitoring', label: 'n8n Monitoring', shortLabel: 'n8n', icon: Brain },
                 { id: 'cache-monitoring', label: 'Cache Monitoring', shortLabel: 'Cache', icon: Activity },
                 { id: 'prospects', label: 'Prospect Management', shortLabel: 'Prospects', icon: Users },
                 { id: 'upload', label: 'Upload Prospects', shortLabel: 'Upload', icon: Upload },
@@ -658,6 +661,20 @@ export default function Dashboard() {
               <div className="space-y-6">
                 <ReplyIoAdvancedAnalytics />
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'n8n-monitoring' && (
+            <motion.div
+              key="n8n-monitoring"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.3 }}
+            >
+              <Suspense fallback={<LazyLoadingSpinner />}>
+                <N8nMonitoring />
+              </Suspense>
             </motion.div>
           )}
 

@@ -31,6 +31,11 @@ JWT_SECRET=1976f936a9d1cc2bdcb5c985cfa44b1b224611b4630b3a25020dab049e42c539
 # Replace with your actual n8n instance webhook URL
 N8N_WEBHOOK_URL=https://your-n8n-instance.app.n8n.cloud/webhook/your-webhook-id
 
+# n8n API Integration for Real-Time Monitoring
+# REF: Required for tracking workflow executions and debugging
+N8N_API_BASE_URL=https://salesleopard.app.n8n.cloud
+N8N_API_KEY=your_n8n_api_key_here
+
 # ========================================
 # APPLICATION CONFIGURATION
 # ========================================

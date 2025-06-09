@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Be sure to update [MASTER_PROMPT.md](mdc:MASTER_PROMPT.md), [PROJECT_STRUCTURE_ANALYSIS.md](mdc:PROJECT_STRUCTURE_ANALYSIS.md), [Winry_AI_PRD.md](mdc:Winry_AI_PRD.md), [README.md](mdc:README.md), and [DEPLOYMENT_GUIDE.md](mdc:DEPLOYMENT_GUIDE.md) when necessary after each significant milestone.

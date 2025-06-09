@@ -14,16 +14,17 @@
 ```
 
 ### 2. Context Establishment
-- **Current Task**: Identify from STATUS.md what is currently being worked on
-- **Dependencies**: Check if prerequisites are completed
-- **Scope**: Understand the specific acceptance criteria
-- **Priority**: Confirm task priority and effort estimation
+- **Current Task**: Fix n8n webhook integration in Railway production
+- **Dependencies**: All core features complete and working locally
+- **Scope**: Restore end-to-end workflow functionality in production
+- **Priority**: CRITICAL - Core functionality broken in production
 
 ### 3. Development Environment Check
-- Verify server is running (`http://localhost:5001`)
-- Confirm database is accessible (SQLite for local dev)
-- Check that authentication is working (auto-login for dev)
-- Ensure n8n webhook endpoint is configured
+- Verify server is running (`http://localhost:5001` for local dev)
+- Production URL: `https://winrybysl-production.up.railway.app/`
+- Confirm database is accessible (SQLite for local dev, PostgreSQL for production)
+- Check that authentication is working (Google OAuth + manual auth)
+- Ensure n8n webhook endpoint is configured (currently broken in production)
 
 ---
 
@@ -77,8 +78,8 @@
 3. **Add inline reference comments**:
 ```typescript
 // REF: This connects to the prospect research workflow in n8n
-// REF: User authentication is handled by auth-local.ts for development
-// REF: Database operations use Drizzle ORM with SQLite for local dev
+// REF: User authentication is handled by auth-multi-user.ts
+// REF: Database operations use Drizzle ORM with environment-specific database
 ```
 
 ### Phase 3: Testing & Validation
@@ -111,8 +112,8 @@
 │  ├─ server/index.ts - Server entry point
 │  ├─ server/routes.ts - API endpoints and business logic
 │  ├─ server/storage.ts - Database operations layer
-│  ├─ server/auth-local.ts - Local development authentication
-│  └─ server/db-local.ts - SQLite database configuration
+│  ├─ server/auth-multi-user.ts - Multi-user authentication system
+│  └─ server/db.ts - Unified database configuration
 │
 ├─ Shared
 │  └─ shared/schema.ts - Database schema and validation
@@ -125,22 +126,36 @@
 
 ### Business Logic Flow (Always Reference)
 ```
-1. User Authentication (auth-local.ts) → Auto-login for development
+WORKING ON LOCALHOST:5001:
+1. User Authentication (auth-multi-user.ts) → Google OAuth or manual login
 2. Prospect Creation (routes.ts) → Validates data → Stores in DB (storage.ts)
 3. Research Trigger (routes.ts) → Sends to n8n webhook → Processes AI research
 4. Webhook Response (routes.ts) → Receives research results → Updates prospect
 5. Dashboard Display (dashboard.tsx) → Shows prospects and research results
+6. Reply.io Integration → Sends selected prospects to campaigns
+
+BROKEN IN PRODUCTION:
+- Step 3: n8n webhook not receiving prospects from Railway
+- Step 4: No research results being returned
+- Result: Core functionality broken
 ```
 
 ### Database Schema (Always Reference)
 ```sql
--- REF: Current schema is SQLite-compatible for local development
--- REF: Production will use PostgreSQL with same structure
+-- REF: Environment-specific database configuration
+-- REF: SQLite for local development, PostgreSQL for production
 
-users: id, email, first_name, last_name, profile_image_url, created_at, updated_at
-prospects: id, user_id, first_name, last_name, company, title, email, linkedin_url, 
-          status, research_results, webhook_payload, error_message, created_at, updated_at
-csv_uploads: id, user_id, file_name, total_rows, processed_rows, status, created_at, updated_at
+users: id, email, first_name, last_name, profile_image_url, password_hash, 
+       oauth_provider, oauth_id, created_at, updated_at
+clients: id, name, is_active, created_at, updated_at
+prospects: id, user_id, client_id, first_name, last_name, company, title, email, 
+          linkedin_url, status, research_results, webhook_payload, error_message, 
+          reply_io_campaign_id, created_at, updated_at
+csv_uploads: id, user_id, client_id, file_name, total_rows, processed_rows, 
+            status, created_at, updated_at
+replyio_accounts: id, user_id, client_id, account_name, api_key, is_default, 
+                 created_at, updated_at
+replyio_campaigns: id, account_id, campaign_id, campaign_name, created_at, updated_at
 sessions: sid, sess, expire
 ```
 
@@ -215,30 +230,42 @@ app.post('/api/endpoint', isAuthenticated, async (req: any, res) => {
 
 ### Local Development Setup (Always Reference)
 ```bash
-# Current working directory: /Users/petemcgraw/Downloads/Winry.AI
+# Current working directory: /Users/petemcgraw/Downloads/ProspectPro
 # Database: SQLite (local.db file)
 # Server: http://localhost:5001
-# Authentication: Auto-login with mock user (dev@local.com)
-# External Services: n8n webhook (configured in routes.ts)
+# Authentication: Google OAuth + manual auth
+# External Services: n8n webhook (working locally, broken in production)
+```
+
+### Production Setup (Railway)
+```bash
+# URL: https://winrybysl-production.up.railway.app/
+# Database: PostgreSQL on Railway
+# Authentication: Google OAuth + manual auth (working)
+# n8n Integration: BROKEN - needs fix
+# Reply.io: Working
 ```
 
 ### Database Configuration (Always Reference)
 ```typescript
+// REF: Environment-specific database configuration
 // REF: Local development uses SQLite for simplicity
-// REF: Production will use PostgreSQL via Neon
+// REF: Production uses PostgreSQL on Railway
 // REF: Schema is defined in shared/schema.ts
-// REF: Local config is in server/db-local.ts
+// REF: Database config is in server/db.ts
 // REF: ORM operations are in server/storage.ts
 ```
 
 ### External Integrations (Always Reference)
 ```typescript
 // REF: n8n Webhook URL for AI research processing
-const WEBHOOK_URL = "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-4154-84c1-c0e3a2ca572e";
+const WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 
+  "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-4154-84c1-c0e3a2ca572e";
 
 // REF: Webhook receives prospect data and returns research results
 // REF: Results include: company info, pain points, personalized email content
 // REF: Error handling includes retries and timeout management
+// CRITICAL: Currently broken in Railway production - needs fix
 ```
 
 ---
@@ -246,22 +273,31 @@ const WEBHOOK_URL = "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-41
 ## 🚀 CURRENT PROJECT STATE (Always Reference Before Starting)
 
 ### ✅ What's Working
-- Basic CRUD operations for prospects
-- Authentication system (development mode)
+- Complete end-to-end workflow on localhost:5001
+- Authentication system (Google OAuth + manual)
 - CSV upload with column mapping
-- n8n integration for AI research
-- SQLite database with proper schema
+- Prospect CRUD operations
+- Reply.io integration
+- PostgreSQL database in production
 - React frontend with shadcn/ui components
-- Dashboard with basic prospect management
+- Dashboard with prospect management
+
+### 🔴 What's Broken
+- **n8n webhook integration in Railway production**
+- Prospects not being sent for AI research
+- No research results being received
+- Core functionality blocked
 
 ### 🔄 What's In Progress
-- **Check STATUS.md for current active task**
+- **Fixing n8n webhook connection in production**
+- Debugging webhook payload and connectivity
+- Testing production webhook endpoints
 
 ### 🎯 Immediate Priorities (From STATUS.md)
-1. Database Schema Optimization
-2. Enhanced Prospect Management
-3. Research Quality & Reliability
-4. User Experience Improvements
+1. Fix n8n webhook integration in production
+2. Restore end-to-end workflow functionality
+3. Add comprehensive webhook logging
+4. Document production configuration requirements
 
 ---
 
@@ -296,17 +332,27 @@ const WEBHOOK_URL = "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-41
 ## 🔍 DEBUGGING & TROUBLESHOOTING
 
 ### Common Issues Reference
-1. **Database Connection**: Check SQLite file exists and permissions
-2. **Authentication**: Verify auto-login is working (check console logs)
-3. **API Endpoints**: Confirm server is running on port 5001
-4. **n8n Integration**: Check webhook URL and payload format
+1. **n8n Webhook Connection**: Check webhook URL configuration and logs
+2. **Database Connection**: Verify environment-specific database is running
+3. **Authentication**: Check session management and OAuth configuration
+4. **API Endpoints**: Confirm server is running on correct port
 5. **Frontend State**: Use React DevTools for state debugging
 
+### Current Critical Issue
+- **n8n Integration Broken**: Webhook not working in Railway production
+- **Symptoms**: Prospects created but not sent for research
+- **Impact**: Entire workflow blocked
+- **Debug Steps**:
+  1. Check Railway logs for webhook errors
+  2. Test webhook connectivity with curl
+  3. Verify n8n accepts Railway URL
+  4. Check payload format matches expectations
+
 ### Error Patterns to Watch For
-- **Database Schema Mismatches**: SQLite vs PostgreSQL syntax differences
-- **Authentication Failures**: Development bypass not working
 - **Webhook Timeouts**: Long-running n8n research processes
-- **CSV Upload Issues**: Data validation and parsing errors
+- **CORS Issues**: Railway may have different CORS settings
+- **Environment Variables**: Ensure all are set in Railway
+- **Network Restrictions**: Railway firewall or network policies
 
 ---
 
@@ -322,7 +368,8 @@ const WEBHOOK_URL = "https://salesleopard.app.n8n.cloud/webhook/baa30a41-a24c-41
 - **shadcn/ui**: Component library documentation
 - **React Query**: State management for server data
 - **n8n**: Webhook integration and workflow automation
+- **Railway**: Deployment and environment configuration
 
 ---
 
-**Remember: This prompt should be referenced before every development session to maintain context and ensure consistent progress toward project goals.** 
+**Remember: The core functionality was fully working on localhost:5001. The current critical issue is restoring n8n webhook integration in Railway production deployment.** 

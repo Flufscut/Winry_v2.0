@@ -2,6 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { updateProspectN8nExecution, getProspectsByStatus } from './storage';
 import { setupAuth, requireAuth, addDevLoginEndpoint } from "./auth-simple";
 import { replyIoService } from "./replyio-service";
 import { replyIoCachedService } from "./reply-io-cached-service";
@@ -43,6 +44,8 @@ console.log('✅ Schema initialized:', {
   insertProspectSchema: typeof insertProspectSchema,
   insertClientSchema: typeof insertClientSchema 
 });
+
+
 
 // REF: Function to send prospects to n8n for research processing
 async function processBatchResearch(prospects: Array<{id: number, data: any}>, batchSize: number) {
@@ -3944,3 +3947,512 @@ URL: ${req.url}
   // REF: Return the server instance as expected by index.ts
   return server;
 }
+
+/**
+ * FILE: routes.ts - n8n API Integration for Real-Time Tracking
+ * PURPOSE: Add n8n API integration to track prospect research workflow executions
+ * LAST_UPDATED: June 8, 2025
+ * 
+ * REF: This integrates with n8n Cloud API to provide real-time execution tracking
+ * REF: Helps debug webhook issues and monitor research progress
+ */
+
+// REF: n8n API configuration for tracking workflow executions
+const N8N_API_BASE_URL = process.env.N8N_API_BASE_URL || 'https://salesleopard.app.n8n.cloud';
+const N8N_API_KEY = process.env.N8N_API_KEY || ''; // REF: Set this in Railway environment variables
+
+/**
+ * REF: n8n API client for tracking workflow executions
+ * PURPOSE: Provides real-time monitoring of prospect research workflows
+ * @param {string} endpoint - API endpoint path
+ * @param {Object} options - Request options
+ * @returns {Promise<Object>} - API response data
+ */
+async function callN8nApi(endpoint: string, options: any = {}) {
+  try {
+    const url = `${N8N_API_BASE_URL}/api/v1${endpoint}`;
+    console.log(`[N8N API] Calling: ${url}`);
+    
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        'X-N8N-API-KEY': N8N_API_KEY,
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`[N8N API] Error ${response.status}: ${response.statusText}`);
+      throw new Error(`n8n API error: ${response.status} ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log(`[N8N API] Success:`, data);
+    return data;
+  } catch (error) {
+    console.error('[N8N API] Request failed:', error);
+    throw error;
+  }
+}
+
+/**
+ * REF: Get all workflow executions with filtering and pagination
+ * PURPOSE: Track execution history and current status of prospect research
+ * @param {Object} filters - Execution filters (status, workflowId, etc.)
+ * @returns {Promise<Array>} - Array of execution objects
+ */
+async function getN8nExecutions(filters: any = {}) {
+  const queryParams = new URLSearchParams();
+  
+  // REF: Common filters for prospect research tracking
+  if (filters.status) queryParams.append('status', filters.status);
+  if (filters.workflowId) queryParams.append('workflowId', filters.workflowId);
+  if (filters.limit) queryParams.append('limit', filters.limit.toString());
+  if (filters.offset) queryParams.append('offset', filters.offset.toString());
+  
+  const endpoint = `/executions?${queryParams.toString()}`;
+  return await callN8nApi(endpoint);
+}
+
+/**
+ * REF: Get specific execution details including input/output data
+ * PURPOSE: Detailed debugging information for failed or completed research
+ * @param {string} executionId - n8n execution ID
+ * @returns {Promise<Object>} - Detailed execution data
+ */
+async function getN8nExecutionDetails(executionId: string) {
+  return await callN8nApi(`/executions/${executionId}`);
+}
+
+/**
+ * REF: Get currently running executions
+ * PURPOSE: Real-time monitoring of active prospect research workflows
+ * @returns {Promise<Array>} - Array of currently running executions
+ */
+async function getCurrentN8nExecutions() {
+  return await callN8nApi('/executions-current');
+}
+
+/**
+ * REF: Get all workflows to identify our prospect research workflow
+ * PURPOSE: Find the correct workflow ID for prospect research
+ * @returns {Promise<Array>} - Array of workflow objects
+ */
+async function getN8nWorkflows() {
+  return await callN8nApi('/workflows');
+}
+
+// REF: API endpoint to get n8n execution status for prospects
+app.get('/api/n8n/executions', isAuthenticated, async (req: any, res) => {
+  try {
+    console.log('[N8N API] Getting executions...');
+    
+    const { status, limit = 50, offset = 0 } = req.query;
+    
+    const filters = {
+      status,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    };
+    
+    const executions = await getN8nExecutions(filters);
+    
+    res.json({
+      success: true,
+      data: executions,
+      message: 'n8n executions retrieved successfully'
+    });
+  } catch (error) {
+    console.error('[N8N API] Error getting executions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get n8n executions',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: API endpoint to get specific execution details
+app.get('/api/n8n/executions/:executionId', isAuthenticated, async (req: any, res) => {
+  try {
+    const { executionId } = req.params;
+    console.log(`[N8N API] Getting execution details for: ${executionId}`);
+    
+    const execution = await getN8nExecutionDetails(executionId);
+    
+    res.json({
+      success: true,
+      data: execution,
+      message: 'Execution details retrieved successfully'
+    });
+  } catch (error) {
+    console.error('[N8N API] Error getting execution details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get execution details',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: API endpoint to get currently running executions
+app.get('/api/n8n/executions/current', isAuthenticated, async (req: any, res) => {
+  try {
+    console.log('[N8N API] Getting current executions...');
+    
+    const currentExecutions = await getCurrentN8nExecutions();
+    
+    res.json({
+      success: true,
+      data: currentExecutions,
+      message: 'Current executions retrieved successfully'
+    });
+  } catch (error) {
+    console.error('[N8N API] Error getting current executions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get current executions',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: API endpoint to get all workflows
+app.get('/api/n8n/workflows', isAuthenticated, async (req: any, res) => {
+  try {
+    console.log('[N8N API] Getting workflows...');
+    
+    const workflows = await getN8nWorkflows();
+    
+    res.json({
+      success: true,
+      data: workflows,
+      message: 'Workflows retrieved successfully'
+    });
+  } catch (error) {
+    console.error('[N8N API] Error getting workflows:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get workflows',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: Enhanced prospect research tracking with n8n execution IDs
+app.put('/api/prospects/:id/n8n-execution', isAuthenticated, async (req: any, res) => {
+  try {
+    const { id } = req.params;
+    const { executionId, status } = req.body;
+    
+    console.log(`[N8N TRACKING] Updating prospect ${id} with execution ${executionId}, status: ${status}`);
+    
+    const result = await updateProspectN8nExecution(
+      parseInt(id),
+      req.user.id,
+      executionId,
+      status
+    );
+    
+    if (!result) {
+      return res.status(404).json({
+        success: false,
+        message: 'Prospect not found'
+      });
+    }
+    
+    res.json({
+      success: true,
+      data: result,
+      message: 'Prospect n8n execution updated successfully'
+    });
+  } catch (error) {
+    console.error('[N8N TRACKING] Error updating prospect execution:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update prospect n8n execution',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: API endpoint for real-time prospect research monitoring
+app.get('/api/prospects/monitoring/status', isAuthenticated, async (req: any, res) => {
+  try {
+    console.log('[MONITORING] Getting real-time prospect research status...');
+    
+    // REF: Get prospects currently being processed
+    const processingProspects = await getProspectsByStatus(req.user.id, 'processing');
+    
+    // REF: Get current n8n executions
+    const currentExecutions = await getCurrentN8nExecutions();
+    
+    // REF: Combine prospect data with n8n execution status
+    const monitoringData = {
+      processingProspects: processingProspects.length,
+      activeN8nExecutions: currentExecutions.data ? currentExecutions.data.length : 0,
+      prospects: processingProspects.map((prospect: any) => ({
+        id: prospect.id,
+        firstName: prospect.firstName,
+        lastName: prospect.lastName,
+        company: prospect.company,
+        status: prospect.status,
+        createdAt: prospect.createdAt,
+        n8nExecutionId: prospect.n8nExecutionId
+      })),
+      n8nExecutions: currentExecutions.data || []
+    };
+    
+    res.json({
+      success: true,
+      data: monitoringData,
+      message: 'Real-time monitoring data retrieved successfully'
+    });
+  } catch (error) {
+    console.error('[MONITORING] Error getting monitoring status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get monitoring status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+/**
+ * REF: Add n8n monitoring API endpoints
+ * PURPOSE: Provide API access to n8n execution tracking and monitoring
+ */
+
+// REF: Import n8n API functions
+import { 
+  getProspectMonitoringStatus,
+  getExecutions,
+  getExecutionDetails,
+  getActiveExecutions,
+  getWorkflows,
+  getExecutionAnalytics,
+  getExecutionDebugInfo,
+  trackProspectExecution
+} from './n8n-api.js';
+
+// REF: Prospect monitoring status endpoint
+app.get('/api/prospects/monitoring/status', requireAuth, async (req, res) => {
+  try {
+    console.log('[API] Getting prospect monitoring status');
+    
+    const monitoringData = await getProspectMonitoringStatus();
+    
+    res.json({
+      success: true,
+      data: monitoringData,
+      message: 'Monitoring status retrieved successfully'
+    });
+    
+  } catch (error) {
+    console.error('[API] Error getting monitoring status:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get monitoring status',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: Get n8n executions with filtering
+app.get('/api/n8n/executions', requireAuth, async (req, res) => {
+  try {
+    console.log('[API] Getting n8n executions:', req.query);
+    
+    const filters: any = {};
+    
+    if (req.query.status) filters.status = req.query.status as string;
+    if (req.query.workflowId) filters.workflowId = req.query.workflowId as string;
+    if (req.query.limit) filters.limit = parseInt(req.query.limit as string);
+    if (req.query.offset) filters.offset = parseInt(req.query.offset as string);
+    if (req.query.startedAfter) filters.startedAfter = new Date(req.query.startedAfter as string);
+    if (req.query.startedBefore) filters.startedBefore = new Date(req.query.startedBefore as string);
+    
+    const executions = await getExecutions(filters);
+    
+    res.json({
+      success: true,
+      data: executions,
+      message: 'Executions retrieved successfully'
+    });
+    
+  } catch (error) {
+    console.error('[API] Error getting executions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get executions',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: Get specific execution details
+app.get('/api/n8n/executions/:executionId', requireAuth, async (req, res) => {
+  try {
+    const { executionId } = req.params;
+    console.log(`[API] Getting execution details for: ${executionId}`);
+    
+    const execution = await getExecutionDetails(executionId);
+    
+    res.json({
+      success: true,
+      data: execution,
+      message: 'Execution details retrieved successfully'
+    });
+    
+  } catch (error) {
+    console.error(`[API] Error getting execution ${req.params.executionId}:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get execution details',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: Get currently active executions
+app.get('/api/n8n/executions/current', requireAuth, async (req, res) => {
+  try {
+    console.log('[API] Getting active executions');
+    
+    const activeExecutions = await getActiveExecutions();
+    
+    res.json({
+      success: true,
+      data: activeExecutions,
+      message: 'Active executions retrieved successfully'
+    });
+    
+  } catch (error) {
+    console.error('[API] Error getting active executions:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get active executions',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: Get available workflows
+app.get('/api/n8n/workflows', requireAuth, async (req, res) => {
+  try {
+    console.log('[API] Getting n8n workflows');
+    
+    const workflows = await getWorkflows();
+    
+    res.json({
+      success: true,
+      data: workflows,
+      message: 'Workflows retrieved successfully'
+    });
+    
+  } catch (error) {
+    console.error('[API] Error getting workflows:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get workflows',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: Get execution analytics
+app.get('/api/n8n/analytics', requireAuth, async (req, res) => {
+  try {
+    console.log('[API] Getting execution analytics:', req.query);
+    
+    const startDate = req.query.startDate ? new Date(req.query.startDate as string) : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const endDate = req.query.endDate ? new Date(req.query.endDate as string) : new Date();
+    
+    const analytics = await getExecutionAnalytics({ startDate, endDate });
+    
+    res.json({
+      success: true,
+      data: analytics,
+      message: 'Analytics retrieved successfully'
+    });
+    
+  } catch (error) {
+    console.error('[API] Error getting analytics:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get analytics',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: Get execution debug information
+app.get('/api/n8n/executions/:executionId/debug', requireAuth, async (req, res) => {
+  try {
+    const { executionId } = req.params;
+    console.log(`[API] Getting debug info for execution: ${executionId}`);
+    
+    const debugInfo = await getExecutionDebugInfo(executionId);
+    
+    res.json({
+      success: true,
+      data: debugInfo,
+      message: 'Debug information retrieved successfully'
+    });
+    
+  } catch (error) {
+    console.error(`[API] Error getting debug info for ${req.params.executionId}:`, error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to get debug information',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// REF: Update the existing CSV upload to use enhanced tracking
+// This modifies the existing processCsvProspects function to include n8n tracking
+app.post('/api/upload-csv', requireAuth, upload.single('csvFile'), async (req, res) => {
+  // ... existing validation code ...
+
+  try {
+    // ... existing CSV processing code ...
+
+    // REF: Enhanced prospect creation with n8n tracking
+    for (const prospectData of prospects) {
+      try {
+        // REF: Create prospect in database
+        const prospect = await storage.prospects.create({
+          userId: user.id,
+          clientId: req.body.clientId ? parseInt(req.body.clientId) : null,
+          ...prospectData
+        });
+
+        // REF: Prepare n8n webhook payload
+        const webhookPayload = [
+          `First Name: ${prospectData.firstName}`,
+          `Last Name: ${prospectData.lastName}`,
+          `LinkedIn: ${prospectData.linkedinUrl || ''}`,
+          `Title: ${prospectData.title || ''}`,
+          `Company: ${prospectData.company || ''}`,
+          `EMail: ${prospectData.email || ''}`
+        ];
+
+        // REF: Track prospect execution with n8n API monitoring
+        await trackProspectExecution(prospect.id, user.id, webhookPayload);
+
+        console.log(`[PROSPECT UPLOAD] ✅ Created and tracked prospect ${prospect.id}: ${prospectData.firstName} ${prospectData.lastName}`);
+        
+      } catch (prospectError) {
+        console.error('[PROSPECT UPLOAD] Error creating prospect:', prospectError);
+        continue; // Continue with other prospects
+      }
+    }
+
+    // ... existing response code ...
+    
+  } catch (error) {
+    // ... existing error handling ...
+  }
+});

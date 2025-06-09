@@ -68,6 +68,7 @@ export const prospects = pgTable("prospects", {
   webhookPayload: jsonb("webhook_payload"), // Store the original request payload
   errorMessage: text("error_message"), // Store error details if processing fails
   sentToReplyioCampaignId: integer("sent_to_replyio_campaign_id"), // Track which campaign the prospect was sent to
+  n8nExecutionId: varchar("n8n_execution_id"), // REF: Track n8n workflow execution ID for real-time monitoring
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({

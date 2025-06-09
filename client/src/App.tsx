@@ -12,6 +12,7 @@ import SignupPage from "@/pages/signup";
 import Dashboard from "@/pages/dashboard";
 import ProfileSettings from "@/pages/profile-settings";
 import Preferences from "@/pages/preferences";
+import N8nMonitoring from "@/components/n8n-monitoring";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -63,6 +64,20 @@ function Router() {
         ) : isAuthenticated ? (
           <ClientProvider>
             <Preferences />
+          </ClientProvider>
+        ) : (
+          <LoginPage />
+        )}
+      </Route>
+      
+      <Route path="/n8n-monitoring">
+        {isLoading ? (
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">Loading...</div>
+          </div>
+        ) : isAuthenticated ? (
+          <ClientProvider>
+            <N8nMonitoring />
           </ClientProvider>
         ) : (
           <LoginPage />

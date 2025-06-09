@@ -1766,3 +1766,77 @@ export async function updateReplyIoCampaignStatus(campaignId: number, accountId:
     throw error;
   }
 }
+
+/**
+ * REF: Update prospect with n8n execution ID for tracking
+ * PURPOSE: Link prospects to their n8n workflow executions for monitoring
+ * @param {number} prospectId - Prospect ID
+ * @param {number} userId - User ID for security
+ * @param {string} executionId - n8n execution ID
+ * @param {string} status - Current execution status
+ * @returns {Promise<Object|null>} - Updated prospect or null if not found
+ */
+export async function updateProspectN8nExecution(
+  prospectId: number, 
+  userId: number, 
+  executionId: string, 
+  status: string
+) {
+  try {
+    const database = await getDatabase();
+    
+    // REF: Update prospect with n8n execution tracking data
+    const updateData: any = {
+      n8nExecutionId: executionId,
+      status: status,
+      updatedAt: new Date()
+    };
+    
+    const result = await database.db
+      .update(prospects)
+      .set(updateData)
+      .where(
+        and(
+          eq(prospects.id, prospectId),
+          eq(prospects.userId, userId)
+        )
+      )
+      .returning();
+    
+    console.log(`[STORAGE] Updated prospect ${prospectId} with n8n execution ${executionId}`);
+    return result[0] || null;
+  } catch (error) {
+    console.error('[STORAGE] Error updating prospect n8n execution:', error);
+    throw error;
+  }
+}
+
+/**
+ * REF: Get prospects by status for monitoring
+ * PURPOSE: Retrieve prospects in specific processing states
+ * @param {number} userId - User ID for filtering
+ * @param {string} status - Prospect status to filter by
+ * @returns {Promise<Array>} - Array of prospects with specified status
+ */
+export async function getProspectsByStatus(userId: number, status: string) {
+  try {
+    const database = await getDatabase();
+    
+    const result = await database.db
+      .select()
+      .from(prospects)
+      .where(
+        and(
+          eq(prospects.userId, userId),
+          eq(prospects.status, status)
+        )
+      )
+      .orderBy(desc(prospects.createdAt));
+    
+    console.log(`[STORAGE] Found ${result.length} prospects with status: ${status}`);
+    return result;
+  } catch (error) {
+    console.error('[STORAGE] Error getting prospects by status:', error);
+    throw error;
+  }
+}

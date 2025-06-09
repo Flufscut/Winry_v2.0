@@ -4,6 +4,12 @@
 
 **Winry.AI** is an **Advanced AI-Powered Sales Intelligence Platform** built with a modern full-stack architecture. The platform automates prospect research and generates personalized cold outreach messages using AI.
 
+### Current Status (June 8, 2025)
+- **Development Status**: 95% Complete - All core features implemented
+- **Local Environment**: Fully functional end-to-end workflow on localhost:5001
+- **Production Status**: Deployed to Railway but n8n integration broken
+- **Critical Issue**: Prospects not being sent to n8n for AI research in production
+
 ### Tech Stack Summary
 - **Frontend**: React 18 + TypeScript + Vite + Tailwind CSS + shadcn/ui
 - **Backend**: Express.js + TypeScript + Node.js  
@@ -13,6 +19,7 @@
 - **Routing**: Wouter (lightweight React router)
 - **Styling**: Tailwind CSS with comprehensive UI component library
 - **Deployment**: Railway platform with auto-scaling
+- **External Services**: n8n (AI research) + Reply.io (email campaigns)
 
 ---
 
@@ -59,6 +66,7 @@
 - **Build Command**: `npm run build`
 - **Start Command**: `npm run start` (includes automated DB migration)
 - **Environment**: Production deployment settings
+- **Status**: ✅ Deployed but n8n integration broken
 
 ---
 
@@ -87,14 +95,19 @@
   - Advanced search and filtering capabilities  
   - Status tracking (processing, completed, failed)
   - Retry mechanism for failed prospects
+- **n8n Integration**: ⚠️ **BROKEN IN PRODUCTION**
+  - Webhook integration for AI research
+  - Batch processing with configurable sizes
+  - Proper payload format for n8n expectations
+  - Working on localhost:5001, broken on Railway
+- **Reply.io Integration**: ✅ **WORKING**
+  - Multi-account management
+  - Campaign enrollment
+  - Auto-send functionality
 - **File Processing**:
   - CSV upload with 10MB limit
   - Automatic column detection and mapping
-  - Batch processing for large datasets with configurable batch sizes
-- **External Integrations**:
-  - n8n webhook integration for AI research
-  - Reply.io integration for automated outreach
-  - Robust error handling with retries and timeout management
+  - Batch processing for large datasets
 - **Analytics**: Dashboard metrics, user statistics, and reporting
 
 #### `storage.ts` (58KB, 1755 lines)
@@ -119,6 +132,7 @@
 - **Security Features**: Password hashing, session management, CSRF protection
 - **Database Integration**: User storage with proper schema validation
 - **OAuth Configuration**: Google OAuth with proper callback handling
+- **Status**: ✅ **WORKING** in both development and production
 
 #### `db.ts` (3.8KB, 110 lines)
 **Unified database connection management**
@@ -126,6 +140,7 @@
 - **Connection Pooling**: Optimized connection management  
 - **Schema Migration**: Automatic database initialization
 - **Error Handling**: Comprehensive database error management
+- **Status**: ✅ **WORKING** - Proper environment-specific database handling
 
 ---
 
@@ -243,7 +258,20 @@
 
 ---
 
-## Current Authentication Architecture
+## Current System Architecture
+
+### Complete Working Flow (localhost:5001)
+1. **User Authentication**: Google OAuth or manual signup/login
+2. **Prospect Upload**: Manual creation or CSV bulk upload
+3. **AI Research**: Prospects sent to n8n webhook for processing
+4. **Research Results**: n8n returns comprehensive research data
+5. **Prospect Management**: View, filter, sort prospects with research
+6. **Reply.io Integration**: Send prospects to email campaigns
+
+### Production Issues (Railway)
+- **Working**: Authentication, UI, Database, Reply.io
+- **Broken**: n8n webhook integration (Step 3-4 above)
+- **Impact**: Core AI research functionality blocked
 
 ### Authentication Flow
 1. **Landing Page**: Unauthenticated users see professional marketing page
@@ -269,11 +297,12 @@
 
 ## Key Features and Capabilities
 
-### 🔍 **AI-Powered Prospect Research**
+### 🔍 **AI-Powered Prospect Research** ⚠️ BROKEN IN PRODUCTION
 - Deep prospect and company analysis using AI
 - LinkedIn integration for professional background research
 - Company pain point and business goal identification
 - Automated research workflow with n8n integration
+- **Status**: Working on localhost:5001, broken on Railway
 
 ### 📧 **Personalized Cold Outreach**  
 - AI-generated personalized emails based on research
@@ -288,10 +317,10 @@
 - Advanced analytics and reporting dashboard
 
 ### 🔗 **External Integrations**
-- **Reply.io**: Automated outreach campaign management
-- **n8n**: Webhook-based AI research processing
-- **Google OAuth**: Enterprise authentication
-- **CSV Processing**: Bulk data import/export capabilities
+- **Reply.io**: ✅ Automated outreach campaign management
+- **n8n**: ❌ Webhook-based AI research processing (broken in production)
+- **Google OAuth**: ✅ Enterprise authentication
+- **CSV Processing**: ✅ Bulk data import/export capabilities
 
 ### 🎨 **Professional UI/UX**
 - Modern design system with purple/blue gradient branding
@@ -306,16 +335,19 @@
 
 ### Production Deployment (Railway)
 - **Platform**: Railway with auto-scaling infrastructure
-- **Database**: PostgreSQL with automated migrations
-- **Environment**: Node.js with optimized production builds
-- **Monitoring**: Comprehensive logging and error tracking
-- **Security**: HTTPS, secure sessions, OAuth integration
+- **URL**: https://winrybysl-production.up.railway.app/
+- **Database**: PostgreSQL with automated migrations ✅
+- **Environment**: Node.js with optimized production builds ✅
+- **Monitoring**: Comprehensive logging and error tracking ✅
+- **Security**: HTTPS, secure sessions, OAuth integration ✅
+- **Issue**: n8n webhook integration not working ❌
 
 ### Development Environment
 - **Database**: SQLite with automatic PostgreSQL schema compatibility
 - **Hot Reload**: Vite development server with fast refresh
 - **Type Safety**: Full TypeScript coverage across stack
 - **Testing**: Vitest for unit and integration testing
+- **Status**: Complete end-to-end workflow working ✅
 
 ### Code Quality Standards
 - **TypeScript**: Full type safety across client and server
@@ -334,21 +366,27 @@
 - Professional UI/UX design system
 - Multi-tenant client workspace management
 - Bulk prospect processing with CSV upload
-- External integrations (Reply.io, n8n)
+- Reply.io integration for email campaigns
 - Production deployment on Railway
 
+### 🔴 **Critical Issue**
+- **n8n Integration Broken**: Webhook not working in Railway production
+- **Impact**: No AI research processing for prospects
+- **Previous State**: Fully functional on localhost:5001
+- **Required Fix**: Update n8n to accept Railway production URL
+
 ### 🔄 **Active Development Focus**
-- Authentication frontend integration optimization
-- Advanced analytics and reporting features
-- Enhanced AI research capabilities
-- Performance optimization and scalability improvements
+- Fixing n8n webhook integration in production
+- Debugging webhook connectivity issues
+- Testing production webhook endpoints
+- Adding comprehensive logging for troubleshooting
 
 ### 🚀 **Production Ready Features**
-- Account creation and authentication (API confirmed working)
-- Prospect management and research workflows
-- Client workspace management
-- CSV bulk processing
-- Reply.io integration
-- Professional branding and UI/UX
+- Account creation and authentication ✅
+- Prospect management UI ✅
+- Client workspace management ✅
+- CSV bulk processing ✅
+- Reply.io integration ✅
+- Professional branding and UI/UX ✅
 
-This analysis provides a complete and current understanding of the Winry.AI application architecture, replacing all outdated references and reflecting the actual current state of the codebase. 
+This analysis provides a complete and current understanding of the Winry.AI application architecture, highlighting both the successful implementation of all core features and the critical n8n integration issue that needs immediate resolution in the Railway production environment. 
