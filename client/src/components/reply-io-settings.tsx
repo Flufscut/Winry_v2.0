@@ -205,6 +205,7 @@ export function ReplyIoSettings() {
               isDefault: storedCampaign.isDefault,
               createdAt: storedCampaign.createdAt,
               updatedAt: storedCampaign.updatedAt,
+              ownerEmail: storedCampaign.ownerEmail,
               // REF: Explicitly exclude ALL performance metrics
               // No openRate, clickRate, replyRate, bounceRate, etc.
             };
@@ -221,6 +222,7 @@ export function ReplyIoSettings() {
               isDefault: false, // Live campaigns don't have default status
               createdAt: liveCampaign.createdAt,
               updatedAt: liveCampaign.updatedAt,
+              ownerEmail: liveCampaign.ownerEmail,
               // REF: Explicitly exclude ALL performance metrics
               // No openRate, clickRate, replyRate, bounceRate, etc.
             };
@@ -357,6 +359,7 @@ export function ReplyIoSettings() {
               isDefault: storedCampaign.isDefault,
               createdAt: storedCampaign.createdAt,
               updatedAt: storedCampaign.updatedAt,
+              ownerEmail: storedCampaign.ownerEmail,
               // REF: Explicitly exclude ALL performance metrics
               // No openRate, clickRate, replyRate, bounceRate, etc.
             };
@@ -375,6 +378,7 @@ export function ReplyIoSettings() {
               isDefault: false, // Live campaigns won't have default status
               createdAt: liveCampaign.createdAt,
               updatedAt: liveCampaign.updatedAt,
+              ownerEmail: liveCampaign.ownerEmail,
               // REF: Explicitly exclude ALL performance metrics
               // No openRate, clickRate, replyRate, bounceRate, etc.
             };

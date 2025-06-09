@@ -1432,6 +1432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               campaignId: campaign.id,
               campaignName: campaign.name,
               campaignStatus: campaign.status,
+              ownerEmail: campaign.ownerEmail,
               isDefault: false,
             });
             syncedCampaigns.push(newCampaign);
@@ -1749,6 +1750,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             campaignId: campaign.id,
             campaignName: campaign.name,
             campaignStatus: campaign.status,
+            ownerEmail: campaign.ownerEmail,
             isDefault: false,
           });
           syncedCampaigns.push(upsertedCampaign);
@@ -3066,7 +3068,7 @@ URL: ${req.url}
   // REF: Temporary route to fix campaign statuses (remove performance metrics from status field)
   app.post('/api/reply-io/fix-campaign-statuses', requireAuth, async (req: any, res) => {
     try {
-      const userId = getUserId(req);
+      const userId = req.user.id;
       
       // REF: Get all Reply.io accounts for the user
       const accounts = await getReplyIoAccounts(userId);
@@ -3517,7 +3519,7 @@ URL: ${req.url}
   app.post('/api/debug/test-auto-send', requireAuth, async (req: any, res) => {
     try {
       const { prospectId } = req.body;
-      const userId = getUserId(req);
+      const userId = req.user.id;
       
       // Get the prospect
       const prospects = await storage.getProspectsByUser(userId);
@@ -3590,7 +3592,7 @@ URL: ${req.url}
   // REF: Temporary route to fix campaign statuses (remove performance metrics from status field)
   app.post('/api/reply-io/fix-campaign-statuses', requireAuth, async (req: any, res) => {
     try {
-      const userId = getUserId(req);
+      const userId = req.user.id;
       
       // REF: Get all Reply.io accounts for the user
       const accounts = await getReplyIoAccounts(userId);
