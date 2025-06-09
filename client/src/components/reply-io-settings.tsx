@@ -40,6 +40,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { formatCampaignStatus } from '@/lib/utils';
 
 /**
  * REF: Interface for Reply.io settings data structure (legacy)
@@ -1004,7 +1005,7 @@ export function ReplyIoSettings() {
                                                 : 'border-muted-foreground'
                                           }`}
                                         >
-                                          {campaign.status}
+                                          {formatCampaignStatus(campaign.status)}
                                         </Badge>
                                       </div>
                                       

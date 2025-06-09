@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Building2, Key, Send, ChevronDown } from "lucide-react";
+import { formatCampaignStatus } from "@/lib/utils";
 
 interface Client {
   id: number;
@@ -309,8 +310,8 @@ function CampaignSelector() {
           {currentCampaign ? (
             <div className="flex items-center space-x-2">
               <span>{currentCampaign.campaignName}</span>
-              <Badge variant={currentCampaign.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                {currentCampaign.status}
+              <Badge variant={currentCampaign.status === 'active' || currentCampaign.status === '2' ? 'default' : 'secondary'} className="text-xs">
+                {formatCampaignStatus(currentCampaign.status)}
               </Badge>
             </div>
           ) : (
@@ -322,8 +323,8 @@ function CampaignSelector() {
             <SelectItem key={campaign.id} value={campaign.id.toString()}>
               <div className="flex items-center space-x-2">
                 <span>{campaign.campaignName}</span>
-                <Badge variant={campaign.status === 'active' ? 'default' : 'secondary'} className="text-xs">
-                  {campaign.status}
+                <Badge variant={campaign.status === 'active' || campaign.status === '2' ? 'default' : 'secondary'} className="text-xs">
+                  {formatCampaignStatus(campaign.status)}
                 </Badge>
               </div>
             </SelectItem>
