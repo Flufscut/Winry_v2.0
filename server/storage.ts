@@ -859,7 +859,7 @@ export class DatabaseStorage implements IStorage {
     // REF: Get the default account for the user, optionally filtered by client
     const baseCondition = and(
       eq(replyioAccounts.userId, userId),
-      sql`${replyioAccounts.isDefault} = 1`
+      eq(replyioAccounts.isDefault, true)
     );
     
     const whereCondition = clientId 
@@ -897,7 +897,10 @@ export class DatabaseStorage implements IStorage {
     const campaignResult = await db
       .select()
       .from(replyioCampaigns)
-      .where(sql`${replyioCampaigns.accountId} = ${accountResult[0].id} AND ${replyioCampaigns.isDefault} = 1`)
+      .where(and(
+        eq(replyioCampaigns.accountId, accountResult[0].id),
+        eq(replyioCampaigns.isDefault, true)
+      ))
       .limit(1);
 
     if (campaignResult.length === 0) {
