@@ -37,8 +37,7 @@ import {
   Building2,
   Target,
   ChevronDown,
-  ChevronRight,
-  User
+  ChevronRight
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -76,19 +75,6 @@ interface ReplyIoCampaign {
   isDefault?: boolean;
   createdAt?: string;
   updatedAt?: string;
-  // REF: Owner information
-  owner?: {
-    id?: number;
-    name?: string;
-    email?: string;
-    firstName?: string;
-    lastName?: string;
-  };
-  ownerId?: number;
-  ownerName?: string;
-  ownerEmail?: string;
-  createdBy?: string;
-  assignedTo?: string;
   // REF: Explicitly exclude performance metrics from settings UI
   // openRate?: number;
   // clickRate?: number; 
@@ -324,19 +310,27 @@ export function ReplyIoSettings() {
       if (response.ok) {
         const result = await response.json();
         
+        // REF: DEBUG - Log the full response to see what campaigns we're getting
+        console.log('🔍 [DEBUG] Full campaigns response:', JSON.stringify(result, null, 2));
+        console.log('🔍 [DEBUG] Stored campaigns count:', result.campaigns.stored?.length || 0);
+        console.log('🔍 [DEBUG] Live campaigns count:', result.campaigns.live?.length || 0);
+        
         // REF: Check if we have any campaigns at all (stored or live)
         const hasStoredCampaigns = result.campaigns.stored && result.campaigns.stored.length > 0;
         const hasLiveCampaigns = result.campaigns.live && result.campaigns.live.length > 0;
         
+        console.log('🔍 [DEBUG] Has stored campaigns:', hasStoredCampaigns);
+        console.log('🔍 [DEBUG] Has live campaigns:', hasLiveCampaigns);
+        
         // REF: Only auto-sync if no stored campaigns but live campaigns exist
         if (!hasStoredCampaigns && hasLiveCampaigns) {
-          console.log('No stored campaigns found, auto-syncing from Reply.io...');
+          console.log('🔄 [DEBUG] No stored campaigns found, auto-syncing from Reply.io...');
           try {
             await syncCampaigns(accountId);
             // syncCampaigns calls fetchCampaigns which will reset the loading state
             return;
           } catch (syncError) {
-            console.error('Auto-sync failed:', syncError);
+            console.error('❌ [DEBUG] Auto-sync failed:', syncError);
             // If sync fails, continue with displaying live campaigns
             toast({
               title: "Sync Failed",
@@ -349,8 +343,10 @@ export function ReplyIoSettings() {
         // REF: Use stored campaigns first (they have isDefault field), then fall back to live campaigns
         let campaignsToUse = [];
         if (hasStoredCampaigns) {
+          console.log('✅ [DEBUG] Using stored campaigns');
           // REF: Map stored campaigns to include only essential data, exclude performance metrics
           campaignsToUse = result.campaigns.stored.map((storedCampaign: any) => {
+            console.log('🔍 [DEBUG] Processing stored campaign:', storedCampaign.campaignName);
             // REF: Create clean campaign object with ONLY essential fields
             const cleanCampaign: ReplyIoCampaign = {
               id: storedCampaign.campaignId, // Use the actual Reply.io campaign ID
@@ -365,8 +361,10 @@ export function ReplyIoSettings() {
             return cleanCampaign;
           });
         } else if (hasLiveCampaigns) {
+          console.log('✅ [DEBUG] Using live campaigns');
           // REF: Fall back to live campaigns if no stored campaigns, exclude performance metrics
           campaignsToUse = result.campaigns.live.map((liveCampaign: any) => {
+            console.log('🔍 [DEBUG] Processing live campaign:', liveCampaign.name);
             // REF: Create clean campaign object with ONLY essential fields
             const cleanCampaign: ReplyIoCampaign = {
               id: liveCampaign.id,
@@ -382,37 +380,26 @@ export function ReplyIoSettings() {
           });
         }
         
+        console.log('🎯 [DEBUG] Final campaigns to display:', campaignsToUse.length);
+        campaignsToUse.forEach(campaign => {
+          console.log(`  - ${campaign.name} (ID: ${campaign.id}, Status: ${campaign.status})`);
+        });
+        
         setSettings(prev => ({ 
           ...prev, 
           campaigns: campaignsToUse,
           isLoadingCampaigns: false,
         }));
-
-        // REF: Show helpful message if no campaigns found at all
-        if (!hasStoredCampaigns && !hasLiveCampaigns) {
-          toast({
-            title: "No Campaigns Found",
-            description: "This account doesn't have any campaigns. Check your API key permissions.",
-            variant: "destructive",
-          });
-        }
       } else {
-        const result = await response.json();
-        toast({
-          title: "Error",
-          description: result.message || "Failed to fetch campaigns",
-          variant: "destructive",
-        });
-        setSettings(prev => ({ ...prev, isLoadingCampaigns: false }));
+        throw new Error(`Failed to fetch campaigns: ${response.status}`);
       }
     } catch (error) {
-      console.error('Error fetching campaigns:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch campaigns",
-        variant: "destructive",
-      });
-      setSettings(prev => ({ ...prev, isLoadingCampaigns: false }));
+      console.error('❌ [DEBUG] Error fetching campaigns:', error);
+      setSettings(prev => ({ 
+        ...prev, 
+        campaigns: [],
+        isLoadingCampaigns: false 
+      }));
     }
   };
 
@@ -459,8 +446,10 @@ export function ReplyIoSettings() {
         // REF: Automatically expand the newly created account to show campaigns
         setTimeout(async () => {
           const newAccountId = result.account.id;
+          console.log('🚀 [DEBUG] Auto-expanding account:', newAccountId);
           setExpandedAccountId(newAccountId);
           setSettings(prev => ({ ...prev, selectedAccount: result.account }));
+          console.log('🚀 [DEBUG] Fetching campaigns for new account...');
           await fetchCampaignsWithAutoSync(newAccountId);
         }, 500); // Small delay to ensure accounts list is refreshed first
       } else {
@@ -1002,24 +991,6 @@ export function ReplyIoSettings() {
                                       }`}>
                                         {campaign.name}
                                       </h5>
-                                      
-                                      {/* Campaign Owner */}
-                                      {(campaign.owner?.name || campaign.ownerName || campaign.createdBy || campaign.assignedTo) && (
-                                        <div className={`flex items-center gap-1 text-xs ${
-                                          campaign.isDefault ? 'text-primary-foreground/70' : 'text-muted-foreground'
-                                        }`}>
-                                          <User className="w-3 h-3" />
-                                          <span>
-                                            {campaign.owner?.name || 
-                                             campaign.ownerName || 
-                                             campaign.createdBy || 
-                                             campaign.assignedTo}
-                                          </span>
-                                          {campaign.owner?.email && (
-                                            <span className="opacity-70">({campaign.owner.email})</span>
-                                          )}
-                                        </div>
-                                      )}
                                       
                                       {/* Status Badge */}
                                       <div className="flex items-center gap-2">
