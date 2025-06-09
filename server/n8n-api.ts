@@ -70,10 +70,17 @@ class N8nApiClient {
         'Accept': headers['Accept']
       });
       
+      // REF: Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+      
       const response = await fetch(url, {
         ...options,
         headers,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -86,6 +93,9 @@ class N8nApiClient {
       
     } catch (error) {
       console.error(`[N8N API] Error calling ${endpoint}:`, error);
+      if (error.name === 'AbortError') {
+        throw new Error(`n8n API timeout after 30 seconds for ${endpoint}`);
+      }
       throw error;
     }
   }
@@ -321,11 +331,19 @@ export async function getExecutionAnalytics(timeRange: {
   hourlyDistribution: Array<{ hour: number; count: number }>;
 }> {
   try {
+    console.log('[EXECUTION ANALYTICS] Starting analytics calculation...');
+    console.log('[EXECUTION ANALYTICS] Time range:', { 
+      startDate: timeRange.startDate.toISOString(), 
+      endDate: timeRange.endDate.toISOString() 
+    });
+    
     const executions = await n8nClient.getExecutions({
-      limit: 1000 // Adjust based on expected volume
+      limit: 100 // Reduced from 1000 to prevent timeouts
       // Note: n8n API doesn't support startedAfter/startedBefore parameters
       // We'll filter the results in-memory instead
     });
+
+    console.log('[EXECUTION ANALYTICS] Raw executions received:', executions?.data?.length || 0);
 
     let data = executions.data || [];
     
@@ -334,6 +352,8 @@ export async function getExecutionAnalytics(timeRange: {
       const startedAt = new Date(exec.startedAt);
       return startedAt >= timeRange.startDate && startedAt <= timeRange.endDate;
     });
+    
+    console.log('[EXECUTION ANALYTICS] Filtered executions:', data.length);
     
     const total = data.length;
     const successful = data.filter((exec: any) => exec.success).length;
@@ -359,7 +379,7 @@ export async function getExecutionAnalytics(timeRange: {
       hourlyDist[hour]++;
     });
 
-    return {
+    const result = {
       totalExecutions: total,
       successRate: total > 0 ? (successful / total) * 100 : 0,
       averageDuration: avgDuration,
@@ -369,6 +389,9 @@ export async function getExecutionAnalytics(timeRange: {
       })),
       hourlyDistribution: hourlyDist.map((count, hour) => ({ hour, count }))
     };
+
+    console.log('[EXECUTION ANALYTICS] Analytics result:', result);
+    return result;
     
   } catch (error) {
     console.error('[EXECUTION ANALYTICS] Error getting analytics:', error);
