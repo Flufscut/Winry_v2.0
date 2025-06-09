@@ -140,6 +140,22 @@ export default function Dashboard() {
   // Fetch dashboard stats - filtered by campaign if selected
   const { data: statsData, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ["/api/stats"],
+    queryFn: async () => {
+      console.log('📊 Making stats API call to: /api/stats');
+      
+      const response = await apiRequest('GET', '/api/stats');
+      const data = await response.json();
+      
+      console.log('📊 Stats API response:', {
+        data: data,
+        totalProspects: data?.totalProspects,
+        completed: data?.completed,
+        processing: data?.processing,
+        failed: data?.failed
+      });
+      
+      return data;
+    },
     retry: false,
     enabled: !!user,
   });
