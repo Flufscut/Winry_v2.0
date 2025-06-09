@@ -352,15 +352,18 @@ export default function ProspectTableInteractive({
               <div
                 className={`
                   grid grid-cols-12 gap-4 p-4 border border-border/50 rounded-xl transition-all duration-300 cursor-pointer group 
-                  hover:scale-[1.01] hover:shadow-md hover:bg-gradient-to-r hover:from-muted/30 hover:to-muted/10
+                  hover:scale-[1.01] hover:shadow-md hover:bg-muted/20 hover:border-primary/30
                   analytics-card
                   ${isSelected ? 'bg-primary/5 border-primary/20' : ''}
                   ${isExpanded ? 'bg-muted/20' : ''}
+                  ${isHovered ? 'bg-muted/10 border-primary/20' : ''}
                 `}
                 style={{ 
                   background: isSelected ? 'linear-gradient(135deg, hsl(var(--primary) / 0.08), hsl(var(--secondary) / 0.05))' : 
-                             isHovered ? statusConfig.bgColor : 'hsl(var(--card))',
-                  borderColor: isSelected ? 'hsl(var(--primary) / 0.3)' : isExpanded ? statusConfig.borderColor : 'hsl(var(--border) / 0.5)',
+                             isExpanded ? 'hsl(var(--muted) / 0.2)' : 'hsl(var(--card))',
+                  borderColor: isSelected ? 'hsl(var(--primary) / 0.3)' : 
+                              isExpanded ? 'hsl(var(--border))' : 
+                              isHovered ? 'hsl(var(--primary) / 0.2)' : 'hsl(var(--border) / 0.5)',
                   animation: `chart-entrance 0.3s ease ${index * 0.1}s both`,
                   borderBottomLeftRadius: isExpanded ? '0' : undefined,
                   borderBottomRightRadius: isExpanded ? '0' : undefined
