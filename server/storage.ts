@@ -119,6 +119,7 @@ export interface IStorage {
   createReplyioCampaign(campaign: any): Promise<any>;
   upsertReplyioCampaign(campaign: any): Promise<any>;
   getReplyioCampaigns(accountId: number): Promise<any[]>;
+  getReplyioCampaignsWithOwnerEmail(accountId: number): Promise<any[]>;
   getReplyioCampaign(id: number): Promise<any>;
   updateReplyioCampaign(id: number, updates: any): Promise<any>;
   deleteReplyioCampaign(id: number): Promise<boolean>;
@@ -847,6 +848,30 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(replyioCampaigns)
+      .where(eq(replyioCampaigns.accountId, accountId))
+      .orderBy(desc(replyioCampaigns.createdAt));
+  }
+
+  // REF: Get campaigns with owner email by joining with accounts and users tables
+  async getReplyioCampaignsWithOwnerEmail(accountId: number): Promise<any[]> {
+    await this.ensureInitialized();
+    return await db
+      .select({
+        id: replyioCampaigns.id,
+        accountId: replyioCampaigns.accountId,
+        campaignId: replyioCampaigns.campaignId,
+        campaignName: replyioCampaigns.campaignName,
+        campaignStatus: replyioCampaigns.campaignStatus,
+        isDefault: replyioCampaigns.isDefault,
+        createdAt: replyioCampaigns.createdAt,
+        updatedAt: replyioCampaigns.updatedAt,
+        ownerEmail: users.email,
+        ownerFirstName: users.firstName,
+        ownerLastName: users.lastName,
+      })
+      .from(replyioCampaigns)
+      .innerJoin(replyioAccounts, eq(replyioCampaigns.accountId, replyioAccounts.id))
+      .innerJoin(users, eq(replyioAccounts.userId, users.id))
       .where(eq(replyioCampaigns.accountId, accountId))
       .orderBy(desc(replyioCampaigns.createdAt));
   }

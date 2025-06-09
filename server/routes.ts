@@ -1339,7 +1339,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const safeAccounts = accounts.map(account => ({
         id: account.id,
         name: account.name,
-        ownerEmail: account.ownerEmail,
         isDefault: account.isDefault,
         createdAt: account.createdAt,
         updatedAt: account.updatedAt,
@@ -1410,18 +1409,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // REF: Fetch owner email from Reply.io API
-      let ownerEmail = null;
-      try {
-        const accessInfo = await replyIoService.getAccountAccessInfo(apiKey);
-        if (accessInfo.userInfo && accessInfo.userInfo.email) {
-          ownerEmail = accessInfo.userInfo.email;
-        }
-      } catch (error) {
-        console.log('Could not fetch owner email from Reply.io API:', error);
-        // Continue without owner email - it's optional
-      }
-
       // REF: Encrypt the API key before storing
       const encryptedApiKey = replyIoService.encryptApiKey(apiKey);
 
@@ -1430,7 +1417,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientId: currentClientId,
         name,
         apiKey: encryptedApiKey,
-        ownerEmail,
         isDefault: false
       });
 
@@ -1461,7 +1447,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const safeAccount = {
           id: account.id,
           name: account.name,
-          ownerEmail: account.ownerEmail,
           isDefault: account.isDefault,
           clientId: account.clientId,
           createdAt: account.createdAt,
@@ -1480,7 +1465,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const safeAccount = {
           id: account.id,
           name: account.name,
-          ownerEmail: account.ownerEmail,
           isDefault: account.isDefault,
           clientId: account.clientId,
           createdAt: account.createdAt,
@@ -1703,8 +1687,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Account not found" });
       }
 
-      // REF: Get stored campaigns for this account
-      const storedCampaigns = await storage.getReplyioCampaigns(parseInt(accountId));
+      // REF: Get stored campaigns for this account with owner email information
+      const storedCampaigns = await storage.getReplyioCampaignsWithOwnerEmail(parseInt(accountId));
 
       // REF: Also fetch fresh campaigns from Reply.io API
       try {

@@ -61,7 +61,6 @@ interface ReplyIoSettings {
 interface ReplyIoAccount {
   id: number;
   name: string;
-  ownerEmail?: string;
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;
@@ -77,6 +76,9 @@ interface ReplyIoCampaign {
   isDefault?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  ownerEmail?: string;
+  ownerFirstName?: string;
+  ownerLastName?: string;
   // REF: Explicitly exclude performance metrics from settings UI
   // openRate?: number;
   // clickRate?: number; 
@@ -205,6 +207,9 @@ export function ReplyIoSettings() {
               isDefault: storedCampaign.isDefault,
               createdAt: storedCampaign.createdAt,
               updatedAt: storedCampaign.updatedAt,
+              ownerEmail: storedCampaign.ownerEmail,
+              ownerFirstName: storedCampaign.ownerFirstName,
+              ownerLastName: storedCampaign.ownerLastName,
               // REF: Explicitly exclude ALL performance metrics
               // No openRate, clickRate, replyRate, bounceRate, etc.
             };
@@ -357,6 +362,9 @@ export function ReplyIoSettings() {
               isDefault: storedCampaign.isDefault,
               createdAt: storedCampaign.createdAt,
               updatedAt: storedCampaign.updatedAt,
+              ownerEmail: storedCampaign.ownerEmail,
+              ownerFirstName: storedCampaign.ownerFirstName,
+              ownerLastName: storedCampaign.ownerLastName,
               // REF: Explicitly exclude ALL performance metrics
               // No openRate, clickRate, replyRate, bounceRate, etc.
             };
@@ -873,7 +881,6 @@ export function ReplyIoSettings() {
             <TableHeader>
               <TableRow>
                 <TableHead>Account Name</TableHead>
-                <TableHead>Owner Email</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -897,13 +904,6 @@ export function ReplyIoSettings() {
                           )}
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      {account.ownerEmail ? (
-                        <span className="text-sm text-muted-foreground">{account.ownerEmail}</span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground italic">Not available</span>
-                      )}
                     </TableCell>
                     <TableCell>
                       <button
@@ -949,7 +949,7 @@ export function ReplyIoSettings() {
                   {/* Expanded Campaigns Row */}
                   {expandedAccountId === account.id && (
                     <TableRow>
-                      <TableCell colSpan={5} className="p-0">
+                      <TableCell colSpan={4} className="p-0">
                         <div className="p-4 bg-muted/20 border-t">
                           <div className="space-y-4">
                             <div className="flex items-center justify-between">
@@ -1019,6 +1019,13 @@ export function ReplyIoSettings() {
                                           {formatCampaignStatus(campaign.status)}
                                         </Badge>
                                       </div>
+                                      
+                                      {/* Owner Email */}
+                                      {campaign.ownerEmail && (
+                                        <p className={`text-xs ${campaign.isDefault ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                                          Owner: {campaign.ownerEmail}
+                                        </p>
+                                      )}
                                       
                                       {/* Campaign ID - now below status badges */}
                                       <p className={`text-xs ${campaign.isDefault ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>

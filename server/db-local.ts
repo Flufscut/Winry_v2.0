@@ -241,7 +241,6 @@ function initializeTables(sqlite: Database.Database) {
       client_id INTEGER NOT NULL,
       name TEXT NOT NULL,
       api_key TEXT NOT NULL,
-      owner_email TEXT,
       is_default INTEGER DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
@@ -406,7 +405,6 @@ export const replyioAccounts = sqliteTable('replyio_accounts', {
   clientId: integer('client_id').notNull(),
   name: text('name').notNull(), // User-friendly name (e.g., "Main Account", "Sales Team")
   apiKey: text('api_key').notNull(), // Encrypted Reply.io API key
-  ownerEmail: text('owner_email'), // Owner email from Reply.io API
   isDefault: integer('is_default').default(0), // Only one default per user per client (SQLite: 1=true, 0=false)
   createdAt: text('created_at').default("datetime('now')"),
   updatedAt: text('updated_at').default("datetime('now')"),
@@ -484,7 +482,6 @@ export const insertReplyioAccountSchema = createInsertSchema(replyioAccounts).om
 }).extend({
   name: z.string().min(1).max(100),
   apiKey: z.string().min(1),
-  ownerEmail: z.string().email().optional(),
   isDefault: z.number().int().min(0).max(1).optional().default(0), // SQLite compatibility
 });
 
