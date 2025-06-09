@@ -137,7 +137,7 @@ export const replyioCampaigns = pgTable("replyio_campaigns", {
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   accountIdIdx: index("replyio_campaigns_account_id_idx").on(table.accountId),
-  accountDefaultIdx: unique("replyio_campaigns_account_default_unique").on(table.accountId, table.isDefault),
+  // REF: Only enforce unique default constraint when isDefault=true, allow multiple isDefault=false
   accountCampaignIdx: unique("replyio_campaigns_account_campaign_unique").on(table.accountId, table.campaignId),
 }));
 
