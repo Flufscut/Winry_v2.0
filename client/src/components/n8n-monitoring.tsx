@@ -86,7 +86,7 @@ export function N8nMonitoring() {
       
       const result = await response.json();
       if (result.success) {
-        setMonitoringData(result.data);
+        setMonitoringData(result.monitoring);
       } else {
         throw new Error(result.message || 'Failed to fetch monitoring data');
       }
@@ -117,7 +117,7 @@ export function N8nMonitoring() {
       
       const result = await response.json();
       if (result.success) {
-        setExecutions(result.data.data || []);
+        setExecutions(result.executions || []);
       } else {
         throw new Error(result.message || 'Failed to fetch executions');
       }
@@ -143,7 +143,7 @@ export function N8nMonitoring() {
       
       const result = await response.json();
       if (result.success) {
-        setWorkflows(result.data.data || []);
+        setWorkflows(result.workflows || []);
       }
     } catch (err) {
       console.error('[N8N MONITORING] Error fetching workflows:', err);
