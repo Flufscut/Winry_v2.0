@@ -16,6 +16,7 @@ import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import passport from 'passport';
 import { Strategy as GoogleStrategy, Profile as GoogleProfile } from 'passport-google-oauth20';
+import connectPgSimple from 'connect-pg-simple';
 import { storage } from './storage.js';
 
 // Use the shared storage instance to prevent database conflicts
@@ -97,8 +98,7 @@ export function getSessionMiddleware() {
   // Use PostgreSQL session store in production
   if (process.env.NODE_ENV === 'production' && process.env.DATABASE_URL) {
     console.log('🔧 Using PostgreSQL session store for production');
-    const connectPg = require('connect-pg-simple');
-    const pgStore = connectPg(session);
+    const pgStore = connectPgSimple(session);
     sessionConfig.store = new pgStore({
       conString: process.env.DATABASE_URL,
       createTableIfMissing: true,
