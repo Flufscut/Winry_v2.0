@@ -116,6 +116,7 @@ export const replyioAccounts = pgTable("replyio_accounts", {
   clientId: integer("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
   name: varchar("name").notNull(), // User-friendly name (e.g., "Main Account", "Sales Team")
   apiKey: varchar("api_key").notNull(), // Encrypted Reply.io API key
+  ownerEmail: varchar("owner_email"), // Owner email from Reply.io API
   isDefault: boolean("is_default").default(false), // Only one default per user per client
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -132,7 +133,6 @@ export const replyioCampaigns = pgTable("replyio_campaigns", {
   campaignId: integer("campaign_id").notNull(), // Reply.io campaign ID
   campaignName: varchar("campaign_name").notNull(), // Campaign name from Reply.io
   campaignStatus: varchar("campaign_status"), // active, paused, etc.
-  ownerEmail: varchar("owner_email"), // Email of campaign owner/creator
   isDefault: boolean("is_default").default(false), // Only one default per account
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -150,6 +150,7 @@ export const insertReplyioAccountSchema = createInsertSchema(replyioAccounts).om
 }).extend({
   name: z.string().min(1).max(100),
   apiKey: z.string().min(1),
+  ownerEmail: z.string().email().optional(),
   isDefault: z.boolean().optional(),
 });
 
@@ -167,7 +168,6 @@ export const insertReplyioCampaignSchema = createInsertSchema(replyioCampaigns).
   campaignId: z.number(),
   campaignName: z.string().min(1).max(200),
   campaignStatus: z.string().optional(),
-  ownerEmail: z.string().email().optional(),
   isDefault: z.boolean().optional(),
 });
 

@@ -1339,6 +1339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const safeAccounts = accounts.map(account => ({
         id: account.id,
         name: account.name,
+        ownerEmail: account.ownerEmail,
         isDefault: account.isDefault,
         createdAt: account.createdAt,
         updatedAt: account.updatedAt,
@@ -1409,6 +1410,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
+      // REF: Fetch owner email from Reply.io API
+      let ownerEmail = null;
+      try {
+        const accessInfo = await replyIoService.getAccountAccessInfo(apiKey);
+        if (accessInfo.userInfo && accessInfo.userInfo.email) {
+          ownerEmail = accessInfo.userInfo.email;
+        }
+      } catch (error) {
+        console.log('Could not fetch owner email from Reply.io API:', error);
+        // Continue without owner email - it's optional
+      }
+
       // REF: Encrypt the API key before storing
       const encryptedApiKey = replyIoService.encryptApiKey(apiKey);
 
@@ -1417,6 +1430,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         clientId: currentClientId,
         name,
         apiKey: encryptedApiKey,
+        ownerEmail,
         isDefault: false
       });
 
@@ -1432,7 +1446,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               campaignId: campaign.id,
               campaignName: campaign.name,
               campaignStatus: campaign.status,
-              ownerEmail: campaign.ownerEmail,
               isDefault: false,
             });
             syncedCampaigns.push(newCampaign);
@@ -1448,6 +1461,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const safeAccount = {
           id: account.id,
           name: account.name,
+          ownerEmail: account.ownerEmail,
           isDefault: account.isDefault,
           clientId: account.clientId,
           createdAt: account.createdAt,
@@ -1466,6 +1480,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const safeAccount = {
           id: account.id,
           name: account.name,
+          ownerEmail: account.ownerEmail,
           isDefault: account.isDefault,
           clientId: account.clientId,
           createdAt: account.createdAt,
@@ -1750,7 +1765,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
             campaignId: campaign.id,
             campaignName: campaign.name,
             campaignStatus: campaign.status,
-            ownerEmail: campaign.ownerEmail,
             isDefault: false,
           });
           syncedCampaigns.push(upsertedCampaign);
@@ -3068,7 +3082,7 @@ URL: ${req.url}
   // REF: Temporary route to fix campaign statuses (remove performance metrics from status field)
   app.post('/api/reply-io/fix-campaign-statuses', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = getUserId(req);
       
       // REF: Get all Reply.io accounts for the user
       const accounts = await getReplyIoAccounts(userId);
@@ -3519,7 +3533,7 @@ URL: ${req.url}
   app.post('/api/debug/test-auto-send', requireAuth, async (req: any, res) => {
     try {
       const { prospectId } = req.body;
-      const userId = req.user.id;
+      const userId = getUserId(req);
       
       // Get the prospect
       const prospects = await storage.getProspectsByUser(userId);
@@ -3592,7 +3606,7 @@ URL: ${req.url}
   // REF: Temporary route to fix campaign statuses (remove performance metrics from status field)
   app.post('/api/reply-io/fix-campaign-statuses', requireAuth, async (req: any, res) => {
     try {
-      const userId = req.user.id;
+      const userId = getUserId(req);
       
       // REF: Get all Reply.io accounts for the user
       const accounts = await getReplyIoAccounts(userId);

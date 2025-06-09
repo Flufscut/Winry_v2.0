@@ -103,7 +103,7 @@ export function getSessionMiddleware() {
       conString: process.env.DATABASE_URL,
       createTableIfMissing: true,
       ttl: 7 * 24 * 60 * 60, // 1 week in seconds
-      tableName: 'sessions',
+      tableName: 'user_sessions', // REF: Use different table name to avoid conflict with app's sessions table
     });
   } else {
     console.log('🔧 Using in-memory session store for development');
