@@ -36,13 +36,15 @@ class N8nApiClient {
   /**
    * REF: Make authenticated API request to n8n
    * PURPOSE: Handle authentication, errors, and response parsing
+   * NOTE: n8n Cloud uses X-N8N-API-KEY header, not Bearer token
    */
   private async makeRequest(endpoint: string, options: RequestInit = {}): Promise<any> {
     const url = `${this.baseUrl}/api/v1${endpoint}`;
     
     const headers = {
-      'Authorization': `Bearer ${this.apiKey}`,
+      'X-N8N-API-KEY': this.apiKey,
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
       ...options.headers,
     };
 
