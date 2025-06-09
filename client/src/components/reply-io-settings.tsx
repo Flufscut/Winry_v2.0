@@ -432,14 +432,23 @@ export function ReplyIoSettings() {
       const result = await response.json();
 
       if (response.ok) {
+        const campaignsCount = result.campaignsFound || 0;
         toast({
           title: "Account Added",
-          description: `Successfully added ${newAccount.name}`,
+          description: `Successfully added ${newAccount.name} with ${campaignsCount} campaigns`,
         });
         
         setNewAccount({ name: '', apiKey: '' });
         setShowAddAccountDialog(false);
         await fetchAccounts(); // Refresh accounts list
+        
+        // REF: Automatically expand the newly created account to show campaigns
+        setTimeout(async () => {
+          const newAccountId = result.account.id;
+          setExpandedAccountId(newAccountId);
+          setSettings(prev => ({ ...prev, selectedAccount: result.account }));
+          await fetchCampaignsWithAutoSync(newAccountId);
+        }, 500); // Small delay to ensure accounts list is refreshed first
       } else {
         toast({
           title: "Error",

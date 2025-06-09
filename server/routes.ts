@@ -1442,26 +1442,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
         
         console.log(`Auto-synced ${syncedCampaigns.length} campaigns for account ${account.name}`);
+        
+        // REF: Don't expose API key in response
+        const safeAccount = {
+          id: account.id,
+          name: account.name,
+          isDefault: account.isDefault,
+          clientId: account.clientId,
+          createdAt: account.createdAt,
+          updatedAt: account.updatedAt
+        };
+
+        res.json({
+          success: true,
+          account: safeAccount,
+          campaignsFound: syncedCampaigns.length,
+          message: `Account created successfully with ${syncedCampaigns.length} campaigns`
+        });
       } catch (error) {
         console.error('Error auto-syncing campaigns:', error);
         // REF: Don't fail account creation if campaign sync fails
+        const safeAccount = {
+          id: account.id,
+          name: account.name,
+          isDefault: account.isDefault,
+          clientId: account.clientId,
+          createdAt: account.createdAt,
+          updatedAt: account.updatedAt
+        };
+
+        res.json({
+          success: true,
+          account: safeAccount,
+          campaignsFound: 0,
+          message: "Account created successfully (campaign sync failed)"
+        });
       }
-
-      // REF: Don't expose API key in response
-      const safeAccount = {
-        id: account.id,
-        name: account.name,
-        isDefault: account.isDefault,
-        clientId: account.clientId,
-        createdAt: account.createdAt,
-        updatedAt: account.updatedAt
-      };
-
-      res.json({
-        success: true,
-        account: safeAccount,
-        message: "Account created successfully"
-      });
     } catch (error) {
       console.error('Error creating Reply.io account:', error);
       res.status(500).json({ message: "Failed to create account", error: error.message });
