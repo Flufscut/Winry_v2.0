@@ -1,16 +1,10 @@
 /**
- * FILE: n8n-monitoring.tsx
- * PURPOSE: Real-time monitoring dashboard for n8n workflow executions
- * LAST_UPDATED: June 8, 2025
+ * FILE: ai-research-monitoring.tsx
+ * PURPOSE: Real-time monitoring dashboard for AI research workflow executions
+ * CONTEXT: Multi-tenant SaaS platform for automated prospect research
  * 
- * REF: This component provides visibility into n8n research workflow status
- * REF: Helps debug webhook issues and track prospect research progress
- * 
- * MAIN_FUNCTIONS:
- * - Real-time execution monitoring
- * - Detailed execution information
- * - Error tracking and debugging
- * - Performance metrics
+ * REF: This component provides visibility into AI research workflow status
+ * and performance analytics in a white-labeled interface
  */
 
 import React, { useState, useEffect } from 'react';
@@ -62,7 +56,7 @@ interface ExecutionAnalytics {
  * REF: Main n8n monitoring component
  * PURPOSE: Provides real-time dashboard for tracking prospect research workflows
  */
-export function N8nMonitoring() {
+export function AIResearchMonitoring() {
   const [monitoringData, setMonitoringData] = useState<ProspectMonitoringData | null>(null);
   const [executions, setExecutions] = useState<N8nExecution[]>([]);
   const [workflows, setWorkflows] = useState<any[]>([]);
@@ -263,7 +257,7 @@ export function N8nMonitoring() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">n8n Workflow Monitoring</h1>
+          <h1 className="text-3xl font-bold">AI Research Monitoring</h1>
           <p className="text-muted-foreground">
             Real-time tracking of prospect research workflows and executions
           </p>
@@ -319,7 +313,7 @@ export function N8nMonitoring() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Active n8n Executions</CardTitle>
+            <CardTitle className="text-sm font-medium">Active Research Processes</CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -365,7 +359,7 @@ export function N8nMonitoring() {
       <Tabs defaultValue="prospects" className="w-full">
         <TabsList>
           <TabsTrigger value="prospects">Processing Prospects</TabsTrigger>
-          <TabsTrigger value="executions">n8n Executions</TabsTrigger>
+          <TabsTrigger value="executions">Research Executions</TabsTrigger>
           <TabsTrigger value="workflows">Workflows</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
         </TabsList>
@@ -376,7 +370,7 @@ export function N8nMonitoring() {
             <CardHeader>
               <CardTitle>Currently Processing Prospects</CardTitle>
               <CardDescription>
-                Prospects currently being researched by n8n workflows
+                Prospects currently being researched by AI workflows
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -417,11 +411,11 @@ export function N8nMonitoring() {
           </Card>
         </TabsContent>
 
-        {/* n8n Executions Tab */}
+        {/* Research Executions Tab */}
         <TabsContent value="executions" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Recent n8n Executions</CardTitle>
+              <CardTitle>Recent Research Executions</CardTitle>
               <CardDescription>
                 Latest workflow executions with status and timing information
               </CardDescription>
@@ -500,7 +494,7 @@ export function N8nMonitoring() {
             <CardHeader>
               <CardTitle>Available Workflows</CardTitle>
               <CardDescription>
-                n8n workflows configured for prospect research
+                AI research workflows configured for prospect analysis
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -589,7 +583,7 @@ export function N8nMonitoring() {
                     <span className="font-medium">{analytics ? formatExecutionTime(analytics.averageDuration) : 'N/A'}</span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-2">
-                    Based on successful n8n workflow executions
+                    Based on successful AI research workflow executions
                   </div>
                 </div>
               </CardContent>
@@ -757,10 +751,10 @@ export function N8nMonitoring() {
                             {failure.reason.toLowerCase().includes('linkedin') ? 
                               '💡 Solution: Ensure prospects have valid LinkedIn profiles' :
                               failure.reason.toLowerCase().includes('timeout') ?
-                              '💡 Solution: Check n8n workflow performance' :
+                              '💡 Solution: Check AI research workflow performance' :
                               failure.reason.toLowerCase().includes('api') ?
                               '💡 Solution: Verify API credentials and rate limits' :
-                              '💡 Solution: Check n8n workflow configuration'
+                              '💡 Solution: Check AI research workflow configuration'
                             }
                           </div>
                         </div>
@@ -789,4 +783,4 @@ export function N8nMonitoring() {
   );
 }
 
-export default N8nMonitoring; 
+export default AIResearchMonitoring; 

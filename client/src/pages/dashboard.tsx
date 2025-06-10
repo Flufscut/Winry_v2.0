@@ -28,7 +28,7 @@ const ProspectTableEnhanced = React.lazy(() => import("@/components/prospect-tab
 const SettingsMenu = React.lazy(() => import("@/components/settings-menu"));
 const CommandCenterDashboard = React.lazy(() => import("@/components/analytics-dashboard").then(module => ({ default: module.CommandCenterDashboard })));
 const CacheMonitoringDashboard = React.lazy(() => import("@/components/cache-monitoring-dashboard"));
-const N8nMonitoring = React.lazy(() => import("@/components/n8n-monitoring"));
+const AIResearchMonitoring = React.lazy(() => import("@/components/ai-research-monitoring"));
 
 // REF: Keep lightweight components as regular imports
 import { ReplyIoSettings } from "@/components/reply-io-settings";
@@ -603,7 +603,7 @@ export default function Dashboard() {
                       {(() => {
                         const currentTab = [
                           { id: 'analytics', label: 'Pipeline Analytics', shortLabel: 'Pipeline', icon: TrendingUp },
-                          { id: 'reply-analytics', label: 'Reply.io Analytics', shortLabel: 'Reply.io', icon: Target },
+                          { id: 'reply-analytics', label: 'Outreach Analytics', shortLabel: 'Outreach', icon: Target },
                           { id: 'cache-monitoring', label: 'Cache Monitoring', shortLabel: 'Cache', icon: Activity },
                           { id: 'prospects', label: 'Prospect Management', shortLabel: 'Prospects', icon: Users },
                           { id: 'upload', label: 'Upload Prospects', shortLabel: 'Upload', icon: Upload },
@@ -622,8 +622,7 @@ export default function Dashboard() {
                 <SelectContent className="card-background-elevated border-border/50">
                   {[
                     { id: 'analytics', label: 'Pipeline Analytics', shortLabel: 'Pipeline', icon: TrendingUp },
-                    { id: 'reply-analytics', label: 'Reply.io Analytics', shortLabel: 'Reply.io', icon: Target },
-                    { id: 'n8n-monitoring', label: 'n8n Monitoring', shortLabel: 'n8n', icon: Brain },
+                    { id: 'reply-analytics', label: 'Outreach Analytics', shortLabel: 'Outreach', icon: Target },
                     { id: 'cache-monitoring', label: 'Cache Monitoring', shortLabel: 'Cache', icon: Activity },
                     { id: 'prospects', label: 'Prospect Management', shortLabel: 'Prospects', icon: Users },
                     { id: 'upload', label: 'Upload Prospects', shortLabel: 'Upload', icon: Upload },
@@ -644,8 +643,8 @@ export default function Dashboard() {
             <nav className="hidden sm:flex space-x-1 card-background-elevated p-1 rounded-xl overflow-x-auto">
               {[
                 { id: 'analytics', label: 'Pipeline Analytics', shortLabel: 'Pipeline', icon: TrendingUp },
-                { id: 'reply-analytics', label: 'Reply.io Analytics', shortLabel: 'Reply.io', icon: Target },
-                { id: 'n8n-monitoring', label: 'n8n Monitoring', shortLabel: 'n8n', icon: Brain },
+                { id: 'reply-analytics', label: 'Outreach Analytics', shortLabel: 'Outreach', icon: Target },
+                { id: 'n8n-monitoring', label: 'AI Research Monitoring', shortLabel: 'Research', icon: Brain },
                 { id: 'cache-monitoring', label: 'Cache Monitoring', shortLabel: 'Cache', icon: Activity },
                 { id: 'prospects', label: 'Prospect Management', shortLabel: 'Prospects', icon: Users },
                 { id: 'upload', label: 'Upload Prospects', shortLabel: 'Upload', icon: Upload },
@@ -716,7 +715,7 @@ export default function Dashboard() {
               transition={{ duration: 0.3 }}
             >
               <Suspense fallback={<LazyLoadingSpinner />}>
-                <N8nMonitoring />
+                <AIResearchMonitoring />
               </Suspense>
             </motion.div>
           )}

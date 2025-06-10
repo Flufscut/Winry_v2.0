@@ -132,7 +132,7 @@ export function CacheMonitoringDashboard({ className }: CacheMonitoringDashboard
   }
 
   const stats = apiData.statistics;
-  const replyIoUsage = stats.rateLimiting.apiUsage['reply.io'];
+  const outreachUsage = stats.rateLimiting.apiUsage['reply.io'];
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -220,10 +220,10 @@ export function CacheMonitoringDashboard({ className }: CacheMonitoringDashboard
       </div>
 
       {/* Rate Limiting Status */}
-      {replyIoUsage && (
+      {outreachUsage && (
         <Card>
           <CardHeader>
-            <CardTitle>Reply.io API Usage</CardTitle>
+            <CardTitle>Outreach API Usage</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -231,22 +231,22 @@ export function CacheMonitoringDashboard({ className }: CacheMonitoringDashboard
                 <div className="flex justify-between text-sm mb-2">
                   <span>Daily API Quota</span>
                   <span>
-                    {replyIoUsage.totalRequests} / {replyIoUsage.maxRequests}
+                    {outreachUsage.totalRequests} / {outreachUsage.maxRequests}
                   </span>
                 </div>
                 <Progress 
-                  value={(replyIoUsage.totalRequests / replyIoUsage.maxRequests) * 100} 
+                  value={(outreachUsage.totalRequests / outreachUsage.maxRequests) * 100} 
                   className="h-2"
                 />
               </div>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
                   <span className="text-gray-600">Tracked Keys:</span>
-                  <span className="ml-2 font-medium">{replyIoUsage.totalKeys}</span>
+                  <span className="ml-2 font-medium">{outreachUsage.totalKeys}</span>
                 </div>
                 <div>
                   <span className="text-gray-600">Window:</span>
-                  <span className="ml-2 font-medium">{Math.round(replyIoUsage.windowMs / 1000 / 60 / 60)}h</span>
+                  <span className="ml-2 font-medium">{Math.round(outreachUsage.windowMs / 1000 / 60 / 60)}h</span>
                 </div>
               </div>
             </div>

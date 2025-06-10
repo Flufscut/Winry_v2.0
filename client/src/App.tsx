@@ -12,7 +12,7 @@ import SignupPage from "@/pages/signup";
 import Dashboard from "@/pages/dashboard";
 import ProfileSettings from "@/pages/profile-settings";
 import Preferences from "@/pages/preferences";
-import N8nMonitoring from "@/components/n8n-monitoring";
+import AIResearchMonitoring from "@/components/ai-research-monitoring";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -70,19 +70,19 @@ function Router() {
         )}
       </Route>
       
-      <Route path="/n8n-monitoring">
-        {isLoading ? (
-          <div className="min-h-screen flex items-center justify-center">
-            <div className="text-center">Loading...</div>
-          </div>
-        ) : isAuthenticated ? (
-          <ClientProvider>
-            <N8nMonitoring />
-          </ClientProvider>
-        ) : (
-          <LoginPage />
-        )}
-      </Route>
+              <Route path="/ai-research-monitoring">
+          {isLoading ? (
+            <div className="min-h-screen flex items-center justify-center">
+              <div className="text-center">Loading...</div>
+            </div>
+          ) : isAuthenticated ? (
+            <ClientProvider>
+              <AIResearchMonitoring />
+            </ClientProvider>
+          ) : (
+            <LoginPage />
+          )}
+        </Route>
       
       {/* REF: Root route - show dashboard if authenticated, landing page if not */}
       <Route path="/">

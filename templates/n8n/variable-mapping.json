@@ -1,0 +1,198 @@
+{
+  "templateVariables": {
+    "CLIENT_NAME": {
+      "description": "Client organization name",
+      "example": "Acme Corp",
+      "validation": "^[a-zA-Z0-9\\s]{1,50}$"
+    },
+    "CAMPAIGN_NAME": {
+      "description": "Campaign identifier", 
+      "example": "Q1 Outreach",
+      "validation": "^[a-zA-Z0-9\\s]{1,50}$"
+    },
+    "CAMPAIGN_ID": {
+      "description": "Unique campaign UUID",
+      "example": "campaign_123e4567-e89b-12d3-a456-426614174000",
+      "validation": "^campaign_[a-f0-9\\-]{36}$"
+    },
+    "UNIQUE_CAMPAIGN_WEBHOOK_ID": {
+      "description": "Unique webhook ID for n8n entry point",
+      "example": "webhook_123e4567-e89b-12d3-a456-426614174000",
+      "validation": "^webhook_[a-f0-9\\-]{36}$"
+    },
+    "SUPABASE_PROJECT_NAME": {
+      "description": "Supabase project name pattern",
+      "example": "AcmeCorp_Q1Outreach", 
+      "validation": "^[a-zA-Z0-9_]{1,64}$"
+    },
+    "SUPABASE_PROJECT_URL": {
+      "description": "New Supabase project URL",
+      "example": "https://abcdefghijk.supabase.co",
+      "validation": "^https://[a-z0-9]+\\.supabase\\.co$"
+    },
+    "SUPABASE_API_KEY": {
+      "description": "Supabase project API key",
+      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "validation": "^[A-Za-z0-9_\\-\\.]{100,}$"
+    },
+    "SUPABASE_SERVICE_KEY": {
+      "description": "Supabase service role key",
+      "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+      "validation": "^[A-Za-z0-9_\\-\\.]{100,}$"
+    },
+    "GOOGLE_DRIVE_FOLDER_ID": {
+      "description": "Google Drive client folder ID",
+      "example": "1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms",
+      "validation": "^[a-zA-Z0-9_\\-]{25,}$"
+    },
+    "REPLY_IO_ORG_ID": {
+      "description": "Reply.io organization ID for client",
+      "example": "org_123456",
+      "validation": "^org_[0-9]+$"
+    },
+    "REPLY_IO_CAMPAIGN_ID": {
+      "description": "Reply.io campaign ID for client",
+      "example": "camp_789012",
+      "validation": "^camp_[0-9]+$"
+    }
+  },
+
+  "nodesToUpdate": {
+    "workflowName": {
+      "path": "name",
+      "template": "{CLIENT_NAME} - {CAMPAIGN_NAME}",
+      "description": "Main workflow name"
+    },
+    "webhookNode": {
+      "path": "nodes[?(@.type=='n8n-nodes-base.webhook')].parameters.webhookId",
+      "template": "{UNIQUE_CAMPAIGN_WEBHOOK_ID}",
+      "description": "Webhook entry point ID"
+    },
+    "supabaseCredentials": {
+      "path": "nodes[?(@.type=='n8n-nodes-base.supabase' || @.type=='@n8n/n8n-nodes-langchain.vectorStoreSupabase')].parameters.supabaseApi.name",
+      "template": "Supabase - {CLIENT_NAME}_{CAMPAIGN_NAME}",
+      "description": "Supabase credential references"
+    },
+    "resultWebhookUrl": {
+      "path": "nodes[?(@.parameters.url)].parameters.url",
+      "template": "https://winrybysl-production.up.railway.app/webhook/n8n-results/{CAMPAIGN_ID}",
+      "description": "Result callback URL",
+      "condition": "url.includes('webhook/n8n-results')"
+    }
+  },
+
+  "credentialsToCreate": {
+    "supabaseCredential": {
+      "name": "Supabase - {CLIENT_NAME}_{CAMPAIGN_NAME}",
+      "type": "supabaseApi",
+      "data": {
+        "host": "{SUPABASE_PROJECT_URL}",
+        "serviceRole": "{SUPABASE_SERVICE_KEY}",
+        "additionalFields": {
+          "apiKey": "{SUPABASE_API_KEY}"
+        }
+      }
+    }
+  },
+
+  "idRegenerationRules": {
+    "nodeIds": {
+      "prefix": "node_",
+      "format": "uuid-v4",
+      "description": "All node IDs must be unique per workflow"
+    },
+    "connectionIds": {
+      "updateReferences": true,
+      "description": "Update all connection references to match new node IDs"
+    },
+    "parameterIds": {
+      "keepOriginal": false,
+      "description": "Regenerate parameter IDs to avoid conflicts"
+    }
+  },
+
+  "supabaseSetup": {
+    "projectNaming": "{CLIENT_NAME}_{CAMPAIGN_NAME}",
+    "region": "us-east-1",
+    "plan": "free",
+    "schemaTemplate": "master_schema.sql",
+    "requiredTables": [
+      "prospects",
+      "research_results", 
+      "vector_embeddings",
+      "documents",
+      "processing_logs"
+    ]
+  },
+
+  "googleDriveSetup": {
+    "folderStructure": {
+      "root": "Clients",
+      "client": "{CLIENT_NAME}",
+      "subfolders": [
+        "Documentation",
+        "Templates", 
+        "Reports",
+        "Assets"
+      ]
+    },
+    "permissions": {
+      "type": "organization",
+      "role": "writer"
+    }
+  },
+
+  "replyIoSetup": {
+    "organizationNaming": "{CLIENT_NAME}",
+    "campaignTemplate": "master_campaign_template",
+    "variables": {
+      "company_name": "{CLIENT_NAME}",
+      "campaign_type": "{CAMPAIGN_NAME}"
+    }
+  },
+
+  "validationRules": {
+    "required": [
+      "CLIENT_NAME",
+      "CAMPAIGN_NAME", 
+      "CAMPAIGN_ID"
+    ],
+    "generated": [
+      "UNIQUE_CAMPAIGN_WEBHOOK_ID",
+      "SUPABASE_PROJECT_NAME"
+    ],
+    "external": [
+      "SUPABASE_PROJECT_URL",
+      "SUPABASE_API_KEY",
+      "SUPABASE_SERVICE_KEY",
+      "GOOGLE_DRIVE_FOLDER_ID",
+      "REPLY_IO_ORG_ID",
+      "REPLY_IO_CAMPAIGN_ID"
+    ]
+  },
+
+  "deploymentOrder": [
+    "validateInputs",
+    "generateUniqueIds", 
+    "createSupabaseProject",
+    "createGoogleDriveFolder",
+    "createReplyIoOrganization",
+    "createN8nCredentials",
+    "duplicateN8nWorkflow",
+    "updateWorkflowVariables",
+    "regenerateNodeIds",
+    "activateWorkflow",
+    "validateDeployment",
+    "registerWebhooks",
+    "runHealthChecks"
+  ],
+
+  "rollbackActions": {
+    "deleteN8nWorkflow": "DELETE /workflows/{workflow_id}",
+    "deleteSupabaseProject": "DELETE /v1/projects/{project_id}",
+    "deleteGoogleDriveFolder": "DELETE /v3/files/{folder_id}",
+    "deleteReplyIoOrganization": "DELETE /organizations/{org_id}",
+    "deleteCredentials": "DELETE /credentials/{credential_id}",
+    "updateDatabase": "UPDATE campaigns SET status='failed', error='{error_message}'"
+  }
+} 

@@ -1,0 +1,392 @@
+{
+  "apiEndpoints": {
+    "n8n": {
+      "baseUrl": "https://app.n8n.cloud/api/v1",
+      "endpoints": {
+        "workflows": {
+          "list": "GET /workflows",
+          "create": "POST /workflows", 
+          "update": "PUT /workflows/{id}",
+          "delete": "DELETE /workflows/{id}",
+          "activate": "POST /workflows/{id}/activate",
+          "deactivate": "POST /workflows/{id}/deactivate"
+        },
+        "credentials": {
+          "list": "GET /credentials",
+          "create": "POST /credentials",
+          "update": "PUT /credentials/{id}",
+          "delete": "DELETE /credentials/{id}"
+        },
+        "executions": {
+          "list": "GET /executions",
+          "get": "GET /executions/{id}"
+        }
+      },
+      "authentication": {
+        "type": "header",
+        "header": "X-N8N-API-KEY",
+        "envVar": "N8N_API_KEY"
+      },
+      "rateLimit": {
+        "requests": 100,
+        "window": "1h"
+      }
+    },
+
+    "supabase": {
+      "baseUrl": "https://api.supabase.com/v1",
+      "endpoints": {
+        "projects": {
+          "list": "GET /projects",
+          "create": "POST /projects",
+          "get": "GET /projects/{id}",
+          "delete": "DELETE /projects/{id}",
+          "settings": "GET /projects/{id}/settings"
+        },
+        "database": {
+          "migrations": "POST /projects/{id}/database/migrations"
+        }
+      },
+      "authentication": {
+        "type": "bearer",
+        "envVar": "SUPABASE_ACCESS_TOKEN"
+      },
+      "rateLimit": {
+        "requests": 60,
+        "window": "1m"
+      }
+    },
+
+    "googleDrive": {
+      "baseUrl": "https://www.googleapis.com/drive/v3",
+      "endpoints": {
+        "files": {
+          "create": "POST /files",
+          "get": "GET /files/{id}",
+          "update": "PATCH /files/{id}",
+          "delete": "DELETE /files/{id}",
+          "list": "GET /files"
+        },
+        "permissions": {
+          "create": "POST /files/{fileId}/permissions",
+          "list": "GET /files/{fileId}/permissions"
+        }
+      },
+      "authentication": {
+        "type": "oauth2",
+        "scopes": [
+          "https://www.googleapis.com/auth/drive",
+          "https://www.googleapis.com/auth/drive.file"
+        ],
+        "envVar": "GOOGLE_DRIVE_CREDENTIALS"
+      }
+    },
+
+    "replyIo": {
+      "baseUrl": "https://api.reply.io/v1",
+      "endpoints": {
+        "organizations": {
+          "list": "GET /organizations",
+          "create": "POST /organizations",
+          "get": "GET /organizations/{id}",
+          "update": "PUT /organizations/{id}",
+          "delete": "DELETE /organizations/{id}"
+        },
+        "campaigns": {
+          "list": "GET /campaigns",
+          "create": "POST /campaigns", 
+          "duplicate": "POST /campaigns/{id}/duplicate",
+          "get": "GET /campaigns/{id}",
+          "update": "PUT /campaigns/{id}"
+        },
+        "accounts": {
+          "list": "GET /emailAccounts",
+          "create": "POST /emailAccounts"
+        }
+      },
+      "authentication": {
+        "type": "header",
+        "header": "X-Api-Key",
+        "envVar": "REPLY_IO_MASTER_API_KEY"
+      },
+      "rateLimit": {
+        "requests": 500,
+        "window": "1d"
+      }
+    }
+  },
+
+  "deploymentSteps": {
+    "step1_validation": {
+      "name": "Input Validation",
+      "timeout": 5000,
+      "retries": 0,
+      "validations": [
+        {
+          "field": "clientName",
+          "rules": ["required", "string", "max:50", "regex:^[a-zA-Z0-9\\s]+$"]
+        },
+        {
+          "field": "campaignName", 
+          "rules": ["required", "string", "max:50", "regex:^[a-zA-Z0-9\\s]+$"]
+        }
+      ]
+    },
+
+    "step2_supabase": {
+      "name": "Supabase Project Creation",
+      "timeout": 60000,
+      "retries": 2,
+      "endpoint": "supabase.projects.create",
+      "payload": {
+        "name": "{SUPABASE_PROJECT_NAME}",
+        "organization_id": "{SUPABASE_ORG_ID}",
+        "plan": "free",
+        "region": "us-east-1"
+      },
+      "waitForReady": {
+        "maxAttempts": 20,
+        "interval": 3000,
+        "readyStatus": "ACTIVE"
+      }
+    },
+
+    "step3_database_setup": {
+      "name": "Database Schema Setup",
+      "timeout": 30000,
+      "retries": 1,
+      "endpoint": "supabase.database.migrations",
+      "schemaFile": "templates/sql/master_schema.sql",
+      "dependencies": ["step2_supabase"]
+    },
+
+    "step4_google_drive": {
+      "name": "Google Drive Folder Creation",
+      "timeout": 15000,
+      "retries": 2,
+      "endpoint": "googleDrive.files.create",
+      "payload": {
+        "name": "{CLIENT_NAME}",
+        "parents": ["{GOOGLE_DRIVE_CLIENTS_FOLDER_ID}"],
+        "mimeType": "application/vnd.google-apps.folder"
+      },
+      "subfolders": [
+        "Documentation",
+        "Templates",
+        "Reports", 
+        "Assets"
+      ]
+    },
+
+    "step5_reply_io_org": {
+      "name": "Reply.io Organization Setup",
+      "timeout": 20000,
+      "retries": 2,
+      "endpoint": "replyIo.organizations.create",
+      "payload": {
+        "name": "{CLIENT_NAME}",
+        "plan": "starter"
+      }
+    },
+
+    "step6_reply_io_campaign": {
+      "name": "Reply.io Campaign Duplication",
+      "timeout": 30000,
+      "retries": 2,
+      "endpoint": "replyIo.campaigns.duplicate",
+      "masterCampaignId": "{MASTER_CAMPAIGN_ID}",
+      "payload": {
+        "name": "{CLIENT_NAME} - {CAMPAIGN_NAME}",
+        "organizationId": "{REPLY_IO_ORG_ID}"
+      },
+      "dependencies": ["step5_reply_io_org"]
+    },
+
+    "step7_n8n_credentials": {
+      "name": "n8n Credentials Creation",
+      "timeout": 10000,
+      "retries": 1,
+      "endpoint": "n8n.credentials.create",
+      "payload": {
+        "name": "Supabase - {CLIENT_NAME}_{CAMPAIGN_NAME}",
+        "type": "supabaseApi",
+        "data": {
+          "host": "{SUPABASE_PROJECT_URL}",
+          "serviceRole": "{SUPABASE_SERVICE_KEY}",
+          "additionalFields": {
+            "apiKey": "{SUPABASE_API_KEY}"
+          }
+        }
+      },
+      "dependencies": ["step2_supabase", "step3_database_setup"]
+    },
+
+    "step8_n8n_workflow": {
+      "name": "n8n Workflow Duplication",
+      "timeout": 45000,
+      "retries": 2,
+      "endpoint": "n8n.workflows.create",
+      "templateFile": "templates/n8n/master-workflow.json",
+      "transformations": [
+        "updateWorkflowName",
+        "regenerateNodeIds", 
+        "updateWebhookId",
+        "updateSupabaseCredentials",
+        "updateResultWebhookUrl"
+      ],
+      "dependencies": ["step7_n8n_credentials"]
+    },
+
+    "step9_activation": {
+      "name": "Workflow Activation",
+      "timeout": 10000,
+      "retries": 1,
+      "endpoint": "n8n.workflows.activate",
+      "dependencies": ["step8_n8n_workflow"]
+    },
+
+    "step10_validation": {
+      "name": "End-to-End Validation",
+      "timeout": 60000,
+      "retries": 0,
+      "healthChecks": [
+        {
+          "name": "webhook_connectivity",
+          "url": "{WEBHOOK_URL}",
+          "method": "POST",
+          "expectedStatus": 200
+        },
+        {
+          "name": "supabase_connection",
+          "type": "database_query",
+          "query": "SELECT 1"
+        },
+        {
+          "name": "google_drive_access",
+          "type": "folder_exists",
+          "folderId": "{GOOGLE_DRIVE_FOLDER_ID}"
+        }
+      ],
+      "dependencies": ["step9_activation"]
+    }
+  },
+
+  "rollbackPlan": {
+    "enableAutoRollback": true,
+    "rollbackOrder": [
+      "deactivateN8nWorkflow",
+      "deleteN8nWorkflow", 
+      "deleteN8nCredentials",
+      "deleteReplyIoCampaign",
+      "deleteReplyIoOrganization",
+      "deleteGoogleDriveFolders",
+      "deleteSupabaseProject",
+      "updateDatabaseStatus"
+    ],
+    "rollbackActions": {
+      "deactivateN8nWorkflow": {
+        "endpoint": "n8n.workflows.deactivate",
+        "ignoreErrors": true
+      },
+      "deleteN8nWorkflow": {
+        "endpoint": "n8n.workflows.delete",
+        "ignoreErrors": true
+      },
+      "deleteN8nCredentials": {
+        "endpoint": "n8n.credentials.delete",
+        "ignoreErrors": true
+      },
+      "deleteReplyIoCampaign": {
+        "endpoint": "replyIo.campaigns.delete",
+        "ignoreErrors": true
+      },
+      "deleteReplyIoOrganization": {
+        "endpoint": "replyIo.organizations.delete",
+        "ignoreErrors": false
+      },
+      "deleteGoogleDriveFolders": {
+        "endpoint": "googleDrive.files.delete",
+        "ignoreErrors": true
+      },
+      "deleteSupabaseProject": {
+        "endpoint": "supabase.projects.delete",
+        "ignoreErrors": false
+      },
+      "updateDatabaseStatus": {
+        "type": "database_update",
+        "table": "campaigns", 
+        "where": "id = {CAMPAIGN_ID}",
+        "set": {
+          "status": "failed",
+          "error_message": "{ERROR_MESSAGE}",
+          "failed_at": "NOW()"
+        }
+      }
+    }
+  },
+
+  "monitoring": {
+    "webhookEndpoints": [
+      {
+        "path": "/webhook/n8n-results/{campaign_id}",
+        "method": "POST",
+        "authentication": "optional",
+        "rateLimit": {
+          "requests": 1000,
+          "window": "1h"
+        }
+      }
+    ],
+    "healthChecks": {
+      "interval": 300000,
+      "checks": [
+        {
+          "name": "n8n_api_connectivity",
+          "endpoint": "n8n.workflows.list",
+          "timeout": 5000
+        },
+        {
+          "name": "supabase_api_connectivity", 
+          "endpoint": "supabase.projects.list",
+          "timeout": 5000
+        }
+      ]
+    },
+    "alerts": {
+      "deploymentFailure": {
+        "channels": ["email", "slack"],
+        "severity": "high"
+      },
+      "webhookTimeout": {
+        "channels": ["slack"],
+        "severity": "medium"
+      }
+    }
+  },
+
+  "security": {
+    "encryption": {
+      "credentials": true,
+      "apiKeys": true,
+      "webhookPayloads": false
+    },
+    "accessControl": {
+      "adminOnly": [
+        "deleteSupabaseProject",
+        "deleteReplyIoOrganization"
+      ],
+      "userLevel": [
+        "createCampaign",
+        "updateCampaign"
+      ]
+    },
+    "auditLogging": {
+      "enabled": true,
+      "events": [
+        "campaign_created",
+        "campaign_failed",
+        "rollback_executed"
+      ]
+    }
+  }
+} 

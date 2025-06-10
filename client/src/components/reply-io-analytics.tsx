@@ -1,17 +1,16 @@
 /**
- * FILE: reply-io-analytics.tsx
- * PURPOSE: Display Reply.io campaign statistics and analytics
- * DEPENDENCIES: React Query, Recharts, shadcn/ui components
- * LAST_UPDATED: Current date
+ * FILE: outreach-analytics.tsx
+ * PURPOSE: Display outreach campaign statistics and analytics
+ * CONTEXT: Multi-tenant SaaS platform component
+ * LAST_UPDATED: June 9, 2025
  * 
- * REF: Integrates with Reply.io API to show campaign performance
- * REF: Displays overall statistics and individual campaign metrics
- * TODO: Add real-time refresh and export functionality
+ * REF: Integrates with outreach platform API to show campaign performance
+ * in a white-labeled interface that abstracts service-specific references
  * 
  * MAIN_FUNCTIONS:
- * - ReplyIoAnalytics: Main analytics dashboard component
- * - CampaignStatsCard: Individual campaign statistics display
- * - OverallStatsDisplay: Overall Reply.io performance metrics
+ * - OverallStatsDisplay: Overall outreach performance metrics
+ * - CampaignsOverview: Campaign-specific statistics and management
+ * - Error handling for API rate limiting and connectivity issues
  */
 
 import React, { useState, useEffect } from 'react';
@@ -158,7 +157,7 @@ export function ReplyIoAnalytics() {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h3 className="text-2xl font-bold text-white">Reply.io Campaign Analytics</h3>
+          <h3 className="text-2xl font-bold text-white">Outreach Campaign Analytics</h3>
           <Button disabled variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
             Loading...
@@ -179,9 +178,9 @@ export function ReplyIoAnalytics() {
       <Card className="command-card">
         <CardContent className="p-6 text-center">
           <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">Reply.io API Rate Limited</h3>
-          <p className="text-muted-foreground mb-4">
-            Reply.io API is temporarily rate limited. Analytics will be available once the rate limit resets.
+          <h3 className="text-lg font-semibold text-white mb-2">Outreach API Rate Limited</h3>
+          <p className="text-white/90 text-sm">
+            Outreach API is temporarily rate limited. Analytics will be available once the rate limit resets.
           </p>
           <Button onClick={handleRefresh} variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -207,7 +206,7 @@ export function ReplyIoAnalytics() {
           <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-white mb-2">API Error</h3>
           <p className="text-muted-foreground mb-4">
-            {statsError?.message || campaignsError?.message || 'Failed to fetch Reply.io data'}
+            {statsError?.message || campaignsError?.message || 'Failed to fetch outreach data'}
           </p>
           <Button onClick={handleRefresh} variant="outline" size="sm">
             <RefreshCw className="w-4 h-4 mr-2" />
@@ -223,9 +222,9 @@ export function ReplyIoAnalytics() {
       <Card className="command-card">
         <CardContent className="p-6 text-center">
           <AlertTriangle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-white mb-2">Reply.io Not Connected</h3>
-          <p className="text-muted-foreground mb-4">
-            Configure your Reply.io API key in settings to view campaign analytics.
+          <h3 className="text-lg font-semibold text-white mb-2">Outreach Not Connected</h3>
+          <p className="text-white/90 text-sm">
+            Configure your outreach API key in settings to view campaign analytics.
           </p>
         </CardContent>
       </Card>
@@ -256,7 +255,7 @@ export function ReplyIoAnalytics() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-2xl font-bold text-white">Reply.io Campaign Analytics</h3>
+          <h3 className="text-2xl font-bold text-white">Outreach Campaign Analytics</h3>
           <p className="text-muted-foreground">Track your email campaign performance</p>
         </div>
         <div className="flex items-center gap-3">

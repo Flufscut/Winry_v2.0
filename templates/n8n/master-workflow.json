@@ -1,0 +1,3912 @@
+{
+  "name": "Kneecap 4.0 - MirrorMate",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "722a9a10-a79c-4b0e-abc8-42d01328edc5",
+              "name": "firstname",
+              "value": "={{ $json.properties.firstname.value }}",
+              "type": "string"
+            },
+            {
+              "id": "48fe0454-d360-42d5-adf8-37439fc25b86",
+              "name": "lastname",
+              "value": "={{ $json.properties.lastname.value }}",
+              "type": "string"
+            },
+            {
+              "id": "5bb35fd2-8518-47e8-afe2-951d98177886",
+              "name": "company",
+              "value": "={{ $json.properties.company.value }}",
+              "type": "string"
+            },
+            {
+              "id": "9d627079-9891-4d49-a508-d769581e6298",
+              "name": "jobtitle",
+              "value": "={{ $json.properties.jobtitle.value }}",
+              "type": "string"
+            },
+            {
+              "id": "10c7078c-5a72-48a0-800b-94c7bc684665",
+              "name": "email",
+              "value": "={{ $json.properties.email.value }}",
+              "type": "string"
+            },
+            {
+              "id": "d8b57290-b5c2-4d68-8882-ce045d0d2336",
+              "name": "linkedin",
+              "value": "={{ $json.properties.hs_linkedin_url.value }}",
+              "type": "string"
+            },
+            {
+              "id": "7ca4e757-3a89-4854-85ad-463649ef9d5b",
+              "name": "website",
+              "value": "=https://www.{{ $json.properties.hs_email_domain.value }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3060,
+        1620
+      ],
+      "id": "356da3ce-fd7c-4da4-8721-4961864b7c35",
+      "name": "Required Fields"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "/**\n * INPUT\n *   $json.email   – the prospect’s e‑mail address\n *\n * OUTPUT\n *   Keeps the original fields and adds:\n *     • companyDomain   →  \"acme.com\"\n *     • companyWebsite  →  \"https://acme.com\"\n *\n *   If the address is a public mailbox (gmail, outlook, etc.) both fields are null.\n */\n\nconst email = ($json.email || '').trim().toLowerCase();\n\n// ── 1. extract “domain” part after @ ─────────────────────────────────────────\nconst domainMatch = email.match(/@([^@]+)$/);\nif (!domainMatch) {\n  // not a valid e‑mail → just return the item unchanged\n  return $json;\n}\nlet domain = domainMatch[1];\n\n// ── 2. strip common mail sub‑domains (mail., email., m.) ─────────────────────\ndomain = domain.replace(/^(mail|email|m)\\./, '');\n\n// ── 3. detect throw‑away & public providers ──────────────────────────────────\nconst publicProviders = [\n  //   *** expand / tweak as needed ***\n  'gmail.com','googlemail.com','yahoo.com','ymail.com','aol.com','outlook.com',\n  'hotmail.com','live.com','icloud.com','me.com','msn.com','protonmail.com',\n  'gmx.com','mail.com','pm.me','yandex.com','zoho.com'\n];\nif (publicProviders.includes(domain)) {\n  $json.companyDomain  = null;\n  $json.companyWebsite = null;\n  return $json;\n}\n\n// ── 4. reduce multi‑level domains to 2nd‑level + TLD if obvious ──────────────\n//   e.g. \"john@team.salesforce.co.uk\"  →  \"salesforce.co.uk\"\nconst parts = domain.split('.');\nif (parts.length > 2) {\n  const tld = parts.slice(-2).join('.');\n  const sld = parts.slice(-3, -2)[0];      // second‑level candidate\n  // simple heuristic: drop the first piece if it’s short (sub‑domain‑y)\n  if (parts[0].length <= 4) domain = `${sld}.${tld}`;\n}\n\n// ── 5. attach to item ────────────────────────────────────────────────────────\n$json.companyDomain  = domain;\n$json.companyWebsite = `https://${domain}`;\n\nreturn $json;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2820,
+        1620
+      ],
+      "id": "26e2050a-21e0-4b19-a1bf-8ff12a065cf9",
+      "name": "Find Website"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "33c2a27a-77e5-4480-91b2-61f2079c1263",
+              "leftValue": "={{ $json.website }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "e21c2a10-78e2-4a3d-abae-1a51c4fdae68",
+              "leftValue": "={{ $json.website }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2940,
+        1720
+      ],
+      "id": "6f27a59b-ae00-48ad-bfb2-b2b0a5b846d5",
+      "name": "No Website"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "33c2a27a-77e5-4480-91b2-61f2079c1263",
+              "leftValue": "={{ $json.website }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "empty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "e21c2a10-78e2-4a3d-abae-1a51c4fdae68",
+              "leftValue": "={{ $json.website }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -2700,
+        1740
+      ],
+      "id": "ccf0623f-d79a-4370-8fc9-df1fde784084",
+      "name": "No LinkedIn"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d46ba557-7aca-4171-a8cd-13667d5ddd4b",
+              "name": "searchQuery",
+              "value": "={{ $json.firstname }} {{ $json.lastname }} \"{{ $json.company }}\" site:linkedin.com/in",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2580,
+        1620
+      ],
+      "id": "ea95d169-6a23-422a-916b-39662b795b7a",
+      "name": "Set Query"
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "serpApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.searchQuery }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2460,
+        1500
+      ],
+      "id": "dd4a9464-9304-4622-a32b-864b86aa5016",
+      "name": "SerpAPI",
+      "credentials": {
+        "serpApi": {
+          "id": "iLXK13o6fV86OawO",
+          "name": "SerpAPI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "/**\n * INPUT\n *   $json.firstName, $json.lastName, $json.companyName\n *   $json.searchResponse.organic  … search‑API results\n *\n * OUTPUT\n *   passes through everything + reliable linkedinUrl (null if no confident hit)\n */\n\nconst first  = ($('Required Fields').item.json.firstname  || '').trim();\nconst last   = ($('Required Fields').item.json.lastname   || '').trim();\nconst company= ($('Required Fields').item.json.company|| '').trim();\nconst results= $json.organic_results || [];\n\nconst normalize = str =>\n  str.toLowerCase()\n     .replace(/[^\\w\\s]/g, '')                // remove punctuation\n     .replace(/\\s+/g, ' ')\n     .trim();\n\nconst nFirst   = normalize(first);\nconst nLast    = normalize(last);\nconst nCompany = normalize(company);\n\n// lightweight Dice’s coefficient similarity on bigrams\nconst sim = (a, b) => {\n  if (!a || !b) return 0;\n  const bigrams = s => new Set([...s].slice(0,-1).map((_,i)=>s.slice(i,i+2)));\n  const A = bigrams(a), B = bigrams(b);\n  const overlap = [...A].filter(x => B.has(x)).length;\n  return (2 * overlap) / (A.size + B.size || 1);\n};\n\nlet best = null;\nlet bestScore = 0;\n\n// evaluate up to first 10 organic results\nfor (const r of results.slice(0, 10)) {\n  const link = r.link || '';\n  if (!/^https:\\/\\/(www\\.)?linkedin\\.com\\/in\\//.test(link)) continue; // skip non‑profile URLs\n\n  const text = normalize(`${r.title} ${r.snippet}`);\n\n  // name score: need both first & last present\n  const nameScore = sim(text, `${nFirst} ${nLast}`);\n\n  // company score: company may appear in snippet OR LinkedIn’s hyphenated title\n  const companyScore = nCompany ? sim(text, nCompany) : 1;\n\n  // harmonic mean favours both being high\n  const combined = (2 * nameScore * companyScore) / (nameScore + companyScore || 1);\n\n  if (combined > bestScore) {\n    bestScore = combined;\n    best = link.split('?')[0]; // drop any trackers\n  }\n}\n\n// require ≥0.50 overall confidence  (adjust as needed)\n$json.linkedinUrl = bestScore >= 0.50 ? best : null;\n$json.linkedinMatchScore = bestScore;      // optional, handy for QA\n\nreturn $json;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2340,
+        1620
+      ],
+      "id": "186b35aa-654e-41e3-9187-1bea49f397d0",
+      "name": "Find LinkedIn"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "487384ba-123e-4b2e-aad5-26462a1eea1c",
+              "name": "firstname",
+              "value": "={{ $('Set Query').item.json.firstname }}",
+              "type": "string"
+            },
+            {
+              "id": "70893e4f-514b-4dfe-90a9-0ed6e328c0bb",
+              "name": "lastname",
+              "value": "={{ $('Set Query').item.json.lastname }}",
+              "type": "string"
+            },
+            {
+              "id": "d55a3f9a-f0de-4bff-8985-ad162d0f84d6",
+              "name": "company",
+              "value": "={{ $('Set Query').item.json.company }}",
+              "type": "string"
+            },
+            {
+              "id": "7b944e97-aba1-4da6-a9fb-be8b35878fee",
+              "name": "jobtitle",
+              "value": "={{ $('Set Query').item.json.jobtitle }}",
+              "type": "string"
+            },
+            {
+              "id": "8d54a482-2b9b-4a17-ba9c-7dc7e173e995",
+              "name": "email",
+              "value": "={{ $('Set Query').item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "225b8040-b384-4dc9-8cbe-015e9466d56f",
+              "name": "linkedin",
+              "value": "={{ $json.linkedinUrl }}",
+              "type": "string"
+            },
+            {
+              "id": "5790687c-42f0-4bc7-8245-396bf4521cfc",
+              "name": "website",
+              "value": "={{ $('Set Query').item.json.website }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2220,
+        1500
+      ],
+      "id": "a8c4c562-b237-4d63-b22a-da811b7715f5",
+      "name": "Standardize Data"
+    },
+    {
+      "parameters": {
+        "content": "## SerpAPI Credential \nConnect SalesLeopard **SerpAPI** account (Same for all clients)",
+        "height": 580,
+        "width": 180,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2500,
+        1340
+      ],
+      "typeVersion": 1,
+      "id": "b2f4583d-a8fe-4a33-b271-4174f31456ac",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Apify Credential \nConnect SalesLeopard **Apify** account (Same for all clients)",
+        "height": 580,
+        "width": 180,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2120,
+        1340
+      ],
+      "typeVersion": 1,
+      "id": "5df22258-8a43-4a2f-94d0-a65738b822f0",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "/**\n * INPUT\n *   $json ─ the LinkedIn profile object (one profile per item)\n *\n * OUTPUT\n *   { json: { …flattened fields… } }   ← required when node runs\n *   in “Run once for each item” mode\n *\n * CHANGES\n *   • Prospect company is pulled from the *current* item instead of an\n *     external node, so the code is self-contained.\n *   • All optional properties accessed with optional-chaining (no crashes).\n *   • Always returns a single item ( { json: … } ).\n */\n\n// ---------------------------------------------------------------------------\n// 0. get the company we’re looking for\n//    (try several possible property names to stay flexible)\nconst prospectCompany =\n  ($json.company ??\n   $json.companyName ??\n   $json['Management Company'] ??\n   '').toString().trim();\n\n// ---------------------------------------------------------------------------\n// Helper utilities\nconst normalize = str => str\n  .toLowerCase()\n  .replace(/[^\\w\\s]/g, '')                           // remove punctuation\n  .replace(/\\b(inc|llc|ltd|co|corp(oratio)?n?)\\b/g, '') // drop legal suffixes\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst similarity = (a, b) => {\n  if (!a || !b) return 0;\n  const bigrams = s =>\n    new Set([...s].slice(0, -1).map((_, i) => s.slice(i, i + 2)));\n  const A = bigrams(a), B = bigrams(b);\n  const overlap = [...A].filter(x => B.has(x)).length;\n  return (2 * overlap) / (A.size + B.size || 1);\n};\n\n// ---------------------------------------------------------------------------\n// 1. basic profile block\nconst out = {\n  name: ($json.fullName || '').trim(),\n  linkedinUrl: $json.linkedinUrl,\n  headline: $json.headline,\n  addressWithoutCountry: $json.addressWithoutCountry,\n  about: $json.about,\n  followers: $json.followers,\n  email: $json.email,\n  mobileNumber: $json.mobileNumber,\n};\n\n// ---------------------------------------------------------------------------\n// 2. collect current roles (caption contains “Present”)\nconst currentRoles = ($json.experiences ?? [])\n  .filter(r => (r.caption ?? '').includes('Present'))\n  .map(r => {\n    // company name = text before the first · or the whole subtitle\n    const company = ((r.subtitle ?? '').split('·')[0] || r.subtitle || '').trim();\n    const description =\n      r.subComponents?.[0]?.description?.[0]?.text ?? null;\n\n    return {\n      company,\n      title: r.title ?? null,\n      description,\n      tenure: r.caption ?? null,\n      companyLink: r.companyLink1 ?? null,\n      score: similarity(normalize(company), normalize(prospectCompany)),\n    };\n  });\n\n// ---------------------------------------------------------------------------\n// 3. decide primary vs secondary role\ncurrentRoles.sort((a, b) => b.score - a.score); // best match first\nlet [primary, ...secondaries] = currentRoles;\n\nif (primary && primary.score < 0.40 && prospectCompany) {\n  // No good match – still use first as primary but mark score 0\n  primary.score = 0;\n}\n\n// ---------------------------------------------------------------------------\n// 4. write Primary Job … fields\nif (primary) {\n  out['Primary Job Company']              = primary.company;\n  out['Primary Job Company LinkedIn URL'] = primary.companyLink;\n  out['Primary Job Title']                = primary.title;\n  out['Primary Job Description']          = primary.description;\n  out['Primary Job Tenure']               = primary.tenure;\n}\n\n// ---------------------------------------------------------------------------\n// 5. write Secondary Job N … fields\nsecondaries.forEach((r, idx) => {\n  const n = idx + 1;\n  out[`Secondary Job ${n} Company`]              = r.company;\n  out[`Secondary Job ${n} Company LinkedIn URL`] = r.companyLink;\n  out[`Secondary Job ${n} Title`]                = r.title;\n  out[`Secondary Job ${n} Description`]          = r.description;\n  out[`Secondary Job ${n} Tenure`]               = r.tenure;\n});\n\n// ---------------------------------------------------------------------------\n// 6. return a SINGLE item (required in “Run once for each item” mode)\nreturn { json: out };"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1960,
+        1620
+      ],
+      "id": "8c8e6bb4-4d3d-4570-9470-19ba241a8081",
+      "name": "Prospect Summary"
+    },
+    {
+      "parameters": {
+        "content": "## Context about Client \nUse this to add context about the offerings the agent is selling.",
+        "height": 580,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1740,
+        1340
+      ],
+      "typeVersion": 1,
+      "id": "58ce4172-cd2a-44fa-a747-323e1e0a68a7",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "46612aaa-2dea-4e38-925d-be40c785ab7a",
+              "name": "Client Company Name",
+              "value": "MirrorMate",
+              "type": "string"
+            },
+            {
+              "id": "b66dc36b-5705-4668-9f3c-ad026149a497",
+              "name": "Client Company Website",
+              "value": "https://www.mirrormate.com",
+              "type": "string"
+            },
+            {
+              "id": "f819d111-92f6-46a8-bb16-4204d35595b0",
+              "name": "Context About Client Offerings",
+              "value": "Cost-Effective, High-Impact Renovation Solutions for B2B Projects When budget, speed, and aesthetics matter — but full replacement isn’t an option — MirrorMate and CabinetMate provide turnkey upgrade solutions that deliver dramatic results with minimal disruption. Trusted by property managers, contractors, and hospitality groups nationwide, our made-in-the-USA kits are designed to make bathrooms and kitchens look brand new without tearing anything out.  🪞 MirrorMate®: Frame the Mirror, Don’t Replace It. What It Is MirrorMate offers custom-fit mirror frame kits that install directly onto existing, wall-mounted mirrors — covering chipped edges, de-silvering, or outdated finishes in under 20 minutes.  Ideal For Multi-family unit turns  Hospitality bathroom refreshes  Senior or student housing upgrades  Property managers looking to boost rentability without replacing mirrors  Key Benefits No mirror removal required  Works over mirror clips and tight clearances  65+ styles (modern, classic, rustic, metallic, woodgrain, etc.)  Installs in minutes — just peel-and-stick adhesive  Ships in 5 business days (custom-cut in Charlotte, NC)  Backed by a 5-year warranty  Volume discounts available for orders of 10+ frames  LEED point eligibility for green-certified projects  Why It Wins MirrorMate saves hundreds per unit vs. full mirror replacement when you factor in labor, disposal, and potential wall damage. It’s fast, clean, and tenant-friendly — a perfect add-on during paint-and-carpet turns.  🚪 CabinetMate®: Reface Cabinets Without the Demo What It Is CabinetMate provides cabinet refacing kits that refresh kitchens and bathrooms by replacing just the doors, drawer fronts, and exposed sides — no demolition or plumbing disruption needed.  Ideal For Portfolio-wide property upgrades  Hospitality suites & long-stay guest rooms  Affordable kitchen/bathroom refreshes for value-add investments  Key Benefits No countertop, sink, or fixture removal required  Pre-finished door styles in flat panel, shaker, and raised panel  Modern, durable finishes with moisture resistance  Side skins and hinge kits included  Installs in ~1 hour/unit (ideal for in-house maintenance staff)  Refacing costs significantly less than cabinet replacement  Finish sample kits available for free to qualified prospects  Drop-ship and volume fulfillment ready (2–4 week lead time)  Why It Wins CabinetMate offers a cost-effective, scalable way to modernize kitchens and bathrooms — especially in environments where full cabinet replacement is cost-prohibitive or time-consuming.  🧰 What Makes Both Solutions Stand Out  Feature\tMirrorMate\tCabinetMate No demo required\t✅\t✅ Fast installation\t15–20 mins\t~1 hr per unit In-house crew friendly\t✅\t✅ Ships direct\t5 days\t2–4 weeks Volume pricing\tAvailable\tAvailable Free samples\tAvailable to qualified leads\tAvailable to qualified leads Backed by warranty\t5 years\t(TBD – category standard: 1–5 years) Ideal for multi-family & hospitality\t✅\t✅ 🎯 Who We Serve Multi-Family Operators & Renovation Directors: Reduce turn costs, boost perceived unit value, and scale across properties easily.  Hospitality Owners & PIP Teams: Achieve fresh looks without taking rooms offline.  Contractors: Offer fast-turn, low-labor upgrades to clients.  Dealers & Distributors: Add margin-friendly, high-demand SKUs to your portfolio.  📦 Getting Started Is Easy Request a free sample frame or cabinet finish kit  Send us specs for a quote or timeline review  Explore volume discounts or showroom kits if you're a dealer or contractor  🚀 Why Clients Choose Us Again and Again Used in over 100,000 units nationwide  Proven in multi-family, hospitality, and contractor environments  Backed by responsive B2B account support  Simple to install. Powerful in impact.",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1680,
+        1540
+      ],
+      "id": "78c48026-fd88-4b52-8c96-43464ef5eb93",
+      "name": "Add Context"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "45a6087a-c7e7-4995-a8f9-0358f58acdc5",
+              "name": "website",
+              "value": "={{ $('Required Fields').item.json.website }}",
+              "type": "string"
+            },
+            {
+              "id": "1dc88d46-2900-4511-bc0f-757b099a9c3e",
+              "name": "name",
+              "value": "={{ $('Required Fields').item.json.firstname }} {{ $('Required Fields').item.json.lastname }}",
+              "type": "string"
+            },
+            {
+              "id": "f1d82cc9-d4a5-47ed-8a0f-fe270f04f7f8",
+              "name": "firstname",
+              "value": "={{ $('Required Fields').item.json.firstname }}",
+              "type": "string"
+            },
+            {
+              "id": "3df53b90-2d59-41b8-a2c6-33960ea2b109",
+              "name": "lastname",
+              "value": "={{ $('Required Fields').item.json.lastname }}",
+              "type": "string"
+            },
+            {
+              "id": "f0e98bf6-23e8-4f4e-af61-9c67f7f0a5e9",
+              "name": "email",
+              "value": "={{ $('Required Fields').item.json.email }}",
+              "type": "string"
+            },
+            {
+              "id": "dc250faa-b7d4-4235-bae4-ac700ca35484",
+              "name": "location",
+              "value": "={{ $json.addressWithoutCountry }}",
+              "type": "string"
+            },
+            {
+              "id": "dd174779-d81c-46d1-9614-6c96a18f05cf",
+              "name": "alma_mater",
+              "value": "={{ $('Run Apify Actor').item.json.educations[0].title }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1840,
+        1760
+      ],
+      "id": "e7b7f9e7-b0b4-4442-b4c7-7c60c9160fff",
+      "name": "Add Website"
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.data || $json.text || $json.concatenated_data }}",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "=file_id",
+                "value": "={{ $('Set File ID').first().json.file_id }}"
+              },
+              {
+                "name": "file_title",
+                "value": "={{ $('Set File ID').first().json.file_title }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "b42db0fe-becf-4260-bc75-c817aacfaa31",
+      "name": "Default Data Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        -440,
+        3740
+      ]
+    },
+    {
+      "parameters": {
+        "model": "text-embedding-3-small",
+        "options": {}
+      },
+      "id": "1590e353-7def-48a3-ba10-1dca139e4c43",
+      "name": "Embeddings OpenAI1",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [
+        -680,
+        3740
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "OOjomMaOYvk25Ton",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "={{ $('Set File ID').item.json.file_id }}",
+          "mode": "id"
+        },
+        "options": {
+          "googleFileConversion": {
+            "conversion": {
+              "docsToFormat": "text/plain"
+            }
+          }
+        }
+      },
+      "id": "3fcf4749-f48a-4dbf-8118-702c829d52fb",
+      "name": "Download File",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -2020,
+        3620
+      ],
+      "executeOnce": true,
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "sl8EeZ6Tsvk6ebM8",
+          "name": "Google Drive account - Pete"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1mQ_3ZOf2rm9v-myeGmxiuvhUxJ_zPlvB",
+          "mode": "list",
+          "cachedResultName": "MirrorMate Vector Database",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1mQ_3ZOf2rm9v-myeGmxiuvhUxJ_zPlvB"
+        },
+        "event": "fileCreated",
+        "options": {}
+      },
+      "id": "b857df09-c11b-402b-83df-c562e2e6ad68",
+      "name": "File Created",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2400,
+        3260
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "sl8EeZ6Tsvk6ebM8",
+          "name": "Google Drive account - Pete"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "triggerOn": "specificFolder",
+        "folderToWatch": {
+          "__rl": true,
+          "value": "1mQ_3ZOf2rm9v-myeGmxiuvhUxJ_zPlvB",
+          "mode": "list",
+          "cachedResultName": "MirrorMate Vector Database",
+          "cachedResultUrl": "https://drive.google.com/drive/folders/1mQ_3ZOf2rm9v-myeGmxiuvhUxJ_zPlvB"
+        },
+        "event": "fileUpdated",
+        "options": {}
+      },
+      "id": "b30e6c3f-164d-41e7-b729-17636fad69e0",
+      "name": "File Updated",
+      "type": "n8n-nodes-base.googleDriveTrigger",
+      "typeVersion": 1,
+      "position": [
+        -2400,
+        3540
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "sl8EeZ6Tsvk6ebM8",
+          "name": "Google Drive account - Pete"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "id": "3524c57d-b3a9-45f6-9323-57bfa22cf146",
+      "name": "Extract Document Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -1240,
+        3740
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "documents",
+        "filterType": "string",
+        "filterString": "=metadata->>file_id=like.*{{ $json.file_id }}*"
+      },
+      "id": "e3273e96-dbdc-44d6-a018-7ab93b9a1fd6",
+      "name": "Delete Old Doc Rows",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2180,
+        3440
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "UVlz0GmNqMBH17SY",
+          "name": "Supabase - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "10646eae-ae46-4327-a4dc-9987c2d76173",
+              "name": "file_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "f4536df5-d0b1-4392-bf17-b8137fb31a44",
+              "name": "file_type",
+              "value": "={{ $json.mimeType }}",
+              "type": "string"
+            },
+            {
+              "id": "77d782de-169d-4a46-8a8e-a3831c04d90f",
+              "name": "file_title",
+              "value": "={{ $json.name }}",
+              "type": "string"
+            },
+            {
+              "id": "9bde4d7f-e4f3-4ebd-9338-dce1350f9eab",
+              "name": "file_url",
+              "value": "={{ $json.webViewLink }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "84b96fe6-746d-4c76-bf3f-bb305d1f7bb2",
+      "name": "Set File ID",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -2020,
+        3260
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "id": "ab348b56-2c31-4f45-a4e2-add522b82729",
+      "name": "Extract PDF Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -1240,
+        3180
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "2cdedd68-1ef9-4e50-a2dc-1634204c89a0",
+      "name": "Character Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        -540,
+        3860
+      ]
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "concatenate",
+              "field": "data"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "044214d0-c0ec-4562-a319-3de08016b224",
+      "name": "Summarize",
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1,
+      "position": [
+        -1000,
+        3440
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $('Set File ID').item.json.file_type }}",
+                    "rightValue": "application/pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "2ae7faa7-a936-4621-a680-60c512163034",
+                    "leftValue": "={{ $('Set File ID').item.json.file_type }}",
+                    "rightValue": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "fc193b06-363b-4699-a97d-e5a850138b0e",
+                    "leftValue": "={{ $('Set File ID').item.json.file_type }}",
+                    "rightValue": "=application/vnd.google-apps.spreadsheet",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "id": "b69f5605-0179-4b02-9a32-e34bb085f82d",
+                    "leftValue": "={{ $('Set File ID').item.json.file_type }}",
+                    "rightValue": "application/vnd.google-apps.document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": 3
+        }
+      },
+      "id": "6aa3534b-2610-4898-be55-cdf008c64036",
+      "name": "Switch",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -1600,
+        3420
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "id": "7639b9bb-db95-46e1-b842-18106fd01a42",
+      "name": "Insert into Supabase Vectorstore",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "position": [
+        -520,
+        3520
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "UVlz0GmNqMBH17SY",
+          "name": "Supabase - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {}
+      },
+      "id": "7f945549-370f-42e1-ab86-38717c89a281",
+      "name": "Extract from Excel",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -1420,
+        3360
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f422e2e0-381c-46ea-8f38-3f58c501d8b9",
+              "name": "schema",
+              "value": "={{ $('Extract from Excel').isExecuted ? $('Extract from Excel').first().json.keys().toJsonString() : $('Extract from CSV').first().json.keys().toJsonString() }}",
+              "type": "string"
+            },
+            {
+              "id": "bb07c71e-5b60-4795-864c-cc3845b6bc46",
+              "name": "data",
+              "value": "={{ $json.concatenated_data }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -560,
+        3300
+      ],
+      "id": "94e9e45d-0d02-431f-a714-cb83b95de24a",
+      "name": "Set Schema"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -1420,
+        3540
+      ],
+      "id": "acf13728-f362-4fff-b8dc-9dd6520cd96e",
+      "name": "Extract from CSV"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE document_metadata (\n    id TEXT PRIMARY KEY,\n    title TEXT,\n    url TEXT,\n    created_at TIMESTAMP DEFAULT NOW(),\n    schema TEXT\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2160,
+        2920
+      ],
+      "id": "39141006-308d-4dfc-aa70-97257d363168",
+      "name": "Create Document Metadata Table",
+      "credentials": {
+        "postgres": {
+          "id": "i0CZarQfBjqx2oi8",
+          "name": "Postgres account - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "CREATE TABLE document_rows (\n    id SERIAL PRIMARY KEY,\n    dataset_id TEXT REFERENCES document_metadata(id),\n    row_data JSONB  -- Store the actual row data\n);",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1940,
+        2920
+      ],
+      "id": "8cce674c-8acb-4192-90cc-df668dc8b134",
+      "name": "Create Document Rows Table (for Tabular Data)",
+      "credentials": {
+        "postgres": {
+          "id": "i0CZarQfBjqx2oi8",
+          "name": "Postgres account - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -2180,
+        3260
+      ],
+      "id": "74501392-7998-4649-b6cc-2a59fcad3591",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- Enable the pgvector extension to work with embedding vectors\ncreate extension vector;\n\n-- Create a table to store your documents\ncreate table Documents (\n  id bigserial primary key,\n  content text, -- corresponds to Document.pageContent\n  metadata jsonb, -- corresponds to Document.metadata\n  embedding vector(1536) -- 1536 works for OpenAI embeddings, change if needed\n);\n\n-- Create a function to search for documents\ncreate function match_documents (\n  query_embedding vector(1536),\n  match_count int default null,\n  filter jsonb DEFAULT '{}'\n) returns table (\n  id bigint,\n  content text,\n  metadata jsonb,\n  similarity float\n)\nlanguage plpgsql\nas $$\n#variable_conflict use_column\nbegin\n  return query\n  select\n    id,\n    content,\n    metadata,\n    1 - (documents.embedding <=> query_embedding) as similarity\n  from documents\n  where metadata @> filter\n  order by documents.embedding <=> query_embedding\n  limit match_count;\nend;\n$$;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2360,
+        2920
+      ],
+      "id": "c1e75c7f-b256-4562-977a-4352a993425a",
+      "name": "Create Documents Table and Match Function",
+      "credentials": {
+        "postgres": {
+          "id": "i0CZarQfBjqx2oi8",
+          "name": "Postgres account - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "document_rows",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "dataset_id",
+              "condition": "eq",
+              "keyValue": "={{ $('Set File ID').item.json.file_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2020,
+        3440
+      ],
+      "id": "5c6590bd-ae78-4278-a722-736327ff778a",
+      "name": "Delete Old Data Rows",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "supabaseApi": {
+          "id": "UVlz0GmNqMBH17SY",
+          "name": "Supabase - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "document_metadata",
+          "mode": "list",
+          "cachedResultName": "document_metadata"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Set File ID').item.json.file_id }}",
+            "title": "={{ $('Set File ID').item.json.file_title }}",
+            "url": "={{ $('Set File ID').item.json.file_url }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "schema",
+              "displayName": "schema",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -2180,
+        3620
+      ],
+      "id": "d3beb28a-83e4-487c-a673-0e785dcff585",
+      "name": "Insert Document Metadata",
+      "executeOnce": true,
+      "credentials": {
+        "postgres": {
+          "id": "i0CZarQfBjqx2oi8",
+          "name": "Postgres account - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "document_rows",
+          "mode": "list",
+          "cachedResultName": "document_rows"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "dataset_id": "={{ $('Set File ID').item.json.file_id }}",
+            "row_data": "={{ $json.toJsonString().replaceAll(/'/g, \"''\") }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "dataset_id",
+              "displayName": "dataset_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_data",
+              "displayName": "row_data",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "object",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -1200,
+        3540
+      ],
+      "id": "38e524e4-49c8-47aa-91da-da1836155869",
+      "name": "Insert Table Rows",
+      "credentials": {
+        "postgres": {
+          "id": "i0CZarQfBjqx2oi8",
+          "name": "Postgres account - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "upsert",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "document_metadata",
+          "mode": "list",
+          "cachedResultName": "document_metadata"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "id": "={{ $('Set File ID').item.json.file_id }}",
+            "schema": "={{ $json.schema }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": true,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "title",
+              "displayName": "title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": true
+            },
+            {
+              "id": "created_at",
+              "displayName": "created_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": false
+            },
+            {
+              "id": "schema",
+              "displayName": "schema",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        -340,
+        3300
+      ],
+      "id": "3d67403e-12e9-47ff-a15c-e0eba5a6cecf",
+      "name": "Update Schema for Document Metadata",
+      "credentials": {
+        "postgres": {
+          "id": "i0CZarQfBjqx2oi8",
+          "name": "Postgres account - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1mQ_3ZOf2rm9v-myeGmxiuvhUxJ_zPlvB' in parents and trashed=false",
+        "returnAll": true,
+        "filter": {},
+        "options": {
+          "fields": [
+            "id"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -3460,
+        2840
+      ],
+      "id": "ba296c15-270e-44c8-b33b-a6871352327e",
+      "name": "Get File IDs",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "sl8EeZ6Tsvk6ebM8",
+          "name": "Google Drive account - Pete"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "documents",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3460,
+        3000
+      ],
+      "id": "a5f649d0-a42f-4ce2-9599-19d2449f32d1",
+      "name": "Supabase",
+      "credentials": {
+        "supabaseApi": {
+          "id": "UVlz0GmNqMBH17SY",
+          "name": "Supabase - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -3860,
+        3300
+      ],
+      "id": "7dccf242-a49a-40b7-b535-35837dd6830d",
+      "name": "Schedule Trigger",
+      "disabled": true
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -3860,
+        3140
+      ],
+      "id": "a6fe29c6-cc6f-4d8b-a6c6-cc37b126deb7",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "documents",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2740,
+        2920
+      ],
+      "id": "24ba7282-62ae-4c70-a36c-c4c6fc9a7bc1",
+      "name": "Delete Rows",
+      "credentials": {
+        "supabaseApi": {
+          "id": "UVlz0GmNqMBH17SY",
+          "name": "Supabase - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1mQ_3ZOf2rm9v-myeGmxiuvhUxJ_zPlvB' in parents and trashed=false",
+        "returnAll": true,
+        "filter": {},
+        "options": {
+          "fields": [
+            "id"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -3460,
+        3160
+      ],
+      "id": "294bef2b-4dcd-40d0-b1f0-303a16735896",
+      "name": "Get File IDs1",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "sl8EeZ6Tsvk6ebM8",
+          "name": "Google Drive account - Pete"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "document_rows",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3460,
+        3320
+      ],
+      "id": "98f37f68-eb7a-4e6b-9bb9-d6b84f73c454",
+      "name": "Supabase1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "UVlz0GmNqMBH17SY",
+          "name": "Supabase - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "document_rows",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "dataset_id",
+              "condition": "eq",
+              "keyValue": "={{ $json.dataset_id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2720,
+        3220
+      ],
+      "id": "947d97cf-b8d0-4247-b23c-710cb2127fff",
+      "name": "Delete Rows1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "UVlz0GmNqMBH17SY",
+          "name": "Supabase - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "searchMethod": "query",
+        "queryString": "'1mQ_3ZOf2rm9v-myeGmxiuvhUxJ_zPlvB' in parents and trashed=false",
+        "returnAll": true,
+        "filter": {},
+        "options": {
+          "fields": [
+            "id"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        -3460,
+        3560
+      ],
+      "id": "f8a122e6-b81a-41b0-a7bd-eee8582dbf45",
+      "name": "Get File IDs2",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "sl8EeZ6Tsvk6ebM8",
+          "name": "Google Drive account - Pete"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "document_metadata",
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -3460,
+        3740
+      ],
+      "id": "f10de108-33a1-4ff6-abb6-e49aa8f5e18f",
+      "name": "Supabase2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "UVlz0GmNqMBH17SY",
+          "name": "Supabase - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "tableId": "document_metadata",
+        "matchType": "allFilters",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -2700,
+        3600
+      ],
+      "id": "362f7238-dc75-48de-bb26-c3b62c58cd4d",
+      "name": "Delete Rows2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "UVlz0GmNqMBH17SY",
+          "name": "Supabase - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Tool to Add a Google Drive File to Vector DB",
+        "height": 867,
+        "width": 2333,
+        "color": 5
+      },
+      "id": "b7fea6a6-0c39-40f8-8cdd-86cca0e6e672",
+      "name": "Sticky Note15",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -2420,
+        3120
+      ]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "dde62e43-995e-4fa4-ad10-a89117d91362",
+      "name": "Aggregate1",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        3360
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## Run Each Node Once to Set Up Database Tables",
+        "height": 300,
+        "width": 680,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -2420,
+        2820
+      ],
+      "typeVersion": 1,
+      "id": "ccb5d8c3-b441-4a41-8ff3-e354bbfca0fe",
+      "name": "Sticky Note17"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -3180,
+        2920
+      ],
+      "id": "697a79b4-4b28-4e68-9da0-b44cf138ef00",
+      "name": "Merge4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Grab the raw data from all inputs\nconst inputData = $input.all().map(item => item.json);\n\n// Separate out the Google Drive items (no \"metadata\") vs. Supabase items (have \"metadata\")\nconst googleDriveItems = inputData.filter(item => item.id && !item.metadata);\nconst supabaseItems = inputData.filter(item => item.metadata);\n\n// Extract just the file IDs from Google Drive\nconst googleDriveIds = googleDriveItems.map(item => item.id);\n\n// Build a Set for quick membership checks (recommended for large arrays)\nconst driveIdSet = new Set(googleDriveIds);\n\n// Filter Supabase rows to find those whose file_id is not in the Drive set\nconst orphanedSupabaseRows = supabaseItems.filter(item => {\n  return !driveIdSet.has(item.metadata.file_id);\n});\n\n// Return each orphaned row as a separate n8n item\nreturn orphanedSupabaseRows.map(row => ({ json: row }));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2960,
+        2920
+      ],
+      "id": "7ce35943-d1f8-4d90-9b41-00e63556c6ff",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "content": "## RAG: Clean up",
+        "height": 1260,
+        "width": 1440,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -3900,
+        2740
+      ],
+      "id": "8fc053d4-550a-4de6-95cf-2cb81d719fe9",
+      "name": "Sticky Note18"
+    },
+    {
+      "parameters": {
+        "content": "# Rag 2.0",
+        "height": 1400,
+        "width": 3940,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        -4000,
+        2640
+      ],
+      "id": "7ae57a79-163f-41e2-9111-047ceb385a88",
+      "name": "Sticky Note19"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -3160,
+        3220
+      ],
+      "id": "d25728d6-42d5-461d-a2bb-cbc70a63f534",
+      "name": "Merge5"
+    },
+    {
+      "parameters": {
+        "jsCode": "// This code identifies document_metadata records where the Google Drive file no longer exists\n\n// Log the input structure for debugging\nconsole.log(\"Number of items:\", items.length);\nif (items.length > 0) {\n  console.log(\"First item type:\", typeof items[0].json);\n  if (items[0].json) {\n    console.log(\"First item keys:\", Object.keys(items[0].json));\n  }\n}\n\n// Create a Set to hold Google Drive file IDs\nconst googleDriveFileIds = new Set();\n\n// Check if the first input is a Google Drive file or a Google Drive files list\nif (items.length > 0 && items[0].json) {\n  // If the first item has a 'files' property, it's a Google Drive files list\n  if (items[0].json.files && Array.isArray(items[0].json.files)) {\n    // Multiple files format\n    for (const file of items[0].json.files) {\n      if (file && file.id) {\n        googleDriveFileIds.add(file.id);\n      }\n    }\n    console.log(\"Found Google Drive files list with\", googleDriveFileIds.size, \"files\");\n  } \n  // If the first item has an 'id' property, it's a single Google Drive file\n  else if (items[0].json.id) {\n    googleDriveFileIds.add(items[0].json.id);\n    console.log(\"Found single Google Drive file with ID:\", items[0].json.id);\n  }\n  // If neither, assume no Google Drive files found\n  else {\n    console.log(\"No Google Drive files found in first item\");\n  }\n}\n\nconsole.log(\"Total Google Drive file IDs found:\", googleDriveFileIds.size);\n\n// Determine which items are metadata records\nlet metadataRecords = [];\nlet metadataStartIndex = 1; // Default to starting from second item\n\n// If the first item doesn't have Google Drive files, it might be a metadata record\nif (items.length > 0 && items[0].json && !items[0].json.files && \n    items[0].json.title && items[0].json.url && items[0].json.created_at) {\n  // The first item looks like a metadata record\n  metadataStartIndex = 0;\n}\n\n// Get all metadata records\nmetadataRecords = items.slice(metadataStartIndex).map(item => item.json).filter(Boolean);\nconsole.log(\"Found metadata records:\", metadataRecords.length);\n\n// Find document_metadata records to delete (where id doesn't exist in Google Drive)\nconst recordsToDelete = [];\n\n// If there are no Google Drive files, mark all metadata records for deletion\nif (googleDriveFileIds.size === 0) {\n  console.log(\"No Google Drive files found, marking all metadata records for deletion\");\n  for (const record of metadataRecords) {\n    if (record && record.id) {\n      recordsToDelete.push({\n        ...record,\n        _shouldDelete: true\n      });\n    }\n  }\n} \n// Otherwise, only mark records where the ID is not in Google Drive\nelse {\n  for (const record of metadataRecords) {\n    if (!record || !record.id) continue;\n    \n    if (!googleDriveFileIds.has(record.id)) {\n      recordsToDelete.push({\n        ...record,\n        _shouldDelete: true\n      });\n    }\n  }\n}\n\nconsole.log(\"Metadata records to delete:\", recordsToDelete.length);\n\n// Return the records that should be deleted\nreturn recordsToDelete;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2940,
+        3220
+      ],
+      "id": "2c575dfd-d483-44b5-86aa-175a12515437",
+      "name": "Code4"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        -3140,
+        3600
+      ],
+      "id": "7d2fe794-9fc8-4967-912e-0a88f0af5777",
+      "name": "Merge6"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simple code to handle empty Google Drive\n\n// Determine if we have Google Drive data\nlet hasDriveData = false;\nlet driveFileIds = new Set();\n\n// Check the first item to see if it's a Google Drive file or a file list\nif (items[0] && items[0].json) {\n  // Is it a files array?\n  if (items[0].json.files && Array.isArray(items[0].json.files)) {\n    hasDriveData = true;\n    for (const file of items[0].json.files) {\n      if (file && file.id) driveFileIds.add(file.id);\n    }\n  }\n  // Is it a single file with no metadata-like properties?\n  else if (items[0].json.id && !items[0].json.title && !items[0].json.created_at) {\n    hasDriveData = true;\n    driveFileIds.add(items[0].json.id);\n  }\n}\n\nconsole.log(\"Has Drive data:\", hasDriveData);\nconsole.log(\"Drive file IDs:\", Array.from(driveFileIds));\n\n// Determine which items are metadata records\nlet metadataRecords = [];\n\n// If the first item looks like a metadata record (has title, url, created_at)\nif (!hasDriveData) {\n  // All items are metadata records\n  metadataRecords = items.map(item => item.json).filter(Boolean);\n  console.log(\"All items are metadata records:\", metadataRecords.length);\n} else {\n  // Only items after the first are metadata records\n  metadataRecords = items.slice(1).map(item => item.json).filter(Boolean);\n  console.log(\"Items after first are metadata records:\", metadataRecords.length);\n}\n\n// If there are no Drive files, mark all metadata records for deletion\nconst recordsToDelete = [];\n\nif (driveFileIds.size === 0) {\n  console.log(\"No Drive files, marking ALL metadata records for deletion\");\n  for (const record of metadataRecords) {\n    if (record && record.id) {\n      recordsToDelete.push({\n        ...record,\n        _shouldDelete: true\n      });\n    }\n  }\n} else {\n  // Otherwise, only mark records not in Drive\n  console.log(\"Checking metadata records against Drive files\");\n  for (const record of metadataRecords) {\n    if (record && record.id && !driveFileIds.has(record.id)) {\n      recordsToDelete.push({\n        ...record,\n        _shouldDelete: true\n      });\n    }\n  }\n}\n\nconsole.log(\"Records to delete:\", recordsToDelete.length);\nreturn recordsToDelete;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2920,
+        3600
+      ],
+      "id": "a1ecdea2-0224-4d3f-9d77-dd8572acf45d",
+      "name": "Code5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/dev_fusion~linkedin-profile-scraper/run-sync-get-dataset-items?token=apify_api_35fhcSZHHOdnZb5Rjt8AK8dReP4rfF39hdSs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"profileUrls\": [\n        \"{{ $json.linkedin }}\"\n    ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -2080,
+        1760
+      ],
+      "id": "801de846-e9f5-438b-a1c6-5e10c6c7b29b",
+      "name": "Run Apify Actor",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "87IUAUBfljE6N129",
+          "name": "Apify Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "baa30a41-a24c-4154-84c1-c0e3a2ca572e",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -3660,
+        1620
+      ],
+      "id": "77d9883b-baa6-40b8-9bdc-5e2ef9e343ed",
+      "name": "Webhook1",
+      "webhookId": "baa30a41-a24c-4154-84c1-c0e3a2ca572e"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "body",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        -3520,
+        1620
+      ],
+      "id": "f1ad4548-6ae4-45db-9f38-4a0fd0c814af",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "722a9a10-a79c-4b0e-abc8-42d01328edc5",
+              "name": "properties.firstname.value",
+              "value": "={{ $json['First Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "48fe0454-d360-42d5-adf8-37439fc25b86",
+              "name": "properties.lastname.value",
+              "value": "={{ $json['Last Name'] }}",
+              "type": "string"
+            },
+            {
+              "id": "5bb35fd2-8518-47e8-afe2-951d98177886",
+              "name": "properties.company.value",
+              "value": "={{ $json['Company'] }}",
+              "type": "string"
+            },
+            {
+              "id": "9d627079-9891-4d49-a508-d769581e6298",
+              "name": "properties.jobtitle.value",
+              "value": "={{ $json.Title }}",
+              "type": "string"
+            },
+            {
+              "id": "10c7078c-5a72-48a0-800b-94c7bc684665",
+              "name": "properties.email.value",
+              "value": "={{ $json.EMail }}",
+              "type": "string"
+            },
+            {
+              "id": "d8b57290-b5c2-4d68-8882-ce045d0d2336",
+              "name": "properties.hs_linkedin_url.value",
+              "value": "={{ $json.LinkedIn }}",
+              "type": "string"
+            },
+            {
+              "id": "7ca4e757-3a89-4854-85ad-463649ef9d5b",
+              "name": "properties.hs_email_domain.value",
+              "value": "=https://www.{{ $json.EMail.split(\"@\")[1] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3260,
+        1620
+      ],
+      "id": "a0746294-6360-417f-8202-f82aa41f2c17",
+      "name": "Required Fields1"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Extract detailed LinkedIn company data instantly. Get company overview, employee count, locations, funding info, and more. Perfect for market research, lead generation, and competitor analysis. Clean, structured data ready for your business needs.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apimaestro~linkedin-company-detail/run-sync-get-dataset-items?token=apify_api_35fhcSZHHOdnZb5Rjt8AK8dReP4rfF39hdSs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"identifier\": \"{{ $('Add Website').item.json[\"Primary Job Company LinkedIn URL\"] }}\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -880,
+        1780
+      ],
+      "id": "42dc7285-9d7b-4961-ae69-839d1cad0f34",
+      "name": "Scrape Company LinkedIn",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "87IUAUBfljE6N129",
+          "name": "Apify Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Scrape Linkedin profiles and get full information of the lead.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/dev_fusion~linkedin-profile-scraper/run-sync-get-dataset-items?token=apify_api_35fhcSZHHOdnZb5Rjt8AK8dReP4rfF39hdSs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n    \"profileUrls\": [\n        \"{{ $('Add Website').item.json.linkedinUrl }}\"\n    ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -540,
+        1780
+      ],
+      "id": "80a88322-2d81-4ea9-8e6e-71d9578cfd85",
+      "name": "Scrape Prospect LinkedIn",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "87IUAUBfljE6N129",
+          "name": "Apify Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Extract public posts and activity from companies including post content, reactions, comments count, and media attachments",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apimaestro~linkedin-company-posts/run-sync-get-dataset-items?token=apify_api_35fhcSZHHOdnZb5Rjt8AK8dReP4rfF39hdSs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"company_name\": \"{{ $('Add Website').item.json[\"Primary Job Company LinkedIn URL\"] }}\",\n  \"page_number\": 1,\n  \"limit\": 10\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -720,
+        1780
+      ],
+      "id": "f8dfb1d0-d531-49fc-9748-a22bb79e2c68",
+      "name": "Scrape LinkedIn Company Posts",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "87IUAUBfljE6N129",
+          "name": "Apify Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Scrape LinkedIn posts data for a given LinkedIn user profile including post content, reactions, comments count, and media attachments.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apimaestro~linkedin-profile-posts/run-sync-get-dataset-items?token=apify_api_35fhcSZHHOdnZb5Rjt8AK8dReP4rfF39hdSs",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "parametersHeaders": {
+          "values": [
+            {
+              "name": "Content-Type",
+              "valueProvider": "fieldValue",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"username\": \"{{ $('Add Website').item.json.linkedinUrl }}\",\n  \"page_number\": 1,\n  \"limit\": 10\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -360,
+        1780
+      ],
+      "id": "2166d15f-7cb7-47d2-b560-7ba81204e378",
+      "name": "Scrape Prospect LinkedIn Posts",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "87IUAUBfljE6N129",
+          "name": "Apify Header Auth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n    \"firstname\": \"Peter\",\n    \"lastname\": \"McGraw\",\n    \"location\": \"Charleston, South Carolina\",\n    \"linkedinUrl\": \"https://www.linkedin.com/in/peter-mcgraw\",\n    \"email\": \"peter.mcgraw@mapledx.com\",\n    \"website\": \"https://www.mapledx.com\",\n    \"Primary Job Company\": \"Maple Digital Transformation\",\n    \"Primary Job Title\": \"Head of Strategy & Operations\",\n    \"Primary Job Company LinkedIn URL\": \"https://www.linkedin.com/company/104117271/\",\n  \"Industry\": \"<Detailed description of the company's industry and its role>\",\n  \"Pain Points\": \"<Common challenges in this industry, with any specific relevance to the company>\",\n  \"Business Goals\": \"<Likely short- and long-term objectives of the business, based on recent context>\",\n  \"Competitors\": \"<List of key competitors and brief notes on how they differ from the company>\",\n  \"Competitive Advantages\": \"<What gives this company an edge in the market (products, team, etc.)>\",\n  \"Location Research\": \"<Notable recent/upcoming events in the prospect's local area to mention>\",\n  \"Alma Mater Research\": \"<Recent news or events about the prospect's alma mater university>\",\n  \"LinkedIn Post Summary\": \"<Summary of the prospect's recent original LinkedIn posts (tone, themes, interests)>\",\n  \"Company LinkedIn Post Summary\": \"<Summary of the company's recent LinkedIn posts (marketing focus, messaging)>\",\n  \"Company News\": \"<Major company news in the last 45 days, each item with date and description>\",\n  \"Overall Prospect Summary\": \"<3–5 paragraph narrative on the prospect's career and current role based on your recent research>\",\n  \"Overall Company Summary\": \"<3–5 paragraph narrative about the company based on your recent research>\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -320,
+        1600
+      ],
+      "id": "4e8b1815-66c2-4583-a490-25881c6ab1f7",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "options": {
+          "prompt": "Instructions:\n--------------\n{\n  \"Industry\": \"<Detailed description of the company's industry and its role>\",\n  \"Pain Points\": \"<Common challenges in this industry, with any specific relevance to the company>\",\n  \"Business Goals\": \"<Likely short- and long-term objectives of the business, based on recent context>\",\n  \"Competitors\": \"<List of key competitors and brief notes on how they differ from the company>\",\n  \"Competitive Advantages\": \"<What gives this company an edge in the market (products, team, etc.)>\",\n  \"Location Research\": \"<Notable recent/upcoming events in the prospect's local area to mention>\",\n  \"Alma Mater Research\": \"<Recent news or events about the prospect's alma mater university>\",\n  \"LinkedIn Post Summary\": \"<Summary of the prospect's recent original LinkedIn posts (tone, themes, interests)>\",\n  \"Company LinkedIn Post Summary\": \"<Summary of the company's recent LinkedIn posts (marketing focus, messaging)>\",\n  \"Company News\": \"<Major company news in the last 45 days, each item with date and description>\"\n}\n--------------\nCompletion:\n--------------\n{\n  \"Industry\": \"<Detailed description of the company's industry and its role>\",\n  \"Pain Points\": \"<Common challenges in this industry, with any specific relevance to the company>\",\n  \"Business Goals\": \"<Likely short- and long-term objectives of the business, based on recent context>\",\n  \"Competitors\": \"<List of key competitors and brief notes on how they differ from the company>\",\n  \"Competitive Advantages\": \"<What gives this company an edge in the market (products, team, etc.)>\",\n  \"Location Research\": \"<Notable recent/upcoming events in the prospect's local area to mention>\",\n  \"Alma Mater Research\": \"<Recent news or events about the prospect's alma mater university>\",\n  \"LinkedIn Post Summary\": \"<Summary of the prospect's recent original LinkedIn posts (tone, themes, interests)>\",\n  \"Company LinkedIn Post Summary\": \"<Summary of the company's recent LinkedIn posts (marketing focus, messaging)>\",\n  \"Company News\": \"<Major company news in the last 45 days, each item with date and description>\"\n}\n--------------\n\nAbove, the Completion did not satisfy the constraints given in the Instructions.\nError:\n--------------\n{error}\n--------------\n\nPlease try again. Please only respond with an answer that satisfies the constraints laid out in the Instructions:"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        1480
+      ],
+      "id": "e1ab1f55-c281-4f80-8463-461273d311c6",
+      "name": "Auto-fixing Output Parser1"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Given a file ID, fetches the text from the document.",
+        "operation": "executeQuery",
+        "query": "SELECT \n    string_agg(content, ' ') as document_text\nFROM documents\n  WHERE metadata->>'file_id' = $1\nGROUP BY metadata->>'file_id';",
+        "options": {
+          "queryReplacement": "={{ $fromAI('file_id') }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        -2040,
+        2120
+      ],
+      "id": "3a2120e2-c2f9-4e96-9946-eb4c1bbdded1",
+      "name": "Get File Contents2",
+      "credentials": {
+        "postgres": {
+          "id": "i0CZarQfBjqx2oi8",
+          "name": "Postgres account - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Use this tool to fetch all available documents, including the table schema if the file is a CSV or Excel file.",
+        "operation": "select",
+        "schema": {
+          "__rl": true,
+          "mode": "list",
+          "value": "public"
+        },
+        "table": {
+          "__rl": true,
+          "value": "document_metadata",
+          "mode": "list",
+          "cachedResultName": "document_metadata"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        -2180,
+        2120
+      ],
+      "id": "6b7a57ad-6a16-4701-b350-88697c8679d5",
+      "name": "List Documents2",
+      "credentials": {
+        "postgres": {
+          "id": "i0CZarQfBjqx2oi8",
+          "name": "Postgres account - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Run SQL queries on document_rows table. CRITICAL: Use COMPLETE dataset_id (e.g. \"1yKgRj62UCOBcabx7NiMjRrpsmWGAmohmkHfVKjnxp5I\").\n\nExamples:\n1) Identify datasets: \nSELECT DISTINCT dataset_id FROM document_rows\n\n2) Format numeric values (IMPORTANT - remove BOTH $ AND commas):\nSELECT (REPLACE(REPLACE(row_data->>'Profit', CHR(36), ''), ',', ''))::numeric AS Profit\nFROM document_rows\nWHERE dataset_id = '1yKgRj62UCOBcabx7NiMjRrpsmWGAmohmkHfVKjnxp5I'\n\n3) Always use double REPLACE for currency: \nREPLACE(REPLACE(value, CHR(36), ''), ',', '')::numeric",
+        "operation": "executeQuery",
+        "query": "{{ $fromAI('sql_query') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.5,
+      "position": [
+        -2320,
+        2120
+      ],
+      "id": "34be0e76-5872-44bf-a16e-85f817832f6a",
+      "name": "Query Document Rows2",
+      "credentials": {
+        "postgres": {
+          "id": "i0CZarQfBjqx2oi8",
+          "name": "Postgres account - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": "anthropic/claude-3.7-sonnet",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1780,
+        2100
+      ],
+      "id": "0da74b4d-9463-445b-81c3-93592d96b8e7",
+      "name": "OpenRouter Chat Model2",
+      "credentials": {
+        "openRouterApi": {
+          "id": "VM221MuNzNgwureD",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "documents",
+        "toolDescription": "Use RAG to look up information in the knowledgebase.",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {
+          "queryName": "match_documents"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1,
+      "position": [
+        -2380,
+        2260
+      ],
+      "id": "c3119f1d-d5ea-4457-a76c-ef85dabd9380",
+      "name": "Supabase Vector Store2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "UVlz0GmNqMBH17SY",
+          "name": "Supabase - MirrorMate"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -2520,
+        2260
+      ],
+      "id": "a800dfc2-0549-4e82-aa4a-3dc8bde6ce74",
+      "name": "Embeddings OpenAI3",
+      "credentials": {
+        "openAiApi": {
+          "id": "OOjomMaOYvk25Ton",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {
+          "prompt": "Instructions:\n--------------\n{\n  \"Email_1_Subject\": \"<Subject of the first email in the outreach campaign>\",\n  \"Email_1_Body\": \"<Body of the first email in the outreach campaign>\"\n}\n--------------\nCompletion:\n--------------\n{\n  \"Email_1_Subject\": \"<Subject of the first email in the outreach campaign>\",\n  \"Email_1_Body\": \"<Body of the first email in the outreach campaign>\"\n}\n--------------\n\nAbove, the Completion did not satisfy the constraints given in the Instructions.\nError:\n--------------\n{error}\n--------------\n\nPlease try again. Please only respond with an answer that satisfies the constraints laid out in the Instructions:"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+      "typeVersion": 1,
+      "position": [
+        -1940,
+        2280
+      ],
+      "id": "70bb7282-8ca1-431b-a93c-9653fe6e1fd3",
+      "name": "Auto-fixing Output Parser2"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"Email_1_Subject\": \"<Subject of the first email in the outreach campaign>\",\n  \"Email_1_Body\": \"<Body of the first email in the outreach campaign>\"\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -1780,
+        2400
+      ],
+      "id": "b88a2b25-8499-4139-b78e-8eaecb019558",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"Email_1_Subject\": \"<Subject of the first email in the outreach campaign>\",\n  \"Email_1_Body\": \"<Body of the first email in the outreach campaign>\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -1940,
+        2140
+      ],
+      "id": "04ce7604-0f67-4823-ba02-247c85045180",
+      "name": "Structured Output Parser3"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=[\n  {\n    \"firstname\": \"{{ $json.firstname }}\",\n    \"lastname\": \"{{ $json.lastname }}\",\n    \"location\": \"{{ $json.location }}\",\n    \"alma_mater\": \"{{ $json.alma_mater }}\",\n    \"linkedinUrl\": \"{{ $json.linkedinUrl }}\",\n    \"linkedinAbout\": \"{{ $json.about }}\",\n    \"linkedinFollowers\": \"{{ $json.followers }}\",\n    \"email\": \"{{ $json.email }}\",\n    \"website\": \"{{ $json.website }}\",\n    \"Primary Job Company\": \"{{ $json[\"Primary Job Company\"] }}\",\n    \"Primary Job Title\": \"{{ $json[\"Primary Job Title\"] }}\",\n    \"Primary Job Description\": \"{{ $json[\"Primary Job Description\"] }}\",\n    \"Primary Job Tenure\": \"{{ $json[\"Primary Job Tenure\"] }}\",\n    \"Primary Job Company LinkedIn URL\": \"{{ $json[\"Primary Job Company LinkedIn URL\"] }}\",\n    \"Secondary Job 1 Company\": \"{{ $json[\"Secondary Job 1 Company\"] }}\",\n    \"Secondary Job 1 Title\": \"{{ $json[\"Secondary Job 1 Title\"] }}\",\n    \"Secondary Job 1 Description\": \"{{ $json[\"Secondary Job 1 Description\"] }}\",\n    \"Secondary Job 1 Tenure\": \"{{ $json[\"Secondary Job 1 Tenure\"] }}\",\n    \"Secondary Job 1 Company LinkedIn URL\": \"{{ $json[\"Secondary Job 1 Company LinkedIn URL\"] }}\",\n    \"Secondary Job 2 Company\": \"{{ $json[\"Secondary Job 2 Company\"] }}\",\n    \"Secondary Job 2 Title\": \"{{ $json[\"Secondary Job 2 Title\"] }}\",\n    \"Secondary Job 2 Description\": \"{{ $json[\"Secondary Job 2 Description\"] }}\",\n    \"Secondary Job 2 Tenure\": \"{{ $json[\"Secondary Job 2 Tenure\"] }}\",\n    \"Secondary Job 2 Company LinkedIn URL\": \"{{ $json[\"Secondary Job 2 Company LinkedIn URL\"] }}\",\n    \"Current Date & Time\": \"{{$now}}\"\n  }\n]",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=Objective\nYou are an AI sub-agent in an n8n workflow, tasked with prospect research for sales outreach. Given a prospect’s details, your goal is to gather context-rich, up-to-date information about the prospect and their company. This information will equip a main outreach agent with personalized insights to craft highly targeted messaging.\n\n\nProvided Input\nYou will receive the following structured fields about the prospect:\n- {{ $json.firstname }} (first name)\n- {{ $json.lastname }} (last name)\n- {{ $json.location }}\n- {{ $json.linkedinUrl }} (prospect’s LinkedIn profile link)\n- {{ $json.email }}\n- {{ $json.website }} (URL of the website for the prospect's company)\n- {{ $json[\"Primary Job Company\"] }} (the prospect’s company)\n- {{ $json[\"Primary Job Title\"] }} (the prospect’s job title)\n- {{ $json[\"Primary Job Company LinkedIn URL\"] }} (URL of the prospect's company LinkedIn profile)\n\nThese inputs give you the basic identifiers needed to research the prospect’s professional background and business context.\n\n\nTasks Overview\nUsing the input data, research and compile a comprehensive report with two main parts: Business Research (company and industry-focused insights) and Personal Research (prospect-focused insights). Each part contains specific sections outlined below. For each section, gather detailed information from reputable, recent sources. Do not fabricate any details – if exact data isn’t available, rely on closely related factual information or educated context (and state it as such). Always prefer factual accuracy and recency over speculation.\n\n\nBusiness Research Focus Areas\nYour first set of tasks is to research the prospect’s company and its business environment. For each item, collect specific details and context:\nIndustry: Identify the primary industry or sector in which the company operates. Provide a brief description of this industry and the company’s role within it. For example, note the market segment, typical products or services, and any sub-industry niche the company is in. If available, use the company’s website or profiles (LinkedIn, Crunchbase, etc.) to confirm the industry classification. This gives context on the market landscape the company is part of.\nPain Points: Identify the most pressing challenges the prospect is likely to face in their specific role (e.g., a VP of Sales, Director of IT, Regional Manager, etc.) within this industry.\n– Ground each pain point in industry realities and recent signals about the company (news, product changes, market shifts).\n– Explain why this pain point matters to that role: connect it to KPIs, responsibilities, or obstacles someone in this position typically owns (e.g., revenue targets, tenant-satisfaction scores, system uptime, regulatory compliance).\n– If any company news from the last 45 days amplifies or mitigates that pain (e.g., budget cuts that strain resources, a new partnership that adds complexity), reference it briefly.\nBusiness Goals: Infer the top objectives this individual is expected to deliver in the next 6-18 months, given their title and function.\n– Tie each goal to role-specific outcomes (e.g., “increase occupancy across X properties” for a Regional Manager; “reduce churn by 10%” for a VP Customer Success).\n– Support your inference with industry trends and any recent company developments (funding, strategic pivots, product launches) that raise or reshape those expectations.\n– Where possible, articulate how achieving the goal influences broader company strategy, showing you understand the goal’s cascading impact.\nCompetitors: Identify a short list of the company’s direct competitors in the market. These should be companies offering similar products or services, or targeting the same customer base. For each competitor you mention (aim for 2–4 key competitors), note briefly what differentiates them from the prospect’s company. Differentiators could be things like pricing, feature sets, target market segments, scale, funding, partnerships, or other competitive advantages. Use reliable sources for this, such as industry analyses, comparisons in news articles, or information from the companies’ websites. For example, you might say one competitor is focused on enterprise clients while the prospect company targets small businesses, or that a competitor has a larger global presence, etc. Ensure the competitors named are truly relevant (check industry lists or market reports if available). This section will illustrate the competitive landscape the prospect’s company operates in.\nCompetitive Advantages: Determine what gives the prospect’s company a market edge relative to those competitors. Based on your research, list the key strengths or unique selling points of the company. This could include proprietary technology, a distinguished leadership team, strong brand reputation, strategic partnerships, superior customer service, pricing benefits, exclusive contracts, patent holdings, etc. Look for clues in the company’s messaging (website “Why Us” sections or value propositions), press releases (e.g. announcing a partnership or milestone), or product reviews. Essentially, answer: “Why might customers choose this company over others?” If the company is newer or smaller, their advantage might be innovation or agility; if larger, perhaps network effects or resources. Be specific and factual, e.g., “The company’s AI-driven platform is patented and has won industry awards, which sets it apart from competitors in terms of technology (Source: Company Blog)”. This will highlight talking points that could resonate in outreach, showing the prospect that you understand their company’s strong points.\nPersonal Research Focus Areas\n\n\nThe second set of tasks is focused on the prospect as an individual and their personal/professional context. Use the prospect’s LinkedIn profile and other relevant sources to gather these insights:\nLocation Research: Identify the prospect’s local area (Deduced from their LinkedIn or company location if necessary). Find any major recent or upcoming events in that city/region that could be good conversation points. These might include sports championships (e.g., the local baseball team winning a title), significant conferences or trade shows in that city, notable cultural or civic events, festivals, or economic developments. The purpose is to find a local hook — something happening in their area that can be mentioned to build rapport. Ensure the events are recent (within the last few months) or upcoming in the near future, to keep it timely. For example, “their city is hosting a major tech conference next month” or “the local university’s basketball team just reached the finals,” etc. Provide a bit of detail so it’s clear why it’s noteworthy. Use news sources or event calendars specific to that region. If the exact city is not known, use the company’s headquarters or any location info you have as a proxy.\nAlma Mater Research: Determine where the prospect went to university (undergraduate or graduate, as available from LinkedIn or other bio). Then, find if there’s any notable recent news or events related to that university. This could include things like a sports team achievement (e.g., the college football team won a championship), a jump in university rankings, a significant donation or new campus development, famous alumni news, or major research breakthroughs at that school. The idea is to uncover something that the prospect, as an alumnus, might find interesting or take pride in. Make sure it’s relatively recent or relevant (e.g., within the past year or so). For example, “Alma mater (University X) recently opened a new AI research lab” or “University Y was ranked in the top 10 for MBA programs this year.” If the prospect has multiple alma maters (bachelor’s, master’s), you can research each if relevant, but prioritize the one that seems most likely to resonate (perhaps the most recent degree or the one with the strongest affiliation). This section helps personalize outreach by tapping into school spirit or alumni affiliation.\nLinkedIn Post Summary: Visit and review the prospect’s recent LinkedIn activity, specifically original posts they have written (not just shared content). Summarize the themes and tone of what they’ve been posting lately. Key things to note:\nTopics and Interests: What subjects does the prospect talk about? (e.g., industry trends, leadership insights, technical topics, personal career achievements, team shout-outs, etc.)\nTone: Is their tone professional and formal, or casual and humorous? Do they seem enthusiastic, opinionated, inspirational, analytical?\nEngagement: Do they post thought leadership articles, personal reflections, project updates, or commentary on industry news? Focus on content they wrote themselves. For example, “Prospect has posted advice on effective remote teamwork and commented on recent fintech innovations, indicating interest in team culture and industry tech trends.”\nFrequency: Note if they post frequently or rarely (this can hint at how active they are on LinkedIn).\nOverall Themes: Are there recurring themes (e.g., emphasis on mentorship, passion for sustainability, a lot of talk about product management practices)? Use the prospect’s LinkedIn URL to scroll their posts. Do not include any posts they only reshared without their own commentary – we want their original voice. This summary will inform what matters to the prospect professionally and personally, which is great for personalization. (If the prospect has no recent LinkedIn posts, you can note that activity is low and perhaps skip to next section, but typically try to glean something from any activity or their profile sections.) Remember, LinkedIn is one of the best platforms to gather insights into a prospect’s professional interests and network​, so leverage it fully for this part.\nCompany LinkedIn Post Summary: Review the company’s official LinkedIn page for its recent posts (the marketing or PR content the company shares). Summarize the content and marketing direction of those posts. Look for:\nTopics: What is the company talking about? Product launches, case studies, hiring announcements, industry insights, events they are attending or hosting, awards, etc.\nPositioning and Messaging: How does the company position itself in these posts? (e.g., as an innovator, as customer-focused, as a thought leader in X area, etc.) Identify the key messages or slogans if any.\nMarketing Focus: Note if posts highlight certain products or services repeatedly, which might indicate what they’re currently pushing in the market. Also, see if they talk about customer success stories or partnerships.\nEngagement and Tone: Are the posts formal press-release style, or more casual and engaging? For example, you might summarize: “The company’s LinkedIn posts over the last month include a new product feature announcement, a recap of their webinar on industry trends, and celebration of a recent partnership. The tone is educational and upbeat, positioning the company as a leader in innovative analytics solutions.” This gives insight into how the company wants to be seen and what news they deem important, which can be useful when tailoring a pitch to align with their current focus.\nCompany News (Last 45 Days): Gather any major news articles or press releases about the company in roughly the last 45 days. Prioritize significant events such as:\nFunding announcements (e.g. venture capital rounds, IPO filings).\nLeadership changes (new CEO, executives, board members).\nLayoffs or hiring sprees.\nPartnerships or mergers & acquisitions.\nProduct launches or major updates.\nNotable customer wins or case studies made public.\nIndustry awards or recognitions. Use sources like Google News, TechCrunch, industry-specific news sites, or the company’s press/news page on their website. Limit to the past ~1.5 months to keep it very current. List each piece of news as a brief bullet or sentence with what happened and the date (if available). For example: “Jan 10, 2025 – Announced a strategic partnership with ABC Corp to co-develop IoT solutions (Source: Business Wire)”. Ensure each news item is factual and comes from a credible outlet. If there have been no major public news in that period, state that nothing noteworthy was reported in the last 45 days. This section arms the outreach team with up-to-the-minute knowledge, preventing any surprises (like mentioning a CEO who just left, or pitching a product right after a funding event without acknowledging it).For each news item, briefly note which role-specific pain point or goal it touches (if any).\nOverall Prospect Summary:\nWrite a detailed outline of the prospect that pulls together all critical facts you uncovered about the individual.\nInclude:\n• Current role, company, and key responsibilities/KPIs\n• Career history highlights (previous roles, tenure patterns, notable achievements)\n• Professional interests or focus areas (from LinkedIn posts or public interviews)\n• Personal hooks (location events, alma mater news, hobbies if visible)\n• Top pain points and goals relevant to their role, with brief context\nThe tone should feel like an executive briefing—concise, insight-rich, and logically ordered. Avoid bullet lists; use flowing prose.\nOverall Company Summary:\nWrite a detailed outline of the prospect's company that distills the most important insights about the company.\nInclude:\n• Core business and value proposition — what the company does, primary products/services, and the market(s) it serves\n• Industry position & competitive advantages — key differentiators versus major competitors you listed\n• Recent strategic developments — funding, partnerships, leadership changes, product launches, or other major news within the last ~45 days, and why they matter\n• Current challenges or market trends that affect the company’s trajectory (tie in pain points or opportunities where relevant)\n• Implications for the prospect’s role — briefly note how the company’s direction or challenges align with (or heighten) the individual’s responsibilities and goals\nWrite in clear, flowing prose (no bullet points). The summary should read like an executive briefing that gives a sales rep instant situational awareness.\nResearch Guidelines\nFollow these guidelines to conduct your research effectively and ethically:\nUse Reputable, Recent Sources: Prioritize up-to-date information from credible sources. Ideal sources include the prospect’s LinkedIn profile (for personal and company insights), the company’s website and blog, press releases, Crunchbase (for funding and competitor info), news sites (TechCrunch, Bloomberg, local news for location events, etc.), and industry publications. Always check that the information is current (within the last year for general info, and last few months for news). If using statistics or specific claims, make sure they are from a trusted source and as recent as possible.\nCite Data Sources: When you include specific facts or figures (dates, dollar amounts, rankings, etc.), or any information that is unique (not common knowledge), cite the source in parentheses or via a brief reference. For example, after a funding amount you might add “(Source: TechCrunch)”. This gives credibility and allows verification of the info. However, keep the citations brief (just the source name or a short reference). The citations can be part of the text in the JSON output as needed. Do not invent sources or cite anything you’re not sure about. If a required piece of information is not publicly available, it’s better to omit it or note that it’s not found, rather than guessing.\nNo Fabrication: If you cannot find information for a section (e.g., the person has no LinkedIn posts, or the company has no recent news in the timeframe), do not make up content. Instead, provide a reasonable note about the situation (e.g., “No recent posts from the prospect were found,” or “No major news in the last 45 days”). It’s acceptable to give a brief generic insight if relevant (like a generic industry pain point) but it should be clear it’s a general industry insight and not specific to the company if you do so. The key is honesty and utility – we’d rather have a slightly less robust section than include false or misleading info.\nDepth over Breadth: Aim to give detailed, insightful information in each section rather than surface-level statements. For instance, in “Pain Points,” a generic sentence like “They face challenges in their industry” is not useful – be specific about what challenges, why they’re challenges, and if possible, evidence that this company or similar ones are dealing with them. Likewise, for LinkedIn summaries, two or three well-described themes from their posts are more useful than a laundry list of every post title. Each section should feel tailored and relevant, not just a generic dump. Pretend you are preparing briefing notes for a sales call – include what would actually help in conversation.\nOrganization and Clarity: Within each JSON field (section), structure the content in a clear and readable way. Even though the output is JSON (a machine-readable format), the text in each field will eventually be read by humans (the sales team), so make it well-organized:\nYou can use full sentences in a short paragraph form for explanations.\nFor lists of items (like competitors or news items), you can use punctuation or line breaks to separate points. For example, in a JSON string you can use “\\n” to indicate a new line if needed, or separate bullet points with semicolons or commas. Ensure it remains valid JSON (e.g., no unescaped quotes).\nMaintain a neutral, informative tone. The style should be professional and factual, not overly casual or overly formal. It’s okay to be engaging (this isn’t a dry research paper), but avoid any salesy language – you are providing research, not the pitch itself.\nDouble-check spelling of names (people, companies) and accuracy of titles, etc. The final consumer of this output will trust these details for their personalization.\nCheck Consistency with Input: Make sure that any data you present matches the provided input. For example, if the input says the person’s title is “VP of Engineering,” ensure your research doesn’t mistakenly refer to them as “Head of Engineering” or something different. Use the input name when referring to the person (e.g., use Mr. Smith or John if appropriate in a note, though generally this is a third-person research report so you might just say “the prospect”). Also, ensure the company name is correctly used (watch out for Inc, LLC or any rebranding). Consistency builds credibility in the eyes of the main agent and the end reader.\nOutput Format\nYour response must be formatted as a single JSON object with a distinct key for each section described above. This structured JSON format allows the main agent to easily parse and use the information. Adhere strictly to JSON syntax (e.g., proper quoting and commas). Do not include any additional commentary or sections not requested. Only output the JSON object and nothing else. The required JSON structure (keys) is as follows:\n{\n  \"Industry\": \"<Detailed description of the company's industry and its role>\",\n  \"Pain Points\": \"<Common challenges in this industry, with any specific relevance to the company>\",\n  \"Business Goals\": \"<Likely short- and long-term objectives of the business, based on recent context>\",\n  \"Competitors\": \"<List of key competitors and brief notes on how they differ from the company>\",\n  \"Competitive Advantages\": \"<What gives this company an edge in the market (products, team, etc.)>\",\n  \"Location Research\": \"<Notable recent/upcoming events in the prospect's local area to mention>\",\n  \"Alma Mater Research\": \"<Recent news or events about the prospect's alma mater university>\",\n  \"LinkedIn Post Summary\": \"<Summary of the prospect's recent original LinkedIn posts (tone, themes, interests)>\",\n  \"Company LinkedIn Post Summary\": \"<Summary of the company's recent LinkedIn posts (marketing focus, messaging)>\",\n  \"Company News\": \"<Major company news in the last 45 days, each item with date and description>\",\n  \"Overall Prospect Summary\": \"<3–5 paragraph narrative on the prospect's career and current role based on your recent research>\",\n  \"Overall Company Summary\": \"<3–5 paragraph narrative about the company based on your recent research>\"\n}\nImportant formatting notes:\nThe keys must exactly match the above (spelling and capitalization).\nThe values should be strings containing the information for that section. Even if you include what looks like a list or multiple sentences, keep it within the string for that JSON field. You may use newline characters (\\n) or punctuation to format the text within the string for readability, but do not break it out into nested JSON structures. For example, for “Company News”, you might have a single string that contains several bullet points separated by \\n or numbered items.\nEnsure the final JSON is syntactically valid (pay attention to escaping any quotes within the text, etc.). An invalid JSON (e.g. missing a quote or comma) would break the automation that parses it.\nDo not include the angle bracket placeholders (< >) in the actual output. They are just placeholders here to show where your researched content should go. In the final answer, replace them entirely with the actual content. For instance, your real output might look like: \"Industry\": \"The company is a FinTech provider specializing in mobile payment solutions, operating in the digital payments sector, which is a sub-sector of the broader financial services industry, competing with companies like X and Y.\" (and so on for each field).\nDo not output any explanatory text outside the JSON object. The main agent is expecting purely JSON, so even a single line of extra commentary could cause parsing issues. Everything you want to convey must be within the values of the JSON fields.\nConclusion\nBy following this prompt, you will gather a thorough, structured profile of the prospect and their business. The output’s JSON format with clearly labeled sections will allow the main outreach agent to easily incorporate these insights into personalized messaging. Ultimately, this research-driven approach should enable more meaningful conversations with the prospect, as the outreach will be informed by the prospect’s industry context, company situation, and personal background. The goal is to demonstrate genuine understanding and provide value from the first interaction. Now, proceed with the research based on the given input, and compile the findings as specified. Good luck!",
+          "maxIterations": 25
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -840,
+        1560
+      ],
+      "id": "357986d9-f7c8-43b9-aa1c-fb841477b918",
+      "name": "Research Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={\n    \"firstname\": \"{{ $json.output.firstname }}\",\n    \"lastname\": \"{{ $json.output.lastname }}\",\n    \"location\": \"{{ $json.output.location }}\",\n    \"linkedinUrl\": \"{{ $json.output.linkedinUrl }}\",\n    \"email\": \"{{ $json.output.email }}\",\n    \"website\": \"{{ $json.output.website }}\",\n    \"Primary Job Company\": \"{{ $json.output[\"Primary Job Company\"] }}\",\n    \"Primary Job Title\": \"{{ $json.output[\"Primary Job Title\"] }}\",\n    \"Primary Job Company LinkedIn URL\": \"{{ $json.output[\"Primary Job Company LinkedIn URL\"] }}\",\n  \"Industry\": \"{{ $json.output.Industry }}\",\n  \"Pain Points\": \"{{ $json.output[\"Pain Points\"] }}\",\n  \"Business Goals\": \"{{ $json.output[\"Business Goals\"] }}\",\n  \"Competitors\": \"{{ $json.output.Competitors }}\",\n  \"Competitive Advantages\": \"{{ $json.output[\"Competitive Advantages\"] }}\",\n  \"Location Research\": \"{{ $json.output[\"Location Research\"] }}\",\n  \"Alma Mater Research\": \"{{ $json.output[\"Alma Mater Research\"] }}\",\n  \"LinkedIn Post Summary\": \"{{ $json.output[\"LinkedIn Post Summary\"] }}\",\n  \"Company LinkedIn Post Summary\": \"{{ $json.output[\"Company LinkedIn Post Summary\"] }}\",\n  \"Company News\": \"{{ $json.output[\"Company News\"] }}\",\n  \"Overall Prospect Summary\": \"{{ $json.output[\"Overall Prospect Summary\"] }}\",\n  \"Overall Company Summary\": \"{{ $json.output[\"Overall Company Summary\"] }}\",\n  \"Client_Company\": \"{{ $('Add Context').item.json[\"Client Company Name\"] }}\",\n  \"Client_Company_Website\": \"{{ $('Add Context').item.json[\"Client Company Website\"] }}\"\n}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "=You are an expert AI sales assistant trained to write ultra-personalized cold emails using deep product knowledge and prospect-specific insights.\\n\\nYou always reference company documentation stored in a vector database via RAG (Retrieval-Augmented Generation). This ensures every message reflects real product details, value props, and positioning—never guesses or fluff.\\n\\nFollow this 3-part process:\\n\\n1. Understand Both Companies\\n\\nUse the RAG vector database to extract relevant information about {{ $('Add Context').item.json[\"Client Company Name\"] }} from internal documents.\\n\\nRead the user-provided research summary of {{ $json.output.firstname }} {{ $json.output.lastname }} and their company, {{ $json.output[\"Primary Job Company\"] }} to understand {{ $json.output[\"Primary Job Company\"] }}'s' industry, business model, goals, and leadership priorities of the prospect and the company as a whole as well as  career history, current position and responsibilities at {{ $json.output['Primary Job Company'] }} as well as {{ $json.output.firstname }} {{ $json.output.lastname }}'s professional goals in that role and standard pain points they face within the role and industry.\\n\\nThen:\\n\\nHelp me create 3 unique ideas of how {{ $json.output['Primary Job Company'] }} can make more money with {{ $('Add Context').item.json[\"Client Company Name\"] }}'s offerings or how {{ $('Add Context').item.json[\"Client Company Name\"] }} can alleviate some issues that {{ $json.output.firstname }} {{ $json.output.lastname }} may have; The ideas need to be unique and can ONLY be said to {{ $json.output.firstname }} {{ $json.output.lastname }} at {{ $json.output['Primary Job Company'] }}. The ideas also must reflect a deep understanding of both companies as well as {{ $json.output.firstname }} {{ $json.output.lastname }}'s role;\\n\\n2. Write the Opener\\nCreate a single opening line (max 30 words) for the outreach email.\\nIt must abide by the following rules:\\n\\nRule 1: The opening line needs to be very personal, unique that can ONLY be said to {{ $json.output.firstname }} {{ $json.output.lastname }} from {{ $json.output[\"Primary Job Company\"] }}.\\nRule 2: Keep the opening line short, less than 30 words and needs to engage the reader.\\nRule 3: Don't be cringe. Don't be overly complimentary or overly corporate.\\nRule 4: Speak from a place of authority and advisory.\\nRule 5: Avoid flattery, corporate clichés, or generic intros\\nRule 6: Show you're familiar with {{ $json.output.firstname }} {{ $json.output.lastname }}'s background and industry\\n\\n3. Write the Email & Subject\nUse the opening line and value props to craft a cold email with:\\n\\nRule 1: The email should be very personal, unique that can ONLY be said to {{ $json.output.firstname }} {{ $json.output.lastname }}, who is the {{ $json.output[\"Primary Job Title\"] }} at {{ $json.output[\"Primary Job Company\"] }}. It should speak directly to the issues they face day to day in their role.\\nRule 2: The message should be short and straight to the point, less than 200 words\\nRule 3: The email should talk about what unique use cases drawn from your analysis that {{ $json.output[\"Primary Job Company\"] }} can benefit from. The message & use cases should feel very personal, that ONLY make sense to {{ $json.output.firstname }} {{ $json.output.lastname }} at {{ $json.output[\"Primary Job Company\"] }}.\\nRule 4: The email should start with the opening line  you came up with as exact words.\\nRule 5: End the email by message: Would you have time for a quick chat this/next week?\\nRule 6: Do not add any name, title, or other information after the salutation. Just end with \"Best,\" \"Cheers,\", etc.\\nRule 7: The subject line should be very personal, unique that can ONLY be said to {{ $json.output.firstname }} {{ $json.output.lastname }} at {{ $json.output[\"Primary Job Company\"] }}. It should be enticing to {{ $json.output.firstname }} {{ $json.output.lastname }} and should encourage them to open and read the whole email. It should make them think the email was written just for them.\\n\\nThe prospect name may contain middle initial, honorific, etc. Please normalize their name to the casual version of the name before adding it to the email (ie - \\\"Josh\\\" instead of \\\"Joshua\\\"). Please also shorten their company names to sound like real conversation (ie - \\\"Maple\\\" instead of \\\"Maple Digital Transformation\\\"). Remove any text after the salutation comma at the end of the email body. Please use all available tools necessary to achieve the best result. Do not use any cheesy made-up names for programs or use quotation marks in the email. \n\n\nAlso be sure the email is inkeeping with the following feedback from your manager: \\n\\n- Try to avoid mentioning locations unless you are absolutely sure that it is the correct region that the prospect oversees. Do not just assume their location on LinkedIn is where their properties under management are. \\n- Make sure you are not citing a prospect's company's full portfolio count when discussing properties the prospect is managing. The individual prospects are not responsible for the company's entire property portfolio. \\n- You can not customize MirrorMate frames beyond the options available. You can not brand them or add custom designs. \\n- Make sure you are pitching bulk use cases. As an example, we want to be incentivizing property managers to buy in on your products for their entire portfolio rather than getting a mirrormate kit for the gym mirror or lobby mirror. \\n- Do not mention natural disasters. There are specific companies that do natural disaster repair.\\n- Tenants do not have a say in rennovation choices. Do not pitch optional tenant incentives to property managers.\\n- Do not use the term peel-and-stick. It makes the product sound cheap.\\n- Don’t mention specific installation times for CabinetMate since it varies based on the number of cabinets.\\n- Do not mention volume pricing. \\n- Mentioning 5-day shipping is a good selling point where appropriate.\\n- Low income / subsidized housing providers rarely purchase our products – they simply don’t make the investment. MirrorMate and CabinetMate products are affordable upgrades—meaning they offer cost-effective, high-impact renovations—but we do not specifically target affordable housing properties that receive government subsidies. While such properties can purchase our products, they are not our target customer base. Instead, our focus is on multi-family, trade, hotel/hospitality, contractor, and supply house segments where budget-conscious but quality-driven upgrades are key.\\n\\n\n\n\nYour response should contain ONLY the following, should match the following format EXACTLY, and should NOT be in markdown format:\\n\\nemail_subject: \\\"[email subject]\\n\\nemail_body: [full email body]\\\"",
+          "maxIterations": 30
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -2340,
+        1980
+      ],
+      "id": "f7b50eef-fbd6-4aff-9a79-acff136edd0f",
+      "name": "Messaging Agent"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"Email\": {\n      \"subject\":\"subject\",\n      \"body\": \"body\"\n    }\n}\n"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -1200,
+        2120
+      ],
+      "id": "6b9c06c0-fece-4ee4-b241-a83c9a3d4b9e",
+      "name": "Structured Output Parser16"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Here is the information of the coldreach email to humanize.\n\nsubject: {{ $json.output.Email_1_Subject }}\nbody: {{ $json.output.Email_1_Body }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=You are a part of a team of cold outreach specialist. Your role is to write an humanized cold outreach Email for the given content. You will be given a piece of text that sounds like it was generated by AI. Your task is to rewrite this text to make it sound more human-written. \n\nFollow these steps: \n1. Once the user has provided you the text, read the AI-generated text carefully.\n\n2. Next, rewrite the text following these guidelines:\na) Use a conversational tone, concise language and avoid unnecessarily complex jargon. Example: \"Hey friends, today I'll show you a really useful writing tip\"\nb) Use short punchy sentences. Example: \"And then… you enter the room. Your heart drops. The pressure is on.\"\nc) Use simple language. 12th grade readability or lower. Example: \"Emails help businesses tell customers about their stuff.\"\nd) Use rhetorical fragments to improve readability. Example: “The good news? My 3-step process can be applied to any business\"\ne) Use bullet points when relevant. Example: “Because anytime someone loves your product, chances are they’ll:\n* buy from you again\n* refer you to their friends\"\nf) Use analogies or examples often. Example: \"Creating an email course with AI is easier than stealing candies from a baby\"\ng) Split up long sentences. Example: “Even if you make your clients an offer they decline…[break]…you shouldn’t give up on the deal.”\nh) Include personal anecdotes. Example: \"I recently asked ChatGPT to write me…\"\ni) Use bold and italic formatting to emphasize words.\nj) Do not use emojis or hashtags\nk) Avoid overly promotional words like \"game-changing,\" \"unlock,\" \"master,\" \"skyrocket,\" or \"revolutionize.\"\nl) Make sure you write like a human\nm) Only out the messages and nothing else.\nn) Don't add P.S or anything below my signature\no) Never use emojis in both subject and body of the email\np) Shorten company names where necessary to reflect the way people would actually say them in casual conversation\nq) Don't make direct references to secific statistics where it doesn't make sense inkeeping with the tone of the sentence. If it is a casual sentence, you don't need to inject a specific number or statistic. That makes it look like an AI generated message.\nr) do not add any name at the end of the salutation if one is not there in the input data.\n\nRemember, the goal is to make the text sound natural, engaging, and as if it were written by a human rather than an AI."
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        -1520,
+        1980
+      ],
+      "id": "731a40e6-87a9-4820-b881-9065c8c86e9b",
+      "name": "Email Humanizer2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserAutofixing",
+      "typeVersion": 1,
+      "position": [
+        -1220,
+        2000
+      ],
+      "id": "49b18bcb-c7a5-49d2-b24e-48d50964ad86",
+      "name": "Auto-fixing Output Parser3"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Use this tool to ask Perplexity a question that you might need more context from the internet o.",
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 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"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"sonar-pro\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a research expert that helps uncover information and context about prospects and their companies. Be as detailed and accurate as possible. Do not make anything p or hallucinate.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{{$fromAI(\"search_query\",`Ask Perplexity AI a question`, 'string')}}\"\n    }\n  ]\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [
+        -180,
+        1780
+      ],
+      "id": "67860366-7114-456e-8aaf-5d3cb9d31fac",
+      "name": "Perplexity AI"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1r8fkmJSzDHrJxoce9FKCMHaeNinjQLhiavBI_aRkQ4s",
+          "mode": "list",
+          "cachedResultName": "Kneecap AI Testing Sheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1r8fkmJSzDHrJxoce9FKCMHaeNinjQLhiavBI_aRkQ4s/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 221987987,
+          "mode": "list",
+          "cachedResultName": "Mirrormate 2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1r8fkmJSzDHrJxoce9FKCMHaeNinjQLhiavBI_aRkQ4s/edit#gid=221987987"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Company": "={{ $json.output['Primary Job Company'] }}",
+            "Industry": "={{ $json.output.Industry }}",
+            "Company Summary": "={{ $json.output['Overall Company Summary'] }}",
+            "Person Summary": "={{ $json.output['Overall Prospect Summary'] }}",
+            "Title": "={{ $json.output['Primary Job Title'] }}",
+            "First Name": "={{ $json.output.firstname }}",
+            "Last Name": "={{ $json.output.lastname }}",
+            "Email": "={{ $json.output.email }}",
+            "LinkedIn": "={{ $json.output.linkedinUrl }}",
+            "Website": "={{ $json.output.website }}",
+            "Email Subject": "={{ $json.output.Email.subject }}",
+            "Email Body": "={{ $json.output.Email.body }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "First Name",
+              "displayName": "First Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Last Name",
+              "displayName": "Last Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Title",
+              "displayName": "Title",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company",
+              "displayName": "Company",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Industry",
+              "displayName": "Industry",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "City",
+              "displayName": "City",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "State",
+              "displayName": "State",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": true
+            },
+            {
+              "id": "Email",
+              "displayName": "Email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "LinkedIn",
+              "displayName": "LinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Website",
+              "displayName": "Website",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Subject",
+              "displayName": "Email Subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Email Body",
+              "displayName": "Email Body",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Person Summary",
+              "displayName": "Person Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Company Summary",
+              "displayName": "Company Summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -720,
+        2300
+      ],
+      "id": "846c749d-bf4b-4371-923d-e30a8c9d4484",
+      "name": "Google Sheets",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "AA7GwnPao0GnTtzh",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.1,
+      "position": [
+        -840,
+        2060
+      ],
+      "id": "3f417b16-6d8f-4413-b719-c4bf3873a388",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -1380,
+        1540
+      ],
+      "id": "52c156a5-1416-4033-8205-1e6e7379042a",
+      "name": "Loop Over Items2"
+    },
+    {
+      "parameters": {
+        "model": "openai/gpt-4.1-mini",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        -1200,
+        1740
+      ],
+      "id": "2093b6b7-4489-478b-94c9-c7abd59fdba9",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "VM221MuNzNgwureD",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "  https://winrybysl-production.up.railway.app/webhook/n8n-results",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=firstname",
+              "value": "={{ $json.output.firstname }}"
+            },
+            {
+              "name": "lastname",
+              "value": "={{ $json.output.lastname }}"
+            },
+            {
+              "name": "location",
+              "value": "={{ $json.output.location }}"
+            },
+            {
+              "name": "linkedinUrl",
+              "value": "={{ $json.output.linkedinUrl }}"
+            },
+            {
+              "name": "email",
+              "value": "={{ $json.output.email }}"
+            },
+            {
+              "name": "website",
+              "value": "={{ $json.output.website }}"
+            },
+            {
+              "name": "Primary Job Company",
+              "value": "={{ $json.output[\"Primary Job Company\"] }}"
+            },
+            {
+              "name": "Primary Job Title",
+              "value": "={{ $json.output[\"Primary Job Title\"] }}"
+            },
+            {
+              "name": "Primary Job Company LinkedIn URL",
+              "value": "={{ $json.output[\"Primary Job Company LinkedIn URL\"] }}"
+            },
+            {
+              "name": "Industry",
+              "value": "={{ $json.output.Industry }}"
+            },
+            {
+              "name": "Pain Points",
+              "value": "={{ $json.output[\"Pain Points\"] }}"
+            },
+            {
+              "name": "Business Goals",
+              "value": "={{ $json.output[\"Business Goals\"] }}"
+            },
+            {
+              "name": "Competitors",
+              "value": "={{ $json.output.Competitors }}"
+            },
+            {
+              "name": "Competitive Advantages",
+              "value": "={{ $json.output[\"Competitive Advantages\"] }}"
+            },
+            {
+              "name": "Location Research",
+              "value": "={{ $json.output[\"Location Research\"] }}"
+            },
+            {
+              "name": "Alma Mater Research",
+              "value": "={{ $json.output[\"Alma Mater Research\"] }}"
+            },
+            {
+              "name": "LinkedIn Post Summary",
+              "value": "={{ $json.output[\"LinkedIn Post Summary\"] }}"
+            },
+            {
+              "name": "Company LinkedIn Post Summary",
+              "value": "={{ $json.output[\"Company LinkedIn Post Summary\"] }}"
+            },
+            {
+              "name": "Company News",
+              "value": "={{ $json.output[\"Company News\"] }}"
+            },
+            {
+              "name": "Overall Prospect Summary",
+              "value": "={{ $json.output[\"Overall Prospect Summary\"] }}"
+            },
+            {
+              "name": "Overall Company Summary",
+              "value": "={{ $json.output[\"Overall Company Summary\"] }}"
+            },
+            {
+              "name": "Email Subject",
+              "value": "={{ $json.output.Email.subject }}"
+            },
+            {
+              "name": "Email Body",
+              "value": "={{ $json.output.Email.body }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -480,
+        2060
+      ],
+      "id": "afb18488-9bca-4eab-8d1a-a4f36e462a9b",
+      "name": "Local"
+    },
+    {
+      "parameters": {
+        "content": "## AI Workflow",
+        "height": 1360,
+        "width": 3940
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -4000,
+        1240
+      ],
+      "typeVersion": 1,
+      "id": "f9968b30-b239-4fc2-b9dc-14c087e24120",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1360,
+        2220
+      ],
+      "id": "753bb773-bca0-4f59-b6f0-51a7652f6f84",
+      "name": "OpenAI Chat Model9",
+      "credentials": {
+        "openAiApi": {
+          "id": "OOjomMaOYvk25Ton",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "File Created": [
+      {
+        "json": {
+          "kind": "drive#file",
+          "copyRequiresWriterPermission": false,
+          "writersCanShare": true,
+          "viewedByMe": true,
+          "mimeType": "application/vnd.google-apps.document",
+          "exportLinks": {
+            "application/rtf": "https://docs.google.com/feeds/download/documents/export/Export?id=1Dgge0lUlk3co7P93TvbtM0LMnkinpzzMo4TQPJlyEQM&exportFormat=rtf",
+            "application/vnd.oasis.opendocument.text": "https://docs.google.com/feeds/download/documents/export/Export?id=1Dgge0lUlk3co7P93TvbtM0LMnkinpzzMo4TQPJlyEQM&exportFormat=odt",
+            "text/html": "https://docs.google.com/feeds/download/documents/export/Export?id=1Dgge0lUlk3co7P93TvbtM0LMnkinpzzMo4TQPJlyEQM&exportFormat=html",
+            "application/pdf": "https://docs.google.com/feeds/download/documents/export/Export?id=1Dgge0lUlk3co7P93TvbtM0LMnkinpzzMo4TQPJlyEQM&exportFormat=pdf",
+            "text/markdown": "https://docs.google.com/feeds/download/documents/export/Export?id=1Dgge0lUlk3co7P93TvbtM0LMnkinpzzMo4TQPJlyEQM&exportFormat=markdown",
+            "application/epub+zip": "https://docs.google.com/feeds/download/documents/export/Export?id=1Dgge0lUlk3co7P93TvbtM0LMnkinpzzMo4TQPJlyEQM&exportFormat=epub",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "https://docs.google.com/feeds/download/documents/export/Export?id=1Dgge0lUlk3co7P93TvbtM0LMnkinpzzMo4TQPJlyEQM&exportFormat=docx",
+            "text/plain": "https://docs.google.com/feeds/download/documents/export/Export?id=1Dgge0lUlk3co7P93TvbtM0LMnkinpzzMo4TQPJlyEQM&exportFormat=txt"
+          },
+          "parents": [
+            "1S_XSwz1z3EH4Cnivl7Ls_RGTqlO7L0bb"
+          ],
+          "thumbnailLink": "https://lh3.googleusercontent.com/drive-storage/AJQWtBPTKQpJiRaRC_JK09g-JM6xG1nPbJPC2UkOqJguDhWyaTHKe879riBCRT4gkvWn_qWcTTdYOlQJuOwxsl-je8xt3QYQZnaW10eJi9CwM2q4WvcXj73u6UQEUUg4=s220",
+          "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.document",
+          "shared": false,
+          "lastModifyingUser": {
+            "displayName": "Chase Hannegan",
+            "kind": "drive#user",
+            "me": true,
+            "permissionId": "12966415566161546567",
+            "emailAddress": "hanneganc@gmail.com",
+            "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocIleOZQ2ZsPeLbzVj8DXpAHCLbIOAH-n0vULXMv2zSg2vBt=s64"
+          },
+          "owners": [
+            {
+              "displayName": "Chase Hannegan",
+              "kind": "drive#user",
+              "me": true,
+              "permissionId": "12966415566161546567",
+              "emailAddress": "hanneganc@gmail.com",
+              "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocIleOZQ2ZsPeLbzVj8DXpAHCLbIOAH-n0vULXMv2zSg2vBt=s64"
+            }
+          ],
+          "webViewLink": "https://docs.google.com/document/d/1Dgge0lUlk3co7P93TvbtM0LMnkinpzzMo4TQPJlyEQM/edit",
+          "size": "4475",
+          "viewersCanCopyContent": true,
+          "permissions": [
+            {
+              "id": "12966415566161546567",
+              "displayName": "Chase Hannegan",
+              "type": "user",
+              "kind": "drive#permission",
+              "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocIleOZQ2ZsPeLbzVj8DXpAHCLbIOAH-n0vULXMv2zSg2vBt=s64",
+              "emailAddress": "hanneganc@gmail.com",
+              "role": "owner",
+              "deleted": false,
+              "pendingOwner": false
+            }
+          ],
+          "hasThumbnail": true,
+          "spaces": [
+            "drive"
+          ],
+          "id": "1Dgge0lUlk3co7P93TvbtM0LMnkinpzzMo4TQPJlyEQM",
+          "name": "Meeting Minutes Mar 12",
+          "starred": false,
+          "trashed": false,
+          "explicitlyTrashed": false,
+          "createdTime": "2025-03-12T16:43:39.796Z",
+          "modifiedTime": "2025-03-12T18:41:10.367Z",
+          "modifiedByMeTime": "2025-03-12T18:41:10.367Z",
+          "viewedByMeTime": "2025-03-12T18:41:10.367Z",
+          "quotaBytesUsed": "4475",
+          "version": "19",
+          "ownedByMe": true,
+          "isAppAuthorized": false,
+          "capabilities": {
+            "canChangeViewersCanCopyContent": true,
+            "canEdit": true,
+            "canCopy": true,
+            "canComment": true,
+            "canAddChildren": false,
+            "canDelete": true,
+            "canDownload": true,
+            "canListChildren": false,
+            "canRemoveChildren": false,
+            "canRename": true,
+            "canTrash": true,
+            "canReadRevisions": true,
+            "canChangeCopyRequiresWriterPermission": true,
+            "canMoveItemIntoTeamDrive": true,
+            "canUntrash": true,
+            "canModifyContent": true,
+            "canMoveItemOutOfDrive": true,
+            "canAddMyDriveParent": false,
+            "canRemoveMyDriveParent": true,
+            "canMoveItemWithinDrive": true,
+            "canShare": true,
+            "canMoveChildrenWithinDrive": false,
+            "canModifyContentRestriction": true,
+            "canChangeSecurityUpdateEnabled": false,
+            "canAcceptOwnership": false,
+            "canReadLabels": false,
+            "canModifyLabels": false,
+            "canModifyEditorContentRestriction": true,
+            "canModifyOwnerContentRestriction": true,
+            "canRemoveContentRestriction": false,
+            "canDisableInheritedPermissions": false,
+            "canEnableInheritedPermissions": true
+          },
+          "thumbnailVersion": "4",
+          "modifiedByMe": true,
+          "permissionIds": [
+            "12966415566161546567"
+          ],
+          "linkShareMetadata": {
+            "securityUpdateEligible": false,
+            "securityUpdateEnabled": true
+          },
+          "inheritedPermissionsDisabled": false
+        }
+      },
+      {
+        "json": {
+          "kind": "drive#file",
+          "copyRequiresWriterPermission": false,
+          "writersCanShare": true,
+          "viewedByMe": true,
+          "mimeType": "application/vnd.google-apps.spreadsheet",
+          "exportLinks": {
+            "application/x-vnd.oasis.opendocument.spreadsheet": "https://docs.google.com/spreadsheets/export?id=1yKgRj62UCOBcabx7NiMjRrpsmWGAmohmkHfVKjnxp5I&exportFormat=ods",
+            "text/tab-separated-values": "https://docs.google.com/spreadsheets/export?id=1yKgRj62UCOBcabx7NiMjRrpsmWGAmohmkHfVKjnxp5I&exportFormat=tsv",
+            "application/pdf": "https://docs.google.com/spreadsheets/export?id=1yKgRj62UCOBcabx7NiMjRrpsmWGAmohmkHfVKjnxp5I&exportFormat=pdf",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": "https://docs.google.com/spreadsheets/export?id=1yKgRj62UCOBcabx7NiMjRrpsmWGAmohmkHfVKjnxp5I&exportFormat=xlsx",
+            "text/csv": "https://docs.google.com/spreadsheets/export?id=1yKgRj62UCOBcabx7NiMjRrpsmWGAmohmkHfVKjnxp5I&exportFormat=csv",
+            "application/zip": "https://docs.google.com/spreadsheets/export?id=1yKgRj62UCOBcabx7NiMjRrpsmWGAmohmkHfVKjnxp5I&exportFormat=zip"
+          },
+          "parents": [
+            "1S_XSwz1z3EH4Cnivl7Ls_RGTqlO7L0bb"
+          ],
+          "thumbnailLink": "https://lh3.googleusercontent.com/drive-storage/AJQWtBP6DBI4V5NAfKSIYwilD2wv058AQaU_of9IslAMggZmhwUCeKpg8yQw1eJr_RUwAtHsKIWKb3Cs_itdfVIFWCrEFyDPgs7pohFbEoSX_1ecPe5a5QRJrGvNsGw=s220",
+          "iconLink": "https://drive-thirdparty.googleusercontent.com/16/type/application/vnd.google-apps.spreadsheet",
+          "shared": false,
+          "lastModifyingUser": {
+            "displayName": "Chase Hannegan",
+            "kind": "drive#user",
+            "me": true,
+            "permissionId": "12966415566161546567",
+            "emailAddress": "hanneganc@gmail.com",
+            "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocIleOZQ2ZsPeLbzVj8DXpAHCLbIOAH-n0vULXMv2zSg2vBt=s64"
+          },
+          "owners": [
+            {
+              "displayName": "Chase Hannegan",
+              "kind": "drive#user",
+              "me": true,
+              "permissionId": "12966415566161546567",
+              "emailAddress": "hanneganc@gmail.com",
+              "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocIleOZQ2ZsPeLbzVj8DXpAHCLbIOAH-n0vULXMv2zSg2vBt=s64"
+            }
+          ],
+          "webViewLink": "https://docs.google.com/spreadsheets/d/1yKgRj62UCOBcabx7NiMjRrpsmWGAmohmkHfVKjnxp5I/edit",
+          "size": "2796",
+          "viewersCanCopyContent": true,
+          "permissions": [
+            {
+              "id": "12966415566161546567",
+              "displayName": "Chase Hannegan",
+              "type": "user",
+              "kind": "drive#permission",
+              "photoLink": "https://lh3.googleusercontent.com/a/ACg8ocIleOZQ2ZsPeLbzVj8DXpAHCLbIOAH-n0vULXMv2zSg2vBt=s64",
+              "emailAddress": "hanneganc@gmail.com",
+              "role": "owner",
+              "deleted": false,
+              "pendingOwner": false
+            }
+          ],
+          "hasThumbnail": true,
+          "spaces": [
+            "drive"
+          ],
+          "id": "1yKgRj62UCOBcabx7NiMjRrpsmWGAmohmkHfVKjnxp5I",
+          "name": "Company Sales Data",
+          "starred": false,
+          "trashed": false,
+          "explicitlyTrashed": false,
+          "createdTime": "2025-03-12T18:26:50.916Z",
+          "modifiedTime": "2025-03-12T18:41:47.032Z",
+          "modifiedByMeTime": "2025-03-12T18:41:47.032Z",
+          "viewedByMeTime": "2025-03-12T18:41:47.032Z",
+          "quotaBytesUsed": "2796",
+          "version": "14",
+          "ownedByMe": true,
+          "isAppAuthorized": false,
+          "capabilities": {
+            "canChangeViewersCanCopyContent": true,
+            "canEdit": true,
+            "canCopy": true,
+            "canComment": true,
+            "canAddChildren": false,
+            "canDelete": true,
+            "canDownload": true,
+            "canListChildren": false,
+            "canRemoveChildren": false,
+            "canRename": true,
+            "canTrash": true,
+            "canReadRevisions": true,
+            "canChangeCopyRequiresWriterPermission": true,
+            "canMoveItemIntoTeamDrive": true,
+            "canUntrash": true,
+            "canModifyContent": true,
+            "canMoveItemOutOfDrive": true,
+            "canAddMyDriveParent": false,
+            "canRemoveMyDriveParent": true,
+            "canMoveItemWithinDrive": true,
+            "canShare": true,
+            "canMoveChildrenWithinDrive": false,
+            "canModifyContentRestriction": true,
+            "canChangeSecurityUpdateEnabled": false,
+            "canAcceptOwnership": false,
+            "canReadLabels": false,
+            "canModifyLabels": false,
+            "canModifyEditorContentRestriction": true,
+            "canModifyOwnerContentRestriction": true,
+            "canRemoveContentRestriction": false,
+            "canDisableInheritedPermissions": false,
+            "canEnableInheritedPermissions": true
+          },
+          "thumbnailVersion": "5",
+          "modifiedByMe": true,
+          "permissionIds": [
+            "12966415566161546567"
+          ],
+          "linkShareMetadata": {
+            "securityUpdateEligible": false,
+            "securityUpdateEnabled": true
+          },
+          "inheritedPermissionsDisabled": false
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Required Fields": {
+      "main": [
+        [
+          {
+            "node": "No Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Website": {
+      "main": [
+        [
+          {
+            "node": "No LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Website": {
+      "main": [
+        [
+          {
+            "node": "Find Website",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Set Query",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Run Apify Actor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Query": {
+      "main": [
+        [
+          {
+            "node": "SerpAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI": {
+      "main": [
+        [
+          {
+            "node": "Find LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Standardize Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Standardize Data": {
+      "main": [
+        [
+          {
+            "node": "Run Apify Actor",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prospect Summary": {
+      "main": [
+        [
+          {
+            "node": "Add Website",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Context": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Website": {
+      "main": [
+        [
+          {
+            "node": "Add Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Insert into Supabase Vectorstore",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI1": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Insert into Supabase Vectorstore",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download File": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Created": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Updated": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Document Text": {
+      "main": [
+        [
+          {
+            "node": "Insert into Supabase Vectorstore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Doc Rows": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Data Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set File ID": {
+      "main": [
+        [
+          {
+            "node": "Delete Old Doc Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Text": {
+      "main": [
+        [
+          {
+            "node": "Insert into Supabase Vectorstore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize": {
+      "main": [
+        [
+          {
+            "node": "Set Schema",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert into Supabase Vectorstore",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from Excel",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from CSV",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract Document Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert into Supabase Vectorstore": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from Excel": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert Table Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Schema": {
+      "main": [
+        [
+          {
+            "node": "Update Schema for Document Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from CSV": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Insert Table Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Set File ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delete Old Data Rows": {
+      "main": [
+        [
+          {
+            "node": "Insert Document Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert Document Metadata": {
+      "main": [
+        [
+          {
+            "node": "Download File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File IDs": {
+      "main": [
+        [
+          {
+            "node": "Merge4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase": {
+      "main": [
+        [
+          {
+            "node": "Merge4",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get File IDs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get File IDs1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get File IDs2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get File IDs",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get File IDs1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase1",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get File IDs2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Supabase2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File IDs1": {
+      "main": [
+        [
+          {
+            "node": "Merge5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase1": {
+      "main": [
+        [
+          {
+            "node": "Merge5",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get File IDs2": {
+      "main": [
+        [
+          {
+            "node": "Merge6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase2": {
+      "main": [
+        [
+          {
+            "node": "Merge6",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge4": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "Delete Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge5": {
+      "main": [
+        [
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Delete Rows1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge6": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Delete Rows2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Apify Actor": {
+      "main": [
+        [
+          {
+            "node": "Prospect Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "Split Out1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out1": {
+      "main": [
+        [
+          {
+            "node": "Required Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Required Fields1": {
+      "main": [
+        [
+          {
+            "node": "Required Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Company LinkedIn": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Prospect LinkedIn": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape LinkedIn Company Posts": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Prospect LinkedIn Posts": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Auto-fixing Output Parser1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-fixing Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get File Contents2": {
+      "ai_tool": [
+        [
+          {
+            "node": "Messaging Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Documents2": {
+      "ai_tool": [
+        [
+          {
+            "node": "Messaging Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Document Rows2": {
+      "ai_tool": [
+        [
+          {
+            "node": "Messaging Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Messaging Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Email Humanizer2",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store2": {
+      "ai_tool": [
+        [
+          {
+            "node": "Messaging Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI3": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store2",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Auto-fixing Output Parser2",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-fixing Output Parser2": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Messaging Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser3": {
+      "ai_outputParser": [
+        []
+      ]
+    },
+    "Research Agent": {
+      "main": [
+        [
+          {
+            "node": "Messaging Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Messaging Agent": {
+      "main": [
+        [
+          {
+            "node": "Email Humanizer2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser16": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Auto-fixing Output Parser3",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Auto-fixing Output Parser3": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Email Humanizer2",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Humanizer2": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Perplexity AI": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Local",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items2": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Research Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model9": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Auto-fixing Output Parser3",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Auto-fixing Output Parser2",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Auto-fixing Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5fb52e6c-88cc-46e4-9b1c-d634bdce2b17",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e2de78a03c736fdbeba906ca671fda9206586433dff3a0a758b5b838488cebd3"
+  },
+  "id": "Jd4V75hcZrsHfu7O",
+  "tags": []
+}

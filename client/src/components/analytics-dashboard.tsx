@@ -289,7 +289,7 @@ export function CommandCenterDashboard({ stats }: CommandCenterDashboardProps) {
         `${stats?.failed || 0} prospects failed research processing`
       ],
       recommendations: [
-        'Ensure n8n webhook is properly configured',
+        'Ensure AI research pipeline is properly configured',
         'Monitor processing times for optimization',
         'Review failed prospects to improve success rate'
       ]

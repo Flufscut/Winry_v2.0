@@ -312,7 +312,7 @@ export default function Landing() {
                     </li>
                     <li className="flex items-center text-slate-600">
                       <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                      Reply.io integration
+                      Email campaign integration
                     </li>
                     <li className="flex items-center text-slate-600">
                       <CheckCircle className="w-4 h-4 text-green-500 mr-2" />

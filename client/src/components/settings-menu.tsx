@@ -172,7 +172,7 @@ export default function SettingsMenu() {
             Webhook Configuration
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure how ProspectPro communicates with external services like n8n workflows.
+            Configure how ProspectPro communicates with external services for automated research.
           </p>
         </div>
 
@@ -197,11 +197,11 @@ export default function SettingsMenu() {
                   id="webhookUrl"
                   value={formData.webhookUrl}
                   onChange={(e) => handleInputChange("webhookUrl", e.target.value)}
-                  placeholder="https://your-n8n-instance.com/webhook/..."
+                  placeholder="https://your-research-service.com/webhook/..."
                   className="font-mono text-sm"
                 />
                 <p className="text-xs text-muted-foreground">
-                  n8n or other webhook service URL for prospect processing
+                  Research service webhook URL for prospect processing
                 </p>
               </div>
 
@@ -314,8 +314,7 @@ export default function SettingsMenu() {
 
               <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg">
                 <p className="text-xs text-blue-700 dark:text-blue-300">
-                  <strong>Configuration Tip:</strong> Use the primary endpoint in your n8n webhook node. 
-                  The legacy endpoint is available for backward compatibility.
+                  <strong>Configuration Tip:</strong> Use the primary endpoint in your research workflow node.
                 </p>
               </div>
             </CardContent>
@@ -359,15 +358,15 @@ export default function SettingsMenu() {
 
       <Separator />
 
-      {/* Reply.io Integration Section */}
+      {/* Email Campaign Integration Section */}
       <div className="space-y-4">
         <div>
           <h3 className="text-lg font-medium text-foreground flex items-center gap-2">
             <Send className="w-5 h-5 text-orange-500" />
-            Reply.io Integration
+            Email Campaign Integration
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
-            Configure Reply.io accounts and automated outreach settings for your prospects.
+            Configure email campaign accounts and automated outreach settings for your prospects.
           </p>
         </div>
 
